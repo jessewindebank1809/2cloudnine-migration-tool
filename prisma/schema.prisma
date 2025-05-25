@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id                    String               @id
+  name                  String?
+  email                 String?              @unique
+  emailVerified         DateTime?
+  image                 String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime
+  salesforceOrgId       String?
+  salesforceInstanceUrl String?
+  Account               Account[]
+  Session               Session[]
+  migration_projects    migration_projects[]
+  organisations         organisations[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model migration_projects {
+  id                                                            String               @id
+  name                                                          String
+  description                                                   String?
+  source_org_id                                                 String
+  target_org_id                                                 String
+  status                                                        migration_status     @default(DRAFT)
+  config                                                        Json                 @default("{}")
+  created_at                                                    DateTime             @default(now())
+  updated_at                                                    DateTime
+  user_id                                                       String
+  organisations_migration_projects_source_org_idToorganisations organisations        @relation("migration_projects_source_org_idToorganisations", fields: [source_org_id], references: [id])
+  organisations_migration_projects_target_org_idToorganisations organisations        @relation("migration_projects_target_org_idToorganisations", fields: [target_org_id], references: [id])
+  User                                                          User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  migration_sessions                                            migration_sessions[]
+}
+
+model migration_records {
+  id                 String             @id
+  session_id         String
+  source_record_id   String?
+  target_record_id   String?
+  object_type        String
+  status             record_status
+  error_message      String?
+  record_data        Json
+  created_at         DateTime           @default(now())
+  migration_sessions migration_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+}
+
+model migration_sessions {
+  id                 String              @id
+  project_id         String
+  object_type        String
+  status             session_status      @default(PENDING)
+  total_records      Int                 @default(0)
+  processed_records  Int                 @default(0)
+  successful_records Int                 @default(0)
+  failed_records     Int                 @default(0)
+  error_log          Json                @default("[]")
+  started_at         DateTime?
+  completed_at       DateTime?
+  created_at         DateTime            @default(now())
+  migration_records  migration_records[]
+  migration_projects migration_projects  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+}
+
+model object_definitions {
+  id                  String   @id
+  name                String
+  api_name            String
+  description         String?
+  is_standard         Boolean  @default(false)
+  field_mappings      Json     @default("{}")
+  relationship_config Json     @default("{}")
+  validation_rules    Json     @default("{}")
+  created_at          DateTime @default(now())
+}
+
+model organisations {
+  id                                                                 String               @id
+  name                                                               String
+  org_type                                                           org_type
+  salesforce_org_id                                                  String?              @unique
+  instance_url                                                       String
+  access_token_encrypted                                             String?
+  refresh_token_encrypted                                            String?
+  token_expires_at                                                   DateTime?
+  user_id                                                            String
+  created_at                                                         DateTime             @default(now())
+  updated_at                                                         DateTime
+  migration_projects_migration_projects_source_org_idToorganisations migration_projects[] @relation("migration_projects_source_org_idToorganisations")
+  migration_projects_migration_projects_target_org_idToorganisations migration_projects[] @relation("migration_projects_target_org_idToorganisations")
+  User                                                               User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+enum migration_status {
+  DRAFT
+  READY
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum org_type {
+  PRODUCTION
+  SANDBOX
+  SCRATCH
+}
+
+enum record_status {
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum session_status {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}

@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Next.js
+.next
+.next/*
+out
+
+# Development
+.env*.local
+.env.local
+
+# Testing
+coverage
+.nyc_output
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs
+*.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# Fly.io
+fly.toml
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+
+# Temp files
+*.tmp
+*.temp 

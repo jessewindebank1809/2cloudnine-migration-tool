@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next/
+out/
+build
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Database
+*.sqlite
+*.db
+
+# Prisma
+prisma/migrations/
+prisma/dev.db
+
+# Testing
+coverage/
+.nyc_output
+
+# Temporary files
+.tmp/
+temp/
+
+# Salesforce CLI
+.sfdx/
+.sf/
+force-app/
+
+# Config files (may contain sensitive data)
+config/
+
+# Screenshots and documentation images
+docs/screenshots/ 
