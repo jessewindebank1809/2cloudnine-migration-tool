@@ -146,9 +146,9 @@ export function AppNavigation({ children }: AppNavigationProps) {
           </div>
           <nav className="flex items-center space-x-6">
             <Link 
-              href="/dashboard" 
+              href="/home" 
               className={`text-sm font-medium transition-colors ${
-                isActive('/dashboard') 
+                isActive('/home') 
                   ? 'text-white font-semibold' 
                   : 'text-white/80 hover:text-white'
               }`}

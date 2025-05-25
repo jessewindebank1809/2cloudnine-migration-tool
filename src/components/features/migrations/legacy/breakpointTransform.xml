@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Entity type="Transformation">
+    <Header Deleted="false" DeployDirty="false" Deployed="true" HasMoved="false"
+        ID="53ae49ba-4ab4-4601-b83d-22e16a0fbd07" Name="jb.breakpoint.transform">
+        <konga.string name="Description" />
+    </Header>
+    <Properties>
+        <Item key="natureofsource" value="Flat" />
+        <Item key="natureoftarget" value="Flat" />
+        <Item key="NoSourceDataUsedInMapping" value="0" />
+        <Item key="sfdc_edgemart_structure_guid" value="" />
+        <Item key="source_text_doc" value="3ce648b3-ddc6-418c-b944-38553f363ad3" />
+        <Item key="source_type_id" value="1" />
+        <Item key="target_text_doc" value="05ec805e-bcdd-4871-854b-59b24d48b8a0" />
+        <Item key="target_type_id" value="1" />
+        <Item key="transformation_id" value="53ae49ba-4ab4-4601-b83d-22e16a0fbd07" />
+    </Properties>
+    <InputStructure docId="3ce648b3-ddc6-418c-b944-38553f363ad3" />
+    <OutputStructure docId="05ec805e-bcdd-4871-854b-59b24d48b8a0" />
+    <Mappings>
+        <Mapping>
+            <konga.string name="expr">[] []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">Id &lt;trans&gt;
+                Id
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">Name &lt;trans&gt;
+                Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">RecordTypeId &lt;trans&gt;
+                $jb.interpretationBreakpoint.rt.dict[RecordType_Name]
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Additional_Interpretation_BP_Details__c &lt;trans&gt;
+                tc9_et__Additional_Interpretation_BP_Details__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Allowance_Type__c &lt;trans&gt;
+                tc9_et__Allowance_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Breakpoint_Type__c &lt;trans&gt;
+                tc9_et__Breakpoint_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Casual_Loading_Pay_Code__r_Name &lt;trans&gt;
+                tc9_et__Casual_Loading_Pay_Code__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Daily_Pay_Code_Cap_Record__c &lt;trans&gt;
+                tc9_et__Daily_Pay_Code_Cap_Record__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Daily_Pay_Code_Cap_Value__c &lt;trans&gt;
+                tc9_et__Daily_Pay_Code_Cap_Value__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Daily_Quantity__c &lt;trans&gt;
+                tc9_et__Daily_Quantity__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Days_Leave_Applies_To_OT_And_Frequency__c
+                &lt;trans&gt;
+                tc9_et__Days_Leave_Applies_To_OT_And_Frequency__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__End_Threshold__c &lt;trans&gt;
+                tc9_et__End_Threshold__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__End_Time__c &lt;trans&gt;
+                tc9_et__End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Frequency_Pay_Code_Cap_Record__c &lt;trans&gt;
+                tc9_et__Frequency_Pay_Code_Cap_Record__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Frequency_Pay_Code_Cap_Value__c &lt;trans&gt;
+                tc9_et__Frequency_Pay_Code_Cap_Value__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Has_Saturday_Rule__c &lt;trans&gt;
+                tc9_et__Has_Saturday_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Has_Sunday_Rule__c &lt;trans&gt;
+                tc9_et__Has_Sunday_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Interpretation_Rule__c &lt;trans&gt;
+                tc9_et__Interpretation_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Interpretation_Rule_Builder__c &lt;trans&gt;
+                tc9_et__Interpretation_Rule_Builder__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Interpretation_Rule_Record_Type__c &lt;trans&gt;
+                tc9_et__Interpretation_Rule_Record_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Interpretation_Variation_Rule__c &lt;trans&gt;
+                tc9_et__Interpretation_Variation_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Leave_Header__c &lt;trans&gt;
+                tc9_et__Leave_Header__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Leave_Loading_Pay_Code__r_Name &lt;trans&gt;
+                tc9_et__Leave_Loading_Pay_Code__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Leave_Rule__c &lt;trans&gt;
+                tc9_et__Leave_Rule__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__No_Cap_Required__c &lt;trans&gt;
+                tc9_et__No_Cap_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overtime_Breakpoint__c &lt;trans&gt;
+                tc9_et__Overtime_Breakpoint__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overtime_Pay_Code__r_Name &lt;trans&gt;
+                tc9_et__Overtime_Pay_Code__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Pay_Code__c &lt;trans&gt;
+                tc9_et__Pay_Code__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Pay_Code__r_Name &lt;trans&gt;
+                tc9_et__Pay_Code__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Pay_Code__r_Id &lt;trans&gt;
+                tc9_et__Pay_Code__r_Id
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Pay_Code_Cap__c &lt;trans&gt;
+                tc9_et__Pay_Code_Cap__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Pay_Partial_Quantity__c &lt;trans&gt;
+                tc9_et__Pay_Partial_Quantity__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Penalty_Loading_Pay_Code__r_Name &lt;trans&gt;
+                tc9_et__Penalty_Loading_Pay_Code__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Primary_Interpretation_Breakpoint__c &lt;trans&gt;
+                tc9_et__Primary_Interpretation_Breakpoint__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Public_Holiday_Pay_Code__r_Name &lt;trans&gt;
+                tc9_et__Public_Holiday_Pay_Code__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Reset_After_Payment__c &lt;trans&gt;
+                tc9_et__Reset_After_Payment__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Saturday_Pay_Code__r_Name &lt;trans&gt;
+                tc9_et__Saturday_Pay_Code__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Secondary_Interpretation_Breakpoint__c &lt;trans&gt;
+                tc9_et__Secondary_Interpretation_Breakpoint__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Start_Threshold__c &lt;trans&gt;
+                tc9_et__Start_Threshold__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Start_Threshold_Type__c &lt;trans&gt;
+                tc9_et__Start_Threshold_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Start_Time__c &lt;trans&gt;
+                tc9_et__Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Sunday_Pay_Code__r_Name &lt;trans&gt;
+                tc9_et__Sunday_Pay_Code__r_Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Variation_Type__c &lt;trans&gt;
+                tc9_et__Variation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">External_Id &lt;trans&gt;
+                Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+    </Mappings>
+    <InvalidMappings />
+    <RenamedNodes />
+</Entity>

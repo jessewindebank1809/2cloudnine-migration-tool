@@ -63,7 +63,7 @@ Or comment out the lines entirely.
 1. **Enable bypass** (as shown above)
 2. **Visit signin page** at `http://localhost:3000/auth/signin`
 3. **Click "Skip OAuth (Development)"** button
-4. **You'll be redirected** to the dashboard as an authenticated user
+4. **You'll be redirected** to the home page as an authenticated user
 5. **Build and test** your migration features without OAuth setup
 
 ## When to Use

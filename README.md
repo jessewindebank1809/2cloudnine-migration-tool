@@ -21,7 +21,7 @@ tc9-migration-tool/
 │   ├── app/                    # Next.js app router pages
 │   │   ├── api/               # API routes
 │   │   ├── auth/              # Authentication pages
-│   │   ├── dashboard/         # Dashboard pages
+│   │   ├── home/             # Home pages
 │   │   ├── migrations/        # Migration management
 │   │   └── orgs/              # Organization management
 │   ├── components/            # React components

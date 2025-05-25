@@ -1,0 +1,791 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Entity type="Transformation">
+    <Header Deleted="false" DeployDirty="false" Deployed="true" HasMoved="false"
+        ID="a39c8a29-ecee-4170-8086-c0fed7a209e6" Name="jb.interpretationRule.transform">
+        <konga.string name="Description" />
+    </Header>
+    <Properties>
+        <Item key="natureofsource" value="Flat" />
+        <Item key="natureoftarget" value="Flat" />
+        <Item key="NoSourceDataUsedInMapping" value="0" />
+        <Item key="sfdc_edgemart_structure_guid" value="" />
+        <Item key="source_text_doc" value="55b64b2c-9c82-4686-969c-0616b65e960a" />
+        <Item key="source_type_id" value="1" />
+        <Item key="target_text_doc" value="4c9fd380-f5d5-4413-8504-df2d0d4228d9" />
+        <Item key="target_type_id" value="1" />
+        <Item key="transformation_id" value="a39c8a29-ecee-4170-8086-c0fed7a209e6" />
+    </Properties>
+    <InputStructure docId="55b64b2c-9c82-4686-969c-0616b65e960a" />
+    <OutputStructure docId="4c9fd380-f5d5-4413-8504-df2d0d4228d9" />
+    <Mappings>
+        <Mapping>
+            <konga.string name="expr">[] []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">External_Id__c &lt;trans&gt;
+                Id
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">Name &lt;trans&gt;
+                Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">RecordTypeId &lt;trans&gt;
+                recordTypeId = $jb.interpretationRule.rt.dict[RecordType_Name];
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_4_Week_Frequency__c &lt;trans&gt;
+                tc9_et__Apply_4_Week_Frequency__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Break_Loading_Interpretation__c &lt;trans&gt;
+                tc9_et__Apply_Break_Loading_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Break_Time_Interpretation__c &lt;trans&gt;
+                tc9_et__Apply_Break_Time_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Casual_Loading__c &lt;trans&gt;
+                tc9_et__Apply_Casual_Loading__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Dual_Leave_Loading_Calculations__c &lt;trans&gt;
+                tc9_et__Apply_Dual_Leave_Loading_Calculations__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Excursion_Interpretation__c &lt;trans&gt;
+                tc9_et__Apply_Excursion_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Interpretation_Variations__c &lt;trans&gt;
+                tc9_et__Apply_Interpretation_Variations__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Minimum_Rest_Interpretation__c &lt;trans&gt;
+                tc9_et__Apply_Minimum_Rest_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Minimum_Rest_on_Overtime__c &lt;trans&gt;
+                tc9_et__Apply_Minimum_Rest_on_Overtime__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c
+                &lt;trans&gt;
+                tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Interpretation__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Friday__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Friday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Monday__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Monday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Public_Holiday__c
+                &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Public_Holiday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Saturday__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Saturday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Sunday__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Sunday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Thursday__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Thursday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Tuesday__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Tuesday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Wednesday__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Wednesday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Overnight_Majority_Weekday__c &lt;trans&gt;
+                tc9_et__Apply_Overnight_Majority_Weekday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Partial_Daily_Rates__c &lt;trans&gt;
+                tc9_et__Apply_Partial_Daily_Rates__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Penalty_Loading__c &lt;trans&gt;
+                tc9_et__Apply_Penalty_Loading__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Shift_End_Or_Start_Interpretation__c
+                &lt;trans&gt;
+                tc9_et__Apply_Shift_End_Or_Start_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Sleepover_Interpretation__c &lt;trans&gt;
+                tc9_et__Apply_Sleepover_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Split_Broken_Shift_Interpretation__c
+                &lt;trans&gt;
+                tc9_et__Apply_Split_Broken_Shift_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Apply_Wake_Up_Interpretation__c &lt;trans&gt;
+                tc9_et__Apply_Wake_Up_Interpretation__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Break_Loading_Hours_Exceeded__c &lt;trans&gt;
+                tc9_et__Break_Loading_Hours_Exceeded__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Break_Loading_Unpaid_Break_Minutes__c &lt;trans&gt;
+                tc9_et__Break_Loading_Unpaid_Break_Minutes__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Broken_Shift_Breakpoint_Application__c &lt;trans&gt;
+                tc9_et__Broken_Shift_Breakpoint_Application__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Broken_Shift_Timesheet_Activity_Required__c
+                &lt;trans&gt;
+                tc9_et__Broken_Shift_Timesheet_Activity_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Days_Frequency_Breakpoints_Accrued__c &lt;trans&gt;
+                tc9_et__Days_Frequency_Breakpoints_Accrued__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Days_Frequency_Breakpoints_Apply__c &lt;trans&gt;
+                tc9_et__Days_Frequency_Breakpoints_Apply__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Days_Minimum_Rest_Hours_Apply2__c &lt;trans&gt;
+                tc9_et__Days_Minimum_Rest_Hours_Apply2__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Days_Minimum_Rest_Hours_Apply__c &lt;trans&gt;
+                tc9_et__Days_Minimum_Rest_Hours_Apply__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Days_Overtime_Breakpoints_Reset__c &lt;trans&gt;
+                tc9_et__Days_Overtime_Breakpoints_Reset__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Days_Total_Span_Hours_Apply2__c &lt;trans&gt;
+                tc9_et__Days_Total_Span_Hours_Apply2__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Days_Total_Span_Hours_Apply__c &lt;trans&gt;
+                tc9_et__Days_Total_Span_Hours_Apply__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Exclude_Overtime_from_Frequency_Hours__c &lt;trans&gt;
+                tc9_et__Exclude_Overtime_from_Frequency_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Excursion_Standard_End_Time__c &lt;trans&gt;
+                tc9_et__Excursion_Standard_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Excursion_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Excursion_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Excursion_Standard_Start_Time__c &lt;trans&gt;
+                tc9_et__Excursion_Standard_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Frequency_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Frequency_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Friday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Friday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Friday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Friday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Has_Rate_Calc_Update_Pending__c &lt;trans&gt;
+                tc9_et__Has_Rate_Calc_Update_Pending__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Has_Saturday_Rule__c &lt;trans&gt;
+                tc9_et__Has_Saturday_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Has_Sunday_Rule__c &lt;trans&gt;
+                tc9_et__Has_Sunday_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Friday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Friday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Monday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Monday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Public_Holiday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Public_Holiday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Saturday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Saturday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Sunday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Sunday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Thursday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Thursday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Tuesday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Tuesday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Wednesday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Wednesday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Higher_Rate_Weekday__c &lt;trans&gt;
+                tc9_et__Higher_Rate_Weekday__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Include_Break_Overtime_In_Overtime__c &lt;trans&gt;
+                tc9_et__Include_Break_Overtime_In_Overtime__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Include_Minimum_Rest_in_Daily_OT_Hours__c
+                &lt;trans&gt;
+                tc9_et__Include_Minimum_Rest_in_Daily_OT_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Include_Paid_Breaks_in_Break_Loading__c &lt;trans&gt;
+                tc9_et__Include_Paid_Breaks_in_Break_Loading__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Include_Time_Breakpoints_In_Overtime__c &lt;trans&gt;
+                tc9_et__Include_Time_Breakpoints_In_Overtime__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Interpretation_Rule_Builder__c &lt;trans&gt;
+                tc9_et__Interpretation_Rule_Builder__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Interpretation_Rule_Name__c &lt;trans&gt;
+                tc9_et__Interpretation_Rule_Name__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Interpretation_Rule_Template_Group__c &lt;trans&gt;
+                tc9_et__Interpretation_Rule_Template_Group__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Interpretation_Rule__c &lt;trans&gt;
+                tc9_et__Interpretation_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Friday_Required__c &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Friday_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Monday_Required__c &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Monday_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Public_Holidays_Req__c
+                &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Public_Holidays_Req__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Saturday_Required__c
+                &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Saturday_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Sunday_Required__c &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Sunday_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Thursday_Required__c
+                &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Thursday_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Tuesday_Required__c &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Tuesday_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Wednesday_Required__c
+                &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Wednesday_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Is_Standard_Time_for_Weekdays_Required__c
+                &lt;trans&gt;
+                tc9_et__Is_Standard_Time_for_Weekdays_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Last_Date_Rate_Calc_Update_Completed__c &lt;trans&gt;
+                tc9_et__Last_Date_Rate_Calc_Update_Completed__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Last_Rate_Calc_Update_Required__c &lt;trans&gt;
+                tc9_et__Last_Rate_Calc_Update_Required__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Long_Description__c &lt;trans&gt;
+                tc9_et__Long_Description__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Frequency_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Frequency_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Friday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Friday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Hours_Based_On__c &lt;trans&gt;
+                tc9_et__Minimum_Hours_Based_On__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Monday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Monday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_OT_Round_Up_Shift_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_OT_Round_Up_Shift_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Public_Holiday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Public_Holiday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Rest_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Rest_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Saturday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Saturday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Sunday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Sunday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Thursday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Thursday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Tuesday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Tuesday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Wednesday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Wednesday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Minimum_Weekday_Paid_Hours__c &lt;trans&gt;
+                tc9_et__Minimum_Weekday_Paid_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Monday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Monday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Monday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Monday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Based_on_Majority_of_Shift__c &lt;trans&gt;
+                tc9_et__Overnight_Based_on_Majority_of_Shift__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Based_on_Shift_Start_Range__c &lt;trans&gt;
+                tc9_et__Overnight_Based_on_Shift_Start_Range__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Friday_Shift_Starting_from__c &lt;trans&gt;
+                tc9_et__Overnight_Friday_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Monday_Shift_Starting_from__c &lt;trans&gt;
+                tc9_et__Overnight_Monday_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_PH_Shift_Starting_from__c &lt;trans&gt;
+                tc9_et__Overnight_PH_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Saturday_Shift_Starting_from__c
+                &lt;trans&gt;
+                tc9_et__Overnight_Saturday_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Sunday_Shift_Starting_from__c &lt;trans&gt;
+                tc9_et__Overnight_Sunday_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Thursday_Shift_Starting_from__c
+                &lt;trans&gt;
+                tc9_et__Overnight_Thursday_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Tuesday_Shift_Starting_from__c &lt;trans&gt;
+                tc9_et__Overnight_Tuesday_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Wednesday_Shift_Starting_from__c
+                &lt;trans&gt;
+                tc9_et__Overnight_Wednesday_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Overnight_Weekday_Shift_Starting_from__c &lt;trans&gt;
+                tc9_et__Overnight_Weekday_Shift_Starting_from__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Pay_Code__c &lt;trans&gt;
+                tc9_et__Pay_Code__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Public_Holiday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Public_Holiday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Public_Holiday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Public_Holiday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Rate_Calculator_Update_Pending__c &lt;trans&gt;
+                tc9_et__Rate_Calculator_Update_Pending__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Reset_Frequency_Overtime_Daily__c &lt;trans&gt;
+                tc9_et__Reset_Frequency_Overtime_Daily__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Saturday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Saturday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Saturday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Saturday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Short_Description__c &lt;trans&gt;
+                tc9_et__Short_Description__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Sleepover_Breakpoint_Application__c &lt;trans&gt;
+                tc9_et__Sleepover_Breakpoint_Application__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Sleepover_Minimum_Rest_Hours__c &lt;trans&gt;
+                tc9_et__Sleepover_Minimum_Rest_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Daily_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Daily_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Daily_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Daily_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Friday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Friday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Friday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Friday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Monday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Monday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Monday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Monday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Public_Holiday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Public_Holiday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Public_Holiday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Public_Holiday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Saturday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Saturday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Saturday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Saturday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Sunday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Sunday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Sunday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Sunday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Thursday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Thursday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Thursday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Thursday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Tuesday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Tuesday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Tuesday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Tuesday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Wednesday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Wednesday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Wednesday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Wednesday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Weekday_End_Time__c &lt;trans&gt;
+                tc9_et__Standard_Weekday_End_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Standard_Weekday_Start_Time__c &lt;trans&gt;
+                tc9_et__Standard_Weekday_Start_Time__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Status__c &lt;trans&gt;
+                tc9_et__Status__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Sunday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Sunday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Sunday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Sunday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Thursday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Thursday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Thursday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Thursday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Timesheet_Frequency__c &lt;trans&gt;
+                tc9_et__Timesheet_Frequency__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Total_Span_Hours__c &lt;trans&gt;
+                tc9_et__Total_Span_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Tuesday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Tuesday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Tuesday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Tuesday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Variation_Record_Type__c &lt;trans&gt;
+                tc9_et__Variation_Record_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Variation_Type__c &lt;trans&gt;
+                tc9_et__Variation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Wednesday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Wednesday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Wednesday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Wednesday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Weekday_Interpretation_Type__c &lt;trans&gt;
+                tc9_et__Weekday_Interpretation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">tc9_et__Weekday_Standard_Hours__c &lt;trans&gt;
+                tc9_et__Weekday_Standard_Hours__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+    </Mappings>
+    <InvalidMappings />
+    <RenamedNodes />
+</Entity>

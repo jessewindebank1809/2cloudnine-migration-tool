@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ObjectSelection } from '@/components/features/migrations/ObjectSelection';
-import { MigrationProgressDashboard } from '@/components/features/migrations/MigrationProgressDashboard';
+import { MigrationProgressHome } from '@/components/features/migrations/MigrationProgressHome';
 
 interface PageProps {
   params: {
@@ -164,7 +164,7 @@ export default function MigrationExecutePage({ params }: PageProps) {
           )}
         </div>
       ) : (
-        <MigrationProgressDashboard
+                        <MigrationProgressHome
           projectId={params.id}
           onComplete={handleComplete}
         />

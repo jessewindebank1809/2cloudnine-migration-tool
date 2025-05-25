@@ -48,7 +48,7 @@ interface SessionProgress {
   };
 }
 
-export function MigrationProgressDashboard({ projectId, onComplete }: MigrationProgressProps) {
+export function MigrationProgressHome({ projectId, onComplete }: MigrationProgressProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // Fetch migration progress

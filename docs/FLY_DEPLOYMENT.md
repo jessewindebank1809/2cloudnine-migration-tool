@@ -160,4 +160,4 @@ To update the application:
 
 - Fly.io Status: https://status.fly.io/
 - Fly.io Community: https://community.fly.io/
-- App Dashboard: https://fly.io/apps/tc9-migration-tool
+- App Home: https://fly.io/apps/tc9-migration-tool

@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the organisation to determine environment type
-    const organisation = await prisma.organisation.findFirst({
-      where: { id: orgId, userId: session.user.id },
+    const organisation = await prisma.organisations.findFirst({
+      where: { id: orgId, user_id: session.user.id },
     });
 
     if (!organisation) {
@@ -32,13 +32,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Select credentials based on org type
-    const clientId = organisation.orgType === 'PRODUCTION' 
+    const clientId = organisation.org_type === 'PRODUCTION' 
       ? process.env.SALESFORCE_PRODUCTION_CLIENT_ID
       : process.env.SALESFORCE_SANDBOX_CLIENT_ID;
 
     if (!clientId) {
       return NextResponse.json(
-        { error: `Salesforce ${organisation.orgType.toLowerCase()} client ID not configured` },
+        { error: `Salesforce ${organisation.org_type.toLowerCase()} client ID not configured` },
         { status: 500 }
       );
     }
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const state = Buffer.from(JSON.stringify({ 
       orgId, 
       userId: session.user.id,
-      orgType: organisation.orgType, // Include org type for callback
+      orgType: organisation.org_type, // Include org type for callback
       targetInstanceUrl: instanceUrl, // Store the target org's instance URL
       codeVerifier // Store PKCE code verifier for token exchange
     })).toString('base64');
@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', 'openid profile email api refresh_token');
     authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('prompt', 'login'); // Force login prompt
     // Add PKCE parameters
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');

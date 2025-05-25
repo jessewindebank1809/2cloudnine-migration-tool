@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Plus, ExternalLink, Trash2, Check, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -22,13 +23,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 interface Organisation {
   id: string;
   name: string;
-  orgType: 'PRODUCTION' | 'SANDBOX';
-  instanceUrl: string;
-  salesforceOrgId: string | null;
-  createdAt: string;
+  org_type: 'PRODUCTION' | 'SANDBOX';
+  instance_url: string;
+  salesforce_org_id: string | null;
+  created_at: string;
 }
 
 export default function OrganisationsPage() {
+  const searchParams = useSearchParams();
   const [isConnectDialogOpen, setIsConnectDialogOpen] = useState(false);
   const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -36,6 +38,14 @@ export default function OrganisationsPage() {
     name: '',
     orgType: 'PRODUCTION' as 'PRODUCTION' | 'SANDBOX',
   });
+
+  // Check for connect parameter to auto-open dialog
+  useEffect(() => {
+    const shouldConnect = searchParams.get('connect');
+    if (shouldConnect === 'true') {
+      setIsConnectDialogOpen(true);
+    }
+  }, [searchParams]);
 
 
 
@@ -85,7 +95,7 @@ export default function OrganisationsPage() {
 
   const handleReconnect = async (org: Organisation) => {
     // Trigger the OAuth flow for the selected organisation
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${org.id}&instanceUrl=${encodeURIComponent(org.instanceUrl)}&orgType=${org.orgType}`;
+    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}`;
     window.location.href = oauthUrl;
   };
 
@@ -264,7 +274,7 @@ export default function OrganisationsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2">
           {organisations.map((org: Organisation) => (
             <Card key={org.id} className="relative">
               <CardHeader>
@@ -301,29 +311,18 @@ export default function OrganisationsPage() {
                       </CardTitle>
                     )}
                     <div className="flex items-center gap-2 mt-2">
-                      <Badge variant={org.orgType === 'PRODUCTION' ? 'default' : 'secondary'}>
-                        {org.orgType === 'PRODUCTION' ? 'Production' : 'Sandbox'}
+                      <Badge variant={org.org_type === 'PRODUCTION' ? 'default' : 'secondary'}>
+                        {org.org_type === 'PRODUCTION' ? 'Production' : 'Sandbox'}
                       </Badge>
                       <Badge 
-                        variant={org.salesforceOrgId ? 'secondary' : 'destructive'}
-                        className={org.salesforceOrgId ? 'bg-green-500 text-white hover:bg-green-600' : ''}
+                        variant={org.salesforce_org_id ? 'secondary' : 'destructive'}
+                        className={org.salesforce_org_id ? 'bg-green-500 text-white hover:bg-green-600' : ''}
                       >
-                        {org.salesforceOrgId ? 'Connected' : 'Disconnected'}
+                        {org.salesforce_org_id ? 'Connected' : 'Disconnected'}
                       </Badge>
                     </div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
-                    {!org.salesforceOrgId && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleReconnect(org)}
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Reconnect
-                      </Button>
-                    )}
                     <Button 
                       variant="ghost" 
                       size="icon"
@@ -341,13 +340,13 @@ export default function OrganisationsPage() {
                     <p className="text-sm font-medium">Instance URL</p>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground truncate">
-                        {org.instanceUrl}
+                        {org.instance_url}
                       </p>
                       <Button 
                         variant="ghost" 
                         size="icon" 
                         className="h-6 w-6"
-                        onClick={() => window.open(org.instanceUrl, '_blank')}
+                        onClick={() => window.open(org.instance_url, '_blank')}
                       >
                         <ExternalLink className="h-3 w-3" />
                       </Button>
@@ -357,15 +356,32 @@ export default function OrganisationsPage() {
                   <div>
                     <p className="text-sm font-medium">Org ID</p>
                     <p className="text-sm text-muted-foreground">
-                      {org.salesforceOrgId}
+                      {org.salesforce_org_id || 'Not connected'}
                     </p>
                   </div>
 
-                  <div>
-                    <p className="text-sm font-medium">Connected</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(org.createdAt).toLocaleDateString()}
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Connected</p>
+                      <p className="text-sm text-muted-foreground">
+                        {org.created_at ? new Date(org.created_at).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: '2-digit', 
+                          year: 'numeric'
+                        }) : 'Unknown'}
+                      </p>
+                    </div>
+                    {!org.salesforce_org_id && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleReconnect(org)}
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Reconnect
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>

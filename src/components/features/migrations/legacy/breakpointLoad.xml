@@ -1,0 +1,451 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Entity type="Transformation">
+    <Header Deleted="false" DeployDirty="false" Deployed="true" HasMoved="false"
+        ID="bb29cede-1af6-4dc4-9641-02dd4b4737f9" Name="jb.breakpoint.load.request">
+        <konga.string name="Description" />
+    </Header>
+    <Properties>
+        <Item key="natureofsource" value="Flat" />
+        <Item key="natureoftarget" value="Tree" />
+        <Item key="NoSourceDataUsedInMapping" value="0" />
+        <Item key="output_function_id" value="e0d1b423-93d6-4ad0-91f6-8251b22d626b" />
+        <Item key="saleforce_wizard_role" value="UPSERT|REQUEST" />
+        <Item key="salesforce_object"
+            value="{urn:sobject.partner.soap.sforce.com}tc9_et__Interpretation_Breakpoint__c" />
+        <Item key="salesforce_partner_wizard" value="1" />
+        <Item key="salesforce_wizard_object" value="1" />
+        <Item key="sfdc_edgemart_structure_guid" value="" />
+        <Item key="source_text_doc" value="05ec805e-bcdd-4871-854b-59b24d48b8a0" />
+        <Item key="source_type_id" value="1" />
+        <Item key="target_type_id" value="12" />
+        <Item key="transformation_id" value="bb29cede-1af6-4dc4-9641-02dd4b4737f9" />
+    </Properties>
+    <InputStructure docId="05ec805e-bcdd-4871-854b-59b24d48b8a0" />
+    <OutputStructure wsCallId="e0d1b423-93d6-4ad0-91f6-8251b22d626b" />
+    <Mappings>
+        <Mapping>
+            <konga.string name="expr">root$transaction./PRECONDITION/ &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                $jitterbit.web_service_call.number_of_retries = 3;
+                $jitterbit.web_service_call.retry_wait_seconds = 30;
+                true
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.] []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.header$DebuggingHeader$categories.] []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.header$OwnerChangeOptions$options.] []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Casual_Loading_Pay_Code__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Daily_Pay_Code_Cap_Record__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Frequency_Pay_Code_Cap_Record__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Interpretation_Rule__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Interpretation_Variation_Rule__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Leave_Header__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Leave_Loading_Pay_Code__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Leave_Rule__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Overtime_Pay_Code__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Pay_Code__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Penalty_Loading_Pay_Code__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Primary_Interpretation_Breakpoint__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Public_Holiday_Pay_Code__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Saturday_Pay_Code__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Secondary_Interpretation_Breakpoint__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">[root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Sunday_Pay_Code__r.]
+                []</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$SessionHeader$sessionId$ &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                Get("__Salesforce.SessionID.fe73e1b7-a570-42fe-b8c9-eecc47ed23ab")
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$MruHeader$updateMru$ &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$AllowFieldTruncationHeader$allowFieldTruncation$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$DisableFeedTrackingHeader$disableFeedTracking$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$StreamingEnabledHeader$streamingEnabled$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$AllOrNoneHeader$allOrNone$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$DuplicateRuleHeader$allowSave$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$DuplicateRuleHeader$includeRecordDetails$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$DuplicateRuleHeader$runAsCurrentUser$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$EmailHeader$triggerAutoResponseEmail$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$EmailHeader$triggerOtherEmail$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.header$EmailHeader$triggerUserEmail$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                false
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$externalIDFieldName$
+                &lt;trans&gt;
+                // This mapping is part of a Salesforce wizard.
+                // Modifying it may cause the wizard to malfunction.
+                "External_Id__c"
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.External_Id__c$
+                &lt;trans&gt;
+                Id
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.Name$
+                &lt;trans&gt;
+                Name
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.RecordTypeId$
+                &lt;trans&gt;
+                RecordTypeId
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Additional_Interpretation_BP_Details__c$
+                &lt;trans&gt;
+                tc9_et__Additional_Interpretation_BP_Details__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Allowance_Type__c$
+                &lt;trans&gt;
+                tc9_et__Allowance_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Breakpoint_Type__c$
+                &lt;trans&gt;
+                tc9_et__Breakpoint_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Daily_Quantity__c$
+                &lt;trans&gt;
+                IfEmpty(double(tc9_et__Daily_Quantity__c), unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Days_Leave_Applies_To_OT_And_Frequency__c$
+                &lt;trans&gt;
+                tc9_et__Days_Leave_Applies_To_OT_And_Frequency__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__End_Threshold__c$
+                &lt;trans&gt;
+                IfEmpty(double(tc9_et__End_Threshold__c),unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__End_Time__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__End_Time__c, unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Has_Saturday_Rule__c$
+                &lt;trans&gt;
+                IfEmpty(bool(tc9_et__Has_Saturday_Rule__c),unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Has_Sunday_Rule__c$
+                &lt;trans&gt;
+                IfEmpty(bool(tc9_et__Has_Sunday_Rule__c),unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Minimum_Paid_Hours__c$
+                &lt;trans&gt;
+                IfEmpty(double(tc9_et__Minimum_Paid_Hours__c),unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__No_Cap_Required__c$
+                &lt;trans&gt;
+                IfEmpty(bool(tc9_et__No_Cap_Required__c),unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Overtime_Breakpoint__c$
+                &lt;trans&gt;
+                tc9_et__Overtime_Breakpoint__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Pay_Code_Cap__c$
+                &lt;trans&gt;
+                IfEmpty(double(tc9_et__Pay_Code_Cap__c),unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Pay_Partial_Quantity__c$
+                &lt;trans&gt;
+                tc9_et__Pay_Partial_Quantity__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Reset_After_Payment__c$
+                &lt;trans&gt;
+                tc9_et__Reset_After_Payment__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Start_Threshold_Type__c$
+                &lt;trans&gt;
+                tc9_et__Start_Threshold_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Start_Threshold__c$
+                &lt;trans&gt;
+                IfEmpty(double(tc9_et__Start_Threshold__c),unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Start_Time__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Start_Time__c, unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Variation_Type__c$
+                &lt;trans&gt;
+                tc9_et__Variation_Type__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Casual_Loading_Pay_Code__r.External_Id_it__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Casual_Loading_Pay_Code__r_Name,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Daily_Pay_Code_Cap_Record__r.External_Id__c$
+                &lt;trans&gt;
+                If($jb.payCodeCap == true,
+                unmap(),
+                tc9_et__Daily_Pay_Code_Cap_Record__c
+                )
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Frequency_Pay_Code_Cap_Record__r.External_Id__c$
+                &lt;trans&gt;
+                If($jb.payCodeCap == true,
+                unmap(),
+                tc9_et__Frequency_Pay_Code_Cap_Record__c
+                )
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Interpretation_Rule__r.External_Id__c$
+                &lt;trans&gt;
+                tc9_et__Interpretation_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Interpretation_Variation_Rule__r.External_Id__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Interpretation_Variation_Rule__c,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Leave_Header__r.External_Id__c$
+                &lt;trans&gt;
+                tc9_et__Leave_Header__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Leave_Loading_Pay_Code__r.External_Id_it__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Leave_Loading_Pay_Code__r_Name,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Leave_Rule__r.External_Id__c$
+                &lt;trans&gt;
+                tc9_et__Leave_Rule__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Overtime_Pay_Code__r.External_Id_it__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Overtime_Pay_Code__r_Name,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Pay_Code__r.External_Id_it__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Pay_Code__r_Name,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Penalty_Loading_Pay_Code__r.External_Id_it__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Penalty_Loading_Pay_Code__r_Name,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Primary_Interpretation_Breakpoint__r.External_Id__c$
+                &lt;trans&gt;
+                tc9_et__Primary_Interpretation_Breakpoint__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Public_Holiday_Pay_Code__r.External_Id_it__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Public_Holiday_Pay_Code__r_Name,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Saturday_Pay_Code__r.External_Id_it__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Saturday_Pay_Code__r_Name,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Secondary_Interpretation_Breakpoint__r.External_Id__c$
+                &lt;trans&gt;
+                tc9_et__Secondary_Interpretation_Breakpoint__c
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+        <Mapping>
+            <konga.string name="expr">root$transaction.body$upsert$tc9_et__Interpretation_Breakpoint__c.tc9_et__Sunday_Pay_Code__r.External_Id_it__c$
+                &lt;trans&gt;
+                IfEmpty(tc9_et__Sunday_Pay_Code__r_Name,unmap())
+                &lt;/trans&gt;</konga.string>
+        </Mapping>
+    </Mappings>
+    <InvalidMappings />
+    <RenamedNodes />
+</Entity>

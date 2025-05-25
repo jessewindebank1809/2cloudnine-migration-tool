@@ -5,14 +5,19 @@
     "private": true,
     "scripts": {
         "dev": "next dev",
+        "dev:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && next dev",
         "build": "next build",
+        "build:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && next build",
         "start": "next start",
+        "start:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && next start",
         "lint": "next lint",
         "type-check": "tsc --noEmit",
         "db:generate": "prisma generate",
         "db:push": "prisma db push",
         "db:migrate": "prisma migrate dev",
-        "db:studio": "prisma studio"
+        "db:migrate:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && prisma migrate dev",
+        "db:studio": "prisma studio",
+        "db:studio:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && prisma studio"
     },
     "dependencies": {
         "@prisma/client": "^5.20.0",

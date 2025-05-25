@@ -466,7 +466,7 @@ const designTokens = {
 interface AppStructure {
     navigation: {
         main: [
-            { label: "Dashboard"; path: "/" },
+            { label: "Home"; path: "/" },
             { label: "Organizations"; path: "/orgs" },
             { label: "Migrations"; path: "/migrations" },
             { label: "Templates"; path: "/templates" },
@@ -500,8 +500,8 @@ interface AppStructure {
 ### Key UI Components
 
 ```typescript
-// Dashboard Overview
-interface DashboardData {
+// Home Overview
+interface HomeData {
     orgConnections: {
         total: number;
         active: number;
@@ -642,7 +642,7 @@ interface ProjectBuilder {
 - [x] Migration project builder wizard with step-by-step flow
 - [x] Object selection interface with 2cloudnine recommendations
 - [x] Migration project list with status tracking
-- [x] Real-time execution dashboard with progress bars
+- [x] Real-time execution home with progress bars
 - [x] Performance metrics and time estimates
 
 ### Phase 4: Enterprise Features (Week 7-8)
@@ -652,7 +652,7 @@ interface ProjectBuilder {
 - [ ] Migration templates for reusable configurations
 - [ ] Scheduled migrations
 - [ ] Migration history and audit trail
-- [ ] Analytics and reporting dashboard
+- [ ] Analytics and reporting home
 - [ ] Export capabilities for compliance
 
 #### **Multi-tenancy & Scaling**
@@ -691,7 +691,7 @@ interface ProjectBuilder {
 
 #### **Launch Preparation**
 
-- [ ] Production monitoring dashboards
+- [ ] Production monitoring home
 - [ ] Error alerting and incident response
 - [ ] User onboarding flows
 - [ ] Documentation finalization
@@ -728,7 +728,7 @@ interface ProjectBuilder {
 3. **Beautiful Migration UI**
    - Intuitive project builder wizard
    - Smart object selection with recommendations
-   - Real-time progress dashboard
+   - Real-time progress home
    - Performance metrics and time estimates
    - Consistent 2cloudnine design throughout
 
@@ -757,7 +757,7 @@ interface ProjectBuilder {
    - 2cloudnine design language
    - Clear value proposition
 
-2. **Dashboard** (`http://localhost:3000/dashboard`)
+2. **Home** (`http://localhost:3000/home`)
    - Migration statistics overview
    - Recent migration tracking
    - Quick action buttons
@@ -783,7 +783,7 @@ interface ProjectBuilder {
 6. **Migration User Interface** (NEW!) ✅
    - **Project Builder Wizard** - Step-by-step migration setup
    - **Object Selection** - Smart recommendations for 2cloudnine objects
-   - **Real-time Dashboard** - Live progress with performance metrics
+   - **Real-time Home** - Live progress with performance metrics
    - **Project Management** - List view with status tracking
    - **Beautiful UI** - Consistent 2cloudnine design language
 

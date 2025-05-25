@@ -88,7 +88,7 @@ SALESFORCE_TOKEN_URL="https://your-scratch-org-domain.scratch.my.salesforce-site
 2. Go to `/auth/signin`
 3. Click **Continue with Salesforce**
 4. You should be redirected to Salesforce login
-5. After successful authentication, you'll be redirected back to the dashboard
+5. After successful authentication, you'll be redirected back to the home page
 
 ## Benefits of Salesforce Authentication
 

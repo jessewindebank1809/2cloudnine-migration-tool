@@ -51,7 +51,7 @@ NEXT_PUBLIC_SALESFORCE_CLIENT_ID="your_consumer_key_from_connected_app"
 
 1. Navigate to `/auth/signup` to create an account
 2. Or go to `/auth/signin` to sign in with existing credentials
-3. Once authenticated, users are redirected to `/dashboard`
+3. Once authenticated, users are redirected to `/home`
 4. All organisations and migrations are scoped to the authenticated user
 
 ## API Authentication

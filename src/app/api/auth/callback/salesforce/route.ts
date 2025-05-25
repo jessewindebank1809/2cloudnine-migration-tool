@@ -90,6 +90,7 @@ async function handleSigninCallback(request: NextRequest, code: string, stateDat
         name: userName,
         salesforceOrgId: userInfo.organization_id,
         image: userInfo.photos?.picture || null,
+        updatedAt: new Date(),
       },
       create: {
         id: crypto.randomUUID(),
@@ -105,7 +106,7 @@ async function handleSigninCallback(request: NextRequest, code: string, stateDat
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
     // Set session cookie
-    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard`);
+    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/home`);
     response.cookies.set('salesforce-session', JSON.stringify({
       userId: user.id,
       email: user.email,
@@ -161,8 +162,8 @@ export async function GET(request: NextRequest) {
     const { orgId, userId, orgType, targetInstanceUrl, codeVerifier } = stateData;
 
     // Verify the organisation exists and belongs to the user
-    const organisation = await prisma.organisation.findFirst({
-      where: { id: orgId, userId },
+    const organisation = await prisma.organisations.findFirst({
+      where: { id: orgId, user_id: userId },
     });
 
     if (!organisation) {
@@ -226,14 +227,15 @@ export async function GET(request: NextRequest) {
 
     // TODO: Encrypt tokens before storing
     // For now, storing as-is but this should be encrypted in production
-    await prisma.organisation.update({
+    await prisma.organisations.update({
       where: { id: orgId },
       data: {
-        salesforceOrgId: userInfo.organization_id,
-        instanceUrl: tokenData.instance_url,
-        accessTokenEncrypted: tokenData.access_token, // TODO: Encrypt
-        refreshTokenEncrypted: tokenData.refresh_token, // TODO: Encrypt
-        tokenExpiresAt: tokenData.issued_at ? new Date(parseInt(tokenData.issued_at)) : null,
+        salesforce_org_id: userInfo.organization_id,
+        instance_url: tokenData.instance_url,
+        access_token_encrypted: tokenData.access_token, // TODO: Encrypt
+        refresh_token_encrypted: tokenData.refresh_token, // TODO: Encrypt
+        token_expires_at: tokenData.issued_at ? new Date(parseInt(tokenData.issued_at)) : null,
+        updated_at: new Date(),
       },
     });
 

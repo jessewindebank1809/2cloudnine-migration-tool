@@ -46,15 +46,15 @@ interface MigrationProject {
   created_at: string;
 }
 
-interface DashboardData {
+interface HomeData {
   organisations: Organisation[];
   projects: MigrationProject[];
   isLoading: boolean;
   error: string | null;
 }
 
-export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData>({
+export default function HomePage() {
+  const [data, setData] = useState<HomeData>({
     organisations: [],
     projects: [],
     isLoading: true,
@@ -98,11 +98,11 @@ export default function DashboardPage() {
           error: null
         });
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error fetching home data:', error);
         setData(prev => ({
           ...prev,
           isLoading: false,
-          error: 'Failed to load dashboard data'
+          error: 'Failed to load home data'
         }));
       }
     };
@@ -110,7 +110,7 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  // Calculate dashboard statistics
+  // Calculate home statistics
   const stats = {
     orgConnections: {
       total: data.organisations.length,
@@ -156,7 +156,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-c9-blue-500"></div>
-          <span className="ml-2 text-muted-foreground">Loading dashboard data...</span>
+          <span className="ml-2 text-muted-foreground">Loading home data...</span>
         </div>
       </div>
     );
@@ -293,32 +293,32 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <Link href="/orgs">
-                  <Button className="w-full justify-start" variant="outline">
-                    <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex flex-col gap-3">
+                <Link href="/orgs?connect=true" className="block">
+                  <Button className="w-full justify-start h-12 text-left" variant="outline">
+                    <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Connect New Organisation
                   </Button>
                 </Link>
-                <Link href="/migrations/new">
-                  <Button className="w-full justify-start" variant="outline">
-                    <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <Link href="/migrations/new" className="block">
+                  <Button className="w-full justify-start h-12 text-left" variant="outline">
+                    <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                     </svg>
                     Create Migration Project
                   </Button>
                 </Link>
-                <Button className="w-full justify-start" variant="outline" disabled>
-                  <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <Button className="w-full justify-start h-12 text-left" variant="outline" disabled>
+                  <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   View Templates (Coming Soon)
                 </Button>
-                <Button className="w-full justify-start" variant="outline" disabled>
-                  <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <Button className="w-full justify-start h-12 text-left" variant="outline" disabled>
+                  <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                   View Analytics (Coming Soon)
                 </Button>

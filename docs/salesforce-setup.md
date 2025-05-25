@@ -86,6 +86,6 @@ SALESFORCE_CLIENT_SECRET="your_consumer_secret_here"
 ```bash
 # Test with the migration tool
 npm run dev
-# Navigate to http://localhost:3000/dashboard
+# Navigate to http://localhost:3000/home
 # Click "Connect New Organization"
 ```

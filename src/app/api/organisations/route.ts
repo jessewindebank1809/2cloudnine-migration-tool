@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { requireAuth } from '@/lib/auth/session-helper';
+import crypto from 'crypto';
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,11 +62,13 @@ export async function POST(request: NextRequest) {
 
     const organisation = await prisma.organisations.create({
       data: {
+        id: crypto.randomUUID(),
         name,
         org_type: orgType,
         instance_url: finalInstanceUrl,
         user_id: session.user.id,
         salesforce_org_id: null, // Will be populated when we connect via OAuth
+        updated_at: new Date(),
       },
     });
 
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       organisation,
       nextStep: 'oauth',
-      oauthUrl: `/api/auth/oauth2/salesforce?orgId=${organisation.id}&instanceUrl=${encodeURIComponent(finalInstanceUrl)}&orgType=${orgType}`
+      oauthUrl: `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(organisation.id)}&instanceUrl=${encodeURIComponent(finalInstanceUrl)}`
     }, { status: 201 });
   } catch (error) {
     console.error('Failed to create organisation:', error);

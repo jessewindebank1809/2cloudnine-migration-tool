@@ -12,14 +12,14 @@ export async function DELETE(
     const { id } = params;
 
     // Check if organisation exists and belongs to user
-    const organisation = await prisma.organisation.findFirst({
+    const organisation = await prisma.organisations.findFirst({
       where: { 
         id,
-        userId: session.user.id
+        user_id: session.user.id
       },
       include: {
-        sourceProjects: true,
-        targetProjects: true,
+        migration_projects_migration_projects_source_org_idToorganisations: true,
+        migration_projects_migration_projects_target_org_idToorganisations: true,
       },
     });
 
@@ -31,7 +31,8 @@ export async function DELETE(
     }
 
     // Check if organisation is being used in any migration projects
-    const totalProjects = organisation.sourceProjects.length + organisation.targetProjects.length;
+    const totalProjects = organisation.migration_projects_migration_projects_source_org_idToorganisations.length + 
+                          organisation.migration_projects_migration_projects_target_org_idToorganisations.length;
     if (totalProjects > 0) {
       return NextResponse.json(
         { 
@@ -43,7 +44,7 @@ export async function DELETE(
     }
 
     // Delete the organisation
-    await prisma.organisation.delete({
+    await prisma.organisations.delete({
       where: { id },
     });
 
@@ -83,10 +84,10 @@ export async function PATCH(
     }
 
     // Check if organisation exists and belongs to user
-    const organisation = await prisma.organisation.findFirst({
+    const organisation = await prisma.organisations.findFirst({
       where: { 
         id,
-        userId: session.user.id
+        user_id: session.user.id
       },
     });
 
@@ -98,9 +99,12 @@ export async function PATCH(
     }
 
     // Update the organisation name
-    const updatedOrganisation = await prisma.organisation.update({
+    const updatedOrganisation = await prisma.organisations.update({
       where: { id },
-      data: { name: name.trim() },
+      data: { 
+        name: name.trim(),
+        updated_at: new Date()
+      },
     });
 
     return NextResponse.json({ 
@@ -130,16 +134,16 @@ export async function GET(
     const session = await requireAuth(request);
     const { id } = params;
 
-    const organisation = await prisma.organisation.findFirst({
+    const organisation = await prisma.organisations.findFirst({
       where: { 
         id,
-        userId: session.user.id
+        user_id: session.user.id
       },
       include: {
-        sourceProjects: {
+        migration_projects_migration_projects_source_org_idToorganisations: {
           select: { id: true, name: true },
         },
-        targetProjects: {
+        migration_projects_migration_projects_target_org_idToorganisations: {
           select: { id: true, name: true },
         },
       },

@@ -48,7 +48,7 @@ export default function SignUpPage() {
       
       const result = await authClient.signIn.oauth2({
         providerId: "salesforce",
-        callbackURL: "/dashboard",
+        callbackURL: "/home",
       });
       
       console.log('OAuth result:', result);
