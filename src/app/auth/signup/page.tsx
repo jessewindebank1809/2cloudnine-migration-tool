@@ -71,8 +71,12 @@ export default function SignUpPage() {
       <div className="max-w-md w-full space-y-8">
         {/* Header with Salesforce Branding */}
         <div className="text-center">
-          <div className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-c9-blue-400 to-c9-blue-600 flex items-center justify-center mb-6 shadow-xl shadow-c9-blue-200/50">
-            <SalesforceLogo className="h-10 w-10 text-white" />
+          <div className="mx-auto h-20 w-auto flex items-center justify-center mb-6">
+            <img 
+              src="/Cloudnine Reversed Standard 2.png" 
+              alt="2cloudnine Logo" 
+              className="h-16 w-auto"
+            />
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">
             Join 2cloudnine

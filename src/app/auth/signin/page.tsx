@@ -59,11 +59,11 @@ export default function SignInPage() {
       <div className="max-w-md w-full space-y-8">
         {/* Header with 2cloudnine Branding */}
         <div className="text-center">
-          <div className="mx-auto h-24 w-24 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-c9-blue-200/50 bg-c9-blue-500">
+          <div className="mx-auto h-24 w-auto flex items-center justify-center mb-6">
             <img 
-              src="/2cloudnine-logo.svg" 
+              src="/Cloudnine Reversed Standard 2.png" 
               alt="2cloudnine Logo" 
-              className="h-20 w-20 filter brightness-0 invert"
+              className="h-20 w-auto"
             />
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">
