@@ -77,7 +77,7 @@ export class OrgCapabilityDetector {
       return latestVersion.version;
     } catch (error) {
       console.error('Failed to get API version:', error);
-      return '59.0'; // Default fallback
+      return '63.0'; // Default fallback
     }
   }
 
@@ -100,7 +100,7 @@ export class OrgCapabilityDetector {
       
       // Check for Bulk API 2.0
       try {
-        await connection.request('/services/data/v59.0/jobs/ingest');
+        await connection.request('/services/data/v63.0/jobs/ingest');
         features.bulkApi2 = true;
       } catch {
         features.bulkApi2 = false;
@@ -108,7 +108,7 @@ export class OrgCapabilityDetector {
 
       // Check for streaming API
       try {
-        await connection.request('/services/data/v59.0/sobjects/PushTopic');
+        await connection.request('/services/data/v63.0/sobjects/PushTopic');
         features.streamingApi = true;
       } catch {
         features.streamingApi = false;
@@ -150,7 +150,7 @@ export class OrgCapabilityDetector {
       }
 
       const connection = (this.client as any).connection;
-      const limits = await connection.request('/services/data/v59.0/limits');
+      const limits = await connection.request('/services/data/v63.0/limits');
 
       return {
         apiDailyRequests: limits.DailyApiRequests?.Max || defaultLimits.apiDailyRequests,
@@ -176,7 +176,7 @@ export class OrgCapabilityDetector {
       const customObjects = globalDescribe.sobjects.filter((obj: any) => obj.custom);
       
       // Get limits for custom objects
-      const limits = await connection.request('/services/data/v59.0/limits');
+      const limits = await connection.request('/services/data/v63.0/limits');
       const maxCustomObjects = limits.CustomObjectLimit?.Max || 200;
 
       return {

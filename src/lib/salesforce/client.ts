@@ -18,6 +18,7 @@ export class SalesforceClient {
       instanceUrl: org.instanceUrl,
       accessToken: org.accessToken,
       refreshToken: org.refreshToken,
+      version: '63.0',
       oauth2: {
         clientId,
         clientSecret,
@@ -122,7 +123,7 @@ export class SalesforceClient {
 
   async getLimits() {
     try {
-      const limits = await this.connection.request('/services/data/v59.0/limits') as any;
+      const limits = await this.connection.request('/services/data/v63.0/limits') as any;
       return {
         success: true,
         data: {

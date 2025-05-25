@@ -93,16 +93,16 @@ const authUrl = `${targetOrgInstanceUrl}/services/oauth2/authorize`;
 const tokenUrl = `${targetOrgInstanceUrl}/services/oauth2/token`;
 
 // API calls - use tokens against target org
-const apiUrl = `${targetOrgInstanceUrl}/services/data/v58.0/sobjects/Account`;
+const apiUrl = `${targetOrgInstanceUrl}/services/data/v63.0/sobjects/Account`;
 ```
 
 ### 2. State Parameter
 
 ```typescript
 const state = {
-    orgId: "uuid-for-our-db-record",
-    userId: "user-id-in-our-system",
-    targetInstanceUrl: "https://client-org.my.salesforce.com",
+   orgId: "uuid-for-our-db-record",
+   userId: "user-id-in-our-system",
+   targetInstanceUrl: "https://client-org.my.salesforce.com",
 };
 ```
 
@@ -111,13 +111,13 @@ const state = {
 ```typescript
 // Store tokens associated with specific org
 await prisma.organisation.update({
-    where: { id: orgId },
-    data: {
-        salesforceOrgId: userInfo.organization_id, // Target org's ID
-        instanceUrl: tokenData.instance_url, // Target org's URL
-        accessTokenEncrypted: tokenData.access_token,
-        refreshTokenEncrypted: tokenData.refresh_token,
-    },
+   where: { id: orgId },
+   data: {
+      salesforceOrgId: userInfo.organization_id, // Target org's ID
+      instanceUrl: tokenData.instance_url, // Target org's URL
+      accessTokenEncrypted: tokenData.access_token,
+      refreshTokenEncrypted: tokenData.refresh_token,
+   },
 });
 ```
 

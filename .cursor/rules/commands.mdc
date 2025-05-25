@@ -3,4 +3,4 @@ description:
 globs: 
 alwaysApply: true
 ---
-the server should always be running on port 3000 for local development
+- the server should always be running on port 3000 for local development

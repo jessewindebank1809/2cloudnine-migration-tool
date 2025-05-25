@@ -1067,7 +1067,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
         author: "2cloudnine",
         createdAt: new Date(),
         updatedAt: new Date(),
-        supportedApiVersions: ["58.0", "59.0", "60.0"],
+        supportedApiVersions: ["63.0"],
         requiredPermissions: [
             "tc9_et__Interpretation_Rule__c.Create",
             "tc9_et__Interpretation_Breakpoint__c.Create",

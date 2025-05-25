@@ -115,7 +115,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       where: { id: params.id },
       data: {
         ...validation.data,
-        updatedAt: new Date(),
+        updated_at: new Date(),
       },
       include: {
         sourceOrg: true,
