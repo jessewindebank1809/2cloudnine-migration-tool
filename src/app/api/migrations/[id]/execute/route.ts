@@ -123,7 +123,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Get project
-    const project = await prisma.migrationProject.findUnique({
+    const project = await prisma.migration_projects.findUnique({
       where: { id: params.id },
     });
 
@@ -145,11 +145,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     migrationEngine.cancelMigration();
 
     // Update project status
-    await prisma.migrationProject.update({
+    await prisma.migration_projects.update({
       where: { id: params.id },
       data: {
         status: 'DRAFT',
-        updatedAt: new Date(),
+        updated_at: new Date(),
       }
     });
 

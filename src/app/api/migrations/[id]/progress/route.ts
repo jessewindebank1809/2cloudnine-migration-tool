@@ -14,18 +14,18 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     // Get active sessions for this project
-    const sessions = await prisma.migrationSession.findMany({
+    const sessions = await prisma.migration_sessions.findMany({
       where: {
-        projectId: params.id,
+        project_id: params.id,
         status: {
           in: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED']
         }
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created_at: 'desc' },
       include: {
         _count: {
           select: {
-            records: true
+            migration_records: true
           }
         }
       }
@@ -62,12 +62,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           progress: {
             sessionId: session.id,
             status: session.status,
-            totalRecords: session.totalRecords,
-            processedRecords: session.processedRecords,
-            successfulRecords: session.successfulRecords,
-            failedRecords: session.failedRecords,
-            percentComplete: session.totalRecords > 0 
-              ? Math.round((session.processedRecords / session.totalRecords) * 100)
+            totalRecords: session.total_records,
+            processedRecords: session.processed_records,
+            successfulRecords: session.successful_records,
+            failedRecords: session.failed_records,
+            percentComplete: session.total_records > 0 
+              ? Math.round((session.processed_records / session.total_records) * 100)
               : 0,
           }
         };
@@ -75,10 +75,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
 
     // Calculate overall project progress
-    const totalRecords = sessions.reduce((sum, s) => sum + s.totalRecords, 0);
-    const processedRecords = sessions.reduce((sum, s) => sum + s.processedRecords, 0);
-    const successfulRecords = sessions.reduce((sum, s) => sum + s.successfulRecords, 0);
-    const failedRecords = sessions.reduce((sum, s) => sum + s.failedRecords, 0);
+    const totalRecords = sessions.reduce((sum, s) => sum + s.total_records, 0);
+    const processedRecords = sessions.reduce((sum, s) => sum + s.processed_records, 0);
+    const successfulRecords = sessions.reduce((sum, s) => sum + s.successful_records, 0);
+    const failedRecords = sessions.reduce((sum, s) => sum + s.failed_records, 0);
     const overallProgress = totalRecords > 0 
       ? Math.round((processedRecords / totalRecords) * 100)
       : 0;

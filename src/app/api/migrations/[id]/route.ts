@@ -26,31 +26,31 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const project = await prisma.migrationProject.findUnique({
+    const project = await prisma.migration_projects.findUnique({
       where: { id: params.id },
       include: {
-        sourceOrg: {
+        organisations_migration_projects_source_org_idToorganisations: {
           select: {
             id: true,
             name: true,
-            instanceUrl: true,
-            salesforceOrgId: true,
+            instance_url: true,
+            salesforce_org_id: true,
           }
         },
-        targetOrg: {
+        organisations_migration_projects_target_org_idToorganisations: {
           select: {
             id: true,
             name: true,
-            instanceUrl: true,
-            salesforceOrgId: true,
+            instance_url: true,
+            salesforce_org_id: true,
           }
         },
-        sessions: {
-          orderBy: { createdAt: 'desc' },
+        migration_sessions: {
+          orderBy: { created_at: 'desc' },
           include: {
             _count: {
               select: {
-                records: true
+                migration_records: true
               }
             }
           }
@@ -91,7 +91,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if project exists
-    const existing = await prisma.migrationProject.findUnique({
+    const existing = await prisma.migration_projects.findUnique({
       where: { id: params.id },
     });
 
@@ -111,7 +111,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update the project
-    const updated = await prisma.migrationProject.update({
+    const updated = await prisma.migration_projects.update({
       where: { id: params.id },
       data: {
         ...validation.data,
