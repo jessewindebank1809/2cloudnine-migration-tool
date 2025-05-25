@@ -34,11 +34,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get project with orgs
-    const project = await prisma.migrationProject.findUnique({
+    const project = await prisma.migration_projects.findUnique({
       where: { id: params.id },
       include: {
-        sourceOrg: true,
-        targetOrg: true,
+        organisations_migration_projects_source_org_idToorganisations: true,
+        organisations_migration_projects_target_org_idToorganisations: true,
       }
     });
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update project status to RUNNING
-    await prisma.migrationProject.update({
+    await prisma.migration_projects.update({
       where: { id: params.id },
       data: { status: 'RUNNING' }
     });
@@ -80,22 +80,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         );
 
         // Update project status based on result
-        await prisma.migrationProject.update({
+        await prisma.migration_projects.update({
           where: { id: params.id },
           data: {
             status: result.success ? 'COMPLETED' : 'FAILED',
-            updatedAt: new Date(),
+            updated_at: new Date(),
           }
         });
       } catch (error) {
         console.error('Migration execution error:', error);
         
         // Update project status to FAILED
-        await prisma.migrationProject.update({
+        await prisma.migration_projects.update({
           where: { id: params.id },
           data: {
             status: 'FAILED',
-            updatedAt: new Date(),
+            updated_at: new Date(),
           }
         });
       }

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         id: sessionData.user.id,
         email: sessionData.user.email,
         name: sessionData.user.name,
-        emailVerified: sessionData.user.emailVerified,
+        emailVerified: sessionData.user.emailVerified ? new Date() : null,
         createdAt: sessionData.user.createdAt,
         updatedAt: sessionData.user.updatedAt,
       },
@@ -33,22 +33,20 @@ export async function POST(request: NextRequest) {
     })
     console.log('User created/updated successfully:', user.id)
     
-    // Create a proper Better Auth session in the database
+    // Create a proper session in the database
     const session = await prisma.session.create({
       data: {
         id: sessionData.session.id,
         userId: user.id,
-        expiresAt: sessionData.session.expiresAt,
-        token: sessionData.session.token,
-        ipAddress: sessionData.session.ipAddress,
-        userAgent: sessionData.session.userAgent || 'Development Bypass',
+        expires: sessionData.session.expiresAt,
+        sessionToken: sessionData.session.token,
       },
     })
     console.log('Session created in database:', session.id)
     
-    // Set the Better Auth session cookie format
+    // Set the session cookie
     const cookieStore = cookies()
-    cookieStore.set('better-auth.session_token', session.token, {
+    cookieStore.set('session_token', session.sessionToken, {
       httpOnly: true,
       secure: false, // Allow HTTP for local development
       maxAge: 7 * 24 * 60 * 60, // 7 days
@@ -70,8 +68,8 @@ export async function POST(request: NextRequest) {
       session: {
         id: session.id,
         userId: session.userId,
-        expiresAt: session.expiresAt,
-        token: session.token
+        expires: session.expires,
+        sessionToken: session.sessionToken
       }
     })
   } catch (error) {

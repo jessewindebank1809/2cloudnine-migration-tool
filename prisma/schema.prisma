@@ -58,20 +58,22 @@ model VerificationToken {
 }
 
 model migration_projects {
-  id                                                            String               @id
+  id                                                            String                      @id
   name                                                          String
   description                                                   String?
   source_org_id                                                 String
   target_org_id                                                 String
-  status                                                        migration_status     @default(DRAFT)
-  config                                                        Json                 @default("{}")
-  created_at                                                    DateTime             @default(now())
+  status                                                        migration_status            @default(DRAFT)
+  config                                                        Json                        @default("{}")
+  created_at                                                    DateTime                    @default(now())
   updated_at                                                    DateTime
   user_id                                                       String
-  organisations_migration_projects_source_org_idToorganisations organisations        @relation("migration_projects_source_org_idToorganisations", fields: [source_org_id], references: [id])
-  organisations_migration_projects_target_org_idToorganisations organisations        @relation("migration_projects_target_org_idToorganisations", fields: [target_org_id], references: [id])
-  User                                                          User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  organisations_migration_projects_source_org_idToorganisations organisations               @relation("migration_projects_source_org_idToorganisations", fields: [source_org_id], references: [id])
+  organisations_migration_projects_target_org_idToorganisations organisations               @relation("migration_projects_target_org_idToorganisations", fields: [target_org_id], references: [id])
+  User                                                          User                        @relation(fields: [user_id], references: [id], onDelete: Cascade)
   migration_sessions                                            migration_sessions[]
+  migration_template_usage                                      migration_template_usage[]
+  migration_record_selections                                   migration_record_selections[]
 }
 
 model migration_records {
@@ -131,6 +133,52 @@ model organisations {
   migration_projects_migration_projects_source_org_idToorganisations migration_projects[] @relation("migration_projects_source_org_idToorganisations")
   migration_projects_migration_projects_target_org_idToorganisations migration_projects[] @relation("migration_projects_target_org_idToorganisations")
   User                                                               User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model migration_templates {
+  id                      String                    @id
+  name                    String                    @db.VarChar(255)
+  description             String?
+  category                String                    @db.VarChar(50)
+  version                 String                    @db.VarChar(20)
+  is_active               Boolean                   @default(true)
+  template_config         Json
+  created_at              DateTime                  @default(now())
+  updated_at              DateTime                  @updatedAt
+  migration_template_usage migration_template_usage[]
+
+  @@index([category])
+  @@index([is_active])
+}
+
+model migration_template_usage {
+  id                 String              @id
+  template_id        String
+  project_id         String
+  selected_records   Json                @default("[]")
+  validation_results Json                @default("{}")
+  execution_config   Json                @default("{}")
+  created_at         DateTime            @default(now())
+  migration_templates migration_templates @relation(fields: [template_id], references: [id])
+  migration_projects migration_projects  @relation(fields: [project_id], references: [id])
+
+  @@index([template_id])
+  @@index([project_id])
+}
+
+model migration_record_selections {
+  id                 String             @id
+  project_id         String
+  object_type        String             @db.VarChar(255)
+  source_record_id   String             @db.VarChar(18)
+  is_selected        Boolean            @default(true)
+  selection_criteria Json               @default("{}")
+  created_at         DateTime           @default(now())
+  migration_projects migration_projects @relation(fields: [project_id], references: [id])
+
+  @@unique([project_id, source_record_id])
+  @@index([project_id])
+  @@index([object_type])
 }
 
 enum migration_status {
