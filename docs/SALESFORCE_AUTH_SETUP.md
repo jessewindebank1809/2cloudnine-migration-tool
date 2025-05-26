@@ -21,9 +21,15 @@ for the TC9 Migration Tool.
 ## Step 2: Configure OAuth Settings
 
 1. Check **Enable OAuth Settings**
-2. Set **Callback URL**: `http://localhost:3000/api/auth/callback/salesforce`
-   (for development)
-   - For production: `https://yourdomain.com/api/auth/callback/salesforce`
+2. Set **Callback URLs** (add both):
+   - `http://localhost:3000/api/auth/oauth2/callback/salesforce` (for user
+     authentication via Better Auth)
+   - `http://localhost:3000/api/auth/callback/salesforce-org` (for organisation
+     connections)
+
+   For production:
+   - `https://yourdomain.com/api/auth/oauth2/callback/salesforce`
+   - `https://yourdomain.com/api/auth/callback/salesforce-org`
 3. **Selected OAuth Scopes**:
    - `Access the identity URL service (id, profile, email, address, phone)`
    - `Access your basic information (id, profile, email, address, phone)`

@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Play, Trash2, Edit, MoreVertical } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 
@@ -20,6 +28,7 @@ interface MigrationProject {
   name: string;
   description?: string;
   status: 'DRAFT' | 'READY' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  templateId?: string;
   sourceOrg: {
     id: string;
     name: string;
@@ -60,6 +69,8 @@ const statusLabels: Record<string, string> = {
 };
 
 export function MigrationProjectList() {
+  const queryClient = useQueryClient();
+  
   const { data, isLoading, error } = useQuery({
     queryKey: ['migration-projects'],
     queryFn: async () => {
@@ -72,24 +83,84 @@ export function MigrationProjectList() {
     refetchInterval: 5000, // Refetch every 5 seconds for running migrations
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      const response = await fetch(`/api/migrations/${projectId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete project');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Refetch the projects list
+      queryClient.invalidateQueries({ queryKey: ['migration-projects'] });
+    },
+  });
+
+  const handleDelete = async (project: MigrationProject) => {
+    if (project.status === 'RUNNING') {
+      alert('Cannot delete a running migration');
+      return;
+    }
+    
+    if (confirm(`Are you sure you want to delete "${project.name}"? This action cannot be undone.`)) {
+      try {
+        await deleteMutation.mutateAsync(project.id);
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'Failed to delete project');
+      }
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader className="space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
-              <div className="h-3 bg-gray-200 rounded w-1/2" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="h-3 bg-gray-200 rounded" />
-                <div className="h-3 bg-gray-200 rounded w-5/6" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Target</TableHead>
+                <TableHead>Template</TableHead>
+                <TableHead>Updated</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[1, 2, 3].map((i) => (
+                <TableRow key={i} className="animate-pulse">
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-6 bg-gray-200 rounded w-16" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-8 bg-gray-200 rounded w-8" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -126,102 +197,98 @@ export function MigrationProjectList() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {projects.map((project: MigrationProject) => (
-        <Card key={project.id} className="relative">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-lg">{project.name}</CardTitle>
-                <Badge variant={statusColors[project.status] as any}>
-                  {statusLabels[project.status]}
-                </Badge>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <Link href={`/migrations/${project.id}`}>
-                    <DropdownMenuItem>
-                      <Edit className="mr-2 h-4 w-4" />
-                      View Details
-                    </DropdownMenuItem>
-                  </Link>
-                  {project.status === 'DRAFT' && (
-                    <Link href={`/migrations/${project.id}/execute`}>
-                      <DropdownMenuItem>
-                        <Play className="mr-2 h-4 w-4" />
-                        Execute Migration
-                      </DropdownMenuItem>
-                    </Link>
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Target</TableHead>
+              <TableHead>Template</TableHead>
+              <TableHead>Updated</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {projects.map((project: MigrationProject) => (
+              <TableRow key={project.id}>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">{project.name}</div>
+                    {project.description && (
+                      <div className="text-sm text-muted-foreground line-clamp-1">
+                        {project.description}
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={statusColors[project.status] as any}>
+                    {statusLabels[project.status]}
+                  </Badge>
+                </TableCell>
+                <TableCell className="font-medium">
+                  {project.sourceOrg?.name || 'Unknown'}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {project.targetOrg?.name || 'Unknown'}
+                </TableCell>
+                <TableCell>
+                  {project.templateId ? (
+                    <span className="font-medium">
+                      {project.templateId
+                        .replace(/^payroll-/, '')
+                        .split('-')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ')}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">None</span>
                   )}
-                  <DropdownMenuItem className="text-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Project
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {project.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {project.description}
-                </p>
-              )}
-              
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Source:</span>
-                  <span className="font-medium truncate max-w-[150px]">
-                    {project.sourceOrg.name}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Target:</span>
-                  <span className="font-medium truncate max-w-[150px]">
-                    {project.targetOrg.name}
-                  </span>
-                </div>
-              </div>
-
-              {project.sessions.length > 0 && (
-                <div className="pt-3 border-t">
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Recent Activity
-                  </p>
-                  {project.sessions.slice(0, 2).map((session) => (
-                    <div key={session.id} className="text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{session.objectType}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {session.status}
-                        </Badge>
-                      </div>
-                      <div className="text-muted-foreground">
-                        {session.successfulRecords}/{session.totalRecords} records
-                        {session.failedRecords > 0 && (
-                          <span className="text-destructive ml-1">
-                            ({session.failedRecords} failed)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="text-xs text-muted-foreground pt-2">
-                Updated {formatDistanceToNow(new Date(project.updatedAt), { addSuffix: true })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {formatDistanceToNow(new Date(project.updatedAt), { addSuffix: true })}
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <Link href={`/migrations/${project.id}`}>
+                        <DropdownMenuItem>
+                          <Edit className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                      </Link>
+                      {project.status === 'DRAFT' && (
+                        <Link href={`/migrations/${project.id}/execute`}>
+                          <DropdownMenuItem>
+                            <Play className="mr-2 h-4 w-4" />
+                            Execute Migration
+                          </DropdownMenuItem>
+                        </Link>
+                      )}
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => handleDelete(project)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {deleteMutation.isPending ? 'Deleting...' : 'Delete Project'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 } 

@@ -18,7 +18,7 @@ export default function NewMigrationPage() {
         </Link>
         <h1 className="text-3xl font-bold">Create Migration Project</h1>
         <p className="text-muted-foreground mt-2">
-          Set up a new data migration between your Salesforce organizations
+          Set up a new data migration between your Salesforce organisations
         </p>
       </div>
 

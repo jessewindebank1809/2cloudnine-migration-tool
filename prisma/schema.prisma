@@ -7,54 +7,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Account {
-  id                String  @id
+model account {
+  id                String   @id
   userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
+  accountId         String
+  providerId        String
+  accessToken       String?
+  refreshToken      String?
+  idToken           String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
   scope             String?
-  id_token          String?
-  session_state     String?
-  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  password          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([provider, providerAccountId])
+  @@unique([providerId, accountId])
 }
 
-model Session {
+model session {
   id           String   @id
-  sessionToken String   @unique
   userId       String
+  sessionToken String   @unique
   expires      DateTime
-  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
   id                    String               @id
   name                  String?
   email                 String?              @unique
-  emailVerified         DateTime?
+  emailVerified         Boolean?
   image                 String?
   createdAt             DateTime             @default(now())
-  updatedAt             DateTime
+  updatedAt             DateTime             @updatedAt
   salesforceOrgId       String?
   salesforceInstanceUrl String?
-  Account               Account[]
-  Session               Session[]
+  accounts              account[]
+  sessions              session[]
   migration_projects    migration_projects[]
   organisations         organisations[]
 }
 
-model VerificationToken {
+model verification {
+  id         String   @id
   identifier String
-  token      String   @unique
-  expires    DateTime
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  @@unique([identifier, token])
+  @@unique([identifier, value])
 }
 
 model migration_projects {

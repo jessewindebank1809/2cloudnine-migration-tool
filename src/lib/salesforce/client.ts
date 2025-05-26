@@ -22,7 +22,7 @@ export class SalesforceClient {
       oauth2: {
         clientId,
         clientSecret,
-        redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/salesforce`,
+        redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/salesforce-org`,
       }
     });
   }

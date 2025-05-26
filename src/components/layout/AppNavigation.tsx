@@ -6,11 +6,8 @@ import { LogOut, User } from 'lucide-react';
 import Link from "next/link";
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth/client';
-import { 
-  AUTH_BYPASS_ENABLED, 
-  getBypassSession, 
-  clearBypassSession 
-} from '@/lib/auth/bypass';
+import { motion } from 'framer-motion';
+
 
 interface AppNavigationProps {
   children: React.ReactNode;
@@ -19,60 +16,23 @@ interface AppNavigationProps {
 export function AppNavigation({ children }: AppNavigationProps) {
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hoveredNavItem, setHoveredNavItem] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Navigation items configuration
+  const navItems = [
+    { id: 'home', label: 'Home', href: '/home' },
+    { id: 'orgs', label: 'Organisations', href: '/orgs' },
+    { id: 'migrations', label: 'Migrations', href: '/migrations' },
+    { id: 'templates', label: 'Templates', href: '/templates' },
+  ];
 
   // Check authentication and get session
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // First check for bypass session if enabled
-        if (AUTH_BYPASS_ENABLED) {
-          const bypassSession = getBypassSession();
-          if (bypassSession) {
-            setSession({ user: bypassSession.user });
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        // Check for our custom Salesforce session cookie
-        const checkCustomSession = () => {
-          try {
-            const cookies = document.cookie.split(';');
-            const salesforceCookie = cookies.find(cookie => 
-              cookie.trim().startsWith('salesforce-session=')
-            );
-            
-            if (salesforceCookie) {
-              const cookieValue = salesforceCookie.split('=')[1];
-              const sessionData = JSON.parse(decodeURIComponent(cookieValue));
-              
-              // Check if session is expired
-              if (new Date(sessionData.expires) > new Date()) {
-                return {
-                  user: {
-                    id: sessionData.userId,
-                    email: sessionData.email,
-                    name: sessionData.name,
-                  }
-                };
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing custom session:', error);
-          }
-          return null;
-        };
-
-        const customSession = checkCustomSession();
-        if (customSession) {
-          setSession(customSession);
-          setIsLoading(false);
-          return;
-        }
-
-        // Fall back to regular auth
+        // Use Better Auth session only
         const sessionData = await authClient.getSession();
         if (sessionData?.data?.user) {
           setSession(sessionData.data);
@@ -91,18 +51,23 @@ export function AppNavigation({ children }: AppNavigationProps) {
 
   const handleSignOut = async () => {
     try {
-      // Clear bypass session if enabled
-      if (AUTH_BYPASS_ENABLED) {
-        clearBypassSession();
-      }
-      
-      // Clear our custom Salesforce session cookie
-      document.cookie = 'salesforce-session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      
-      await authClient.signOut();
-      router.replace('/auth/signin');
+      // Use Better Auth's signOut method
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            // Redirect to signin page after successful logout
+            router.replace('/auth/signin');
+          },
+          onError: (error) => {
+            console.error('Sign out error:', error);
+            // Force redirect even if logout fails
+            router.replace('/auth/signin');
+          }
+        }
+      });
     } catch (error) {
       console.error('Sign out error:', error);
+      // Force redirect even if logout fails
       router.replace('/auth/signin');
     }
   };
@@ -127,7 +92,15 @@ export function AppNavigation({ children }: AppNavigationProps) {
     return null; // Will redirect
   }
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
+
+  const handleNavItemHover = (navId: string) => {
+    setHoveredNavItem(navId);
+  };
+
+  const handleNavItemMouseLeave = () => {
+    setHoveredNavItem(null);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -144,40 +117,55 @@ export function AppNavigation({ children }: AppNavigationProps) {
             </div>
             <span className="font-bold text-xl text-white">Migration Tool</span>
           </div>
-          <nav className="flex items-center space-x-6">
-            <Link 
-              href="/home" 
-              className={`text-sm font-medium transition-colors ${
-                isActive('/home') 
-                  ? 'text-white font-semibold' 
-                  : 'text-white/80 hover:text-white'
-              }`}
-            >
-              Home
-            </Link>
-            <Link 
-              href="/orgs" 
-              className={`text-sm font-medium transition-colors ${
-                isActive('/orgs') 
-                  ? 'text-white font-semibold' 
-                  : 'text-white/80 hover:text-white'
-              }`}
-            >
-              Organisations
-            </Link>
-            <Link 
-              href="/migrations" 
-              className={`text-sm font-medium transition-colors ${
-                isActive('/migrations') 
-                  ? 'text-white font-semibold' 
-                  : 'text-white/80 hover:text-white'
-              }`}
-            >
-              Migrations
-            </Link>
-            <Link href="/migrations/new">
-              <Button variant="secondary" className="bg-white text-c9-blue-500 hover:bg-white/90">New Migration</Button>
-            </Link>
+          <nav className="flex items-center space-x-1">
+            {navItems.map((nav) => (
+              <div
+                key={nav.id}
+                className="relative"
+                onMouseEnter={() => handleNavItemHover(nav.id)}
+                onMouseLeave={handleNavItemMouseLeave}
+              >
+                <Link 
+                  href={nav.href}
+                  className={`relative z-10 px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
+                    isActive(nav.href)
+                      ? 'text-white font-semibold' 
+                      : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  {nav.label}
+                </Link>
+                {/* Hover background */}
+                {hoveredNavItem === nav.id && (
+                  <motion.div
+                    layoutId="navbar-hover"
+                    className="absolute inset-0 bg-white/10 rounded-lg"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 30,
+                      duration: 0.15
+                    }}
+                  />
+                )}
+                {/* Active background */}
+                {isActive(nav.href) && (
+                  <motion.div
+                    layoutId="navbar-active"
+                    className="absolute inset-0 bg-white/20 rounded-lg"
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 30,
+                      duration: 0.2
+                    }}
+                  />
+                )}
+              </div>
+            ))}
             <div className="flex items-center space-x-4 ml-6 pl-6 border-l border-white/20">
               <div className="flex items-center space-x-2 text-white">
                 <User className="h-4 w-4" />

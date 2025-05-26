@@ -3,12 +3,11 @@ import { genericOAuth } from "better-auth/plugins"
 import { prismaAdapter } from "better-auth/adapters/prisma"
 import { prisma } from "@/lib/database/prisma"
 
-// Development bypass flag
-export const AUTH_BYPASS_ENABLED = process.env.AUTH_BYPASS === 'true'
+
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
-    provider: "postgresql", // adjust if using different DB
+    provider: "postgresql",
   }),
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   plugins: [
@@ -16,48 +15,51 @@ export const auth = betterAuth({
       config: [
         {
           providerId: "salesforce",
-          clientId: process.env.SALESFORCE_CLIENT_ID!,
-          clientSecret: process.env.SALESFORCE_CLIENT_SECRET!,
-          authorizationUrl: "https://site-site-6377-dev-ed.scratch.my.salesforce.com/services/oauth2/authorize",
-          tokenUrl: "https://site-site-6377-dev-ed.scratch.my.salesforce.com/services/oauth2/token",
-          userInfoUrl: "https://site-site-6377-dev-ed.scratch.my.salesforce.com/services/oauth2/userinfo",
+          clientId: process.env.SALESFORCE_PRODUCTION_CLIENT_ID!,
+          clientSecret: process.env.SALESFORCE_PRODUCTION_CLIENT_SECRET!,
+          authorizationUrl: "https://login.salesforce.com/services/oauth2/authorize",
+          tokenUrl: "https://login.salesforce.com/services/oauth2/token",
+          userInfoUrl: "https://login.salesforce.com/services/oauth2/userinfo",
           scopes: ["openid", "profile", "email", "api", "refresh_token"],
-          pkce: true, // Enable PKCE for enhanced security
-          redirectURI: "http://localhost:3000/api/auth/oauth2/callback/salesforce", // Explicitly set callback URL
+          pkce: true,
+          authorizationUrlParams: {
+            prompt: "login",
+          },
+          mapProfileToUser: (profile) => {
+            // Debug: Log the profile to see what fields are available
+            console.log('Salesforce profile data:', JSON.stringify(profile, null, 2));
+            
+            // Create a unique identifier using email + org ID to prevent user collision
+            const orgId = profile.organization_id || 'unknown';
+            const uniqueEmail = `${profile.email}+${orgId.toLowerCase()}@salesforce.local`;
+            
+            // Extract instance URL from the custom_domain or rest URL
+            const instanceUrl = profile.urls?.custom_domain || 
+                              profile.urls?.rest?.replace('/services/data/v{version}/', '') ||
+                              null;
+            
+            return {
+              email: uniqueEmail,
+              name: profile.name || profile.preferred_username,
+              image: profile.picture || profile.photos?.picture,
+              // Store original Salesforce data for reference
+              salesforceOrgId: profile.organization_id,
+              salesforceInstanceUrl: instanceUrl,
+            };
+          },
         },
       ],
     }),
   ],
   session: {
     expiresIn: 7 * 24 * 60 * 60, // 7 days
+    fields: {
+      token: "sessionToken", // Map Better Auth's 'token' field to our 'sessionToken' field
+      expiresAt: "expires", // Map Better Auth's 'expiresAt' field to our 'expires' field
+    },
   },
 })
 
-// Development bypass session helper
-export const createBypassSession = () => {
-  if (!AUTH_BYPASS_ENABLED) {
-    throw new Error('Auth bypass is not enabled')
-  }
-  
-  return {
-    user: {
-      id: 'dev-user-1',
-      email: 'dev@example.com',
-      name: 'Development User',
-      emailVerified: true,
-      image: null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    session: {
-      id: 'dev-session-1',
-      userId: 'dev-user-1',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      token: 'dev-bypass-token',
-      ipAddress: '127.0.0.1',
-      userAgent: 'Development Bypass'
-    }
-  }
-}
+
 
 export type Session = typeof auth.$Infer.Session 

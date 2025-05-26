@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { Plus } from 'lucide-react';
 import Link from "next/link"
 
 interface Organisation {
@@ -21,29 +22,27 @@ interface MigrationProject {
   name: string;
   description?: string;
   status: 'DRAFT' | 'READY' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-  organisations_migration_projects_source_org_idToorganisations: {
+  sourceOrg: {
     id: string;
     name: string;
-    instance_url: string;
-    salesforce_org_id: string | null;
+    instanceUrl: string;
   };
-  organisations_migration_projects_target_org_idToorganisations: {
+  targetOrg: {
     id: string;
     name: string;
-    instance_url: string;
-    salesforce_org_id: string | null;
+    instanceUrl: string;
   };
-  migration_sessions: Array<{
+  sessions: Array<{
     id: string;
-    object_type: string;
+    objectType: string;
     status: string;
-    total_records: number;
-    successful_records: number;
-    failed_records: number;
-    created_at: string;
-    completed_at: string | null;
+    totalRecords: number;
+    successfulRecords: number;
+    failedRecords: number;
+    createdAt: string;
   }>;
-  created_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface HomeData {
@@ -119,28 +118,28 @@ export default function HomePage() {
     },
     migrations: {
       totalRecordsMigrated: data.projects.reduce((total, project) => {
-        return total + project.migration_sessions.reduce((sessionTotal, session) => {
-          return sessionTotal + (session.successful_records || 0);
+        return total + project.sessions.reduce((sessionTotal, session) => {
+          return sessionTotal + (session.successfulRecords || 0);
         }, 0);
       }, 0),
       recent: data.projects
-        .filter(project => project.migration_sessions.length > 0)
+        .filter(project => project.sessions.length > 0)
         .map(project => {
-          const latestSession = project.migration_sessions[0]; // Already ordered by created_at desc
+          const latestSession = project.sessions[0]; // Already ordered by created_at desc
           return {
             id: project.id,
             name: project.name,
             status: latestSession.status.toUpperCase() as 'COMPLETED' | 'RUNNING' | 'FAILED',
-            objectType: latestSession.object_type,
-            processedRecords: latestSession.successful_records + latestSession.failed_records,
-            totalRecords: latestSession.total_records,
-            completedAt: latestSession.completed_at ? new Date(latestSession.completed_at) : undefined,
-            startedAt: new Date(latestSession.created_at)
+            objectType: latestSession.objectType,
+            processedRecords: latestSession.successfulRecords + latestSession.failedRecords,
+            totalRecords: latestSession.totalRecords,
+            completedAt: undefined, // completedAt is not available in the transformed structure
+            startedAt: new Date(latestSession.createdAt)
           };
         })
         .slice(0, 5), // Show only 5 most recent
       activeCount: data.projects.filter(project => 
-        project.migration_sessions.some(session => session.status === 'RUNNING')
+        project.sessions.some(session => session.status === 'RUNNING')
       ).length
     }
   };
@@ -165,11 +164,19 @@ export default function HomePage() {
   return (
     <div className="container py-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-heading-xl text-foreground mb-2">Home</h1>
-          <p className="text-body-lg text-muted-foreground">
-            Monitor your 2cloudnine migrations and org connections
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-heading-xl text-foreground mb-2">Home</h1>
+            <p className="text-body-lg text-muted-foreground">
+              Monitor your 2cloudnine migrations and org connections
+            </p>
+          </div>
+          <Link href="/migrations/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Migration
+            </Button>
+          </Link>
         </div>
 
         {/* Error State */}
@@ -226,6 +233,8 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
+
+
 
         {/* Recent Migrations */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -310,18 +319,22 @@ export default function HomePage() {
                     Create Migration Project
                   </Button>
                 </Link>
-                <Button className="w-full justify-start h-12 text-left" variant="outline" disabled>
-                  <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  View Templates (Coming Soon)
-                </Button>
-                <Button className="w-full justify-start h-12 text-left" variant="outline" disabled>
-                  <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  View Analytics (Coming Soon)
-                </Button>
+                <Link href="/templates" className="block">
+                  <Button className="w-full justify-start h-12 text-left" variant="outline">
+                    <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Browse Migration Templates
+                  </Button>
+                </Link>
+                <Link href="/analytics" className="block">
+                  <Button className="w-full justify-start h-12 text-left" variant="outline">
+                    <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    View Migration Analytics
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

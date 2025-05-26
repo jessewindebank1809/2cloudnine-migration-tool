@@ -3,11 +3,14 @@ import { prisma } from '@/lib/database/prisma';
 import { SalesforceClient } from '@/lib/salesforce/client';
 import { ObjectDiscoveryEngine } from '@/lib/salesforce/object-discovery';
 import { decrypt } from '@/lib/utils/encryption';
+import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
+import { ETLStep } from '@/lib/migration/templates/core/interfaces';
+import '@/lib/migration/templates/registry'; // Ensure templates are registered
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orgId, includeStandard, includeCustom, objectPatterns } = body;
+    const { orgId, includeStandard, includeCustom, objectPatterns, templateId } = body;
 
     if (!orgId) {
       return NextResponse.json(
@@ -36,8 +39,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Decrypt tokens
-    const accessToken = decrypt(org.access_token_encrypted);
-    const refreshToken = org.refresh_token_encrypted ? decrypt(org.refresh_token_encrypted) : undefined;
+    let accessToken: string;
+    try {
+      accessToken = decrypt(org.access_token_encrypted);
+    } catch (decryptError) {
+      console.error('Failed to decrypt access token for org:', org.id, decryptError);
+      return NextResponse.json(
+        { error: 'Organization access token is invalid. Please reconnect the organization.' },
+        { status: 401 }
+      );
+    }
+    let refreshToken: string | undefined;
+    try {
+      refreshToken = org.refresh_token_encrypted ? decrypt(org.refresh_token_encrypted) : undefined;
+    } catch (decryptError) {
+      console.error('Failed to decrypt refresh token for org:', org.id, decryptError);
+      // Continue without refresh token - access token might still work
+      refreshToken = undefined;
+    }
 
     // Create Salesforce client
     const client = new SalesforceClient({
@@ -53,11 +72,55 @@ export async function POST(request: NextRequest) {
     const discoveryEngine = new ObjectDiscoveryEngine(client);
 
     // Discover objects
-    const objects = await discoveryEngine.discoverObjects({
+    let objects = await discoveryEngine.discoverObjects({
       includeStandard,
       includeCustom,
       objectPatterns,
     });
+
+    // Filter objects based on template if templateId is provided
+    if (templateId) {
+      console.log('Filtering objects for templateId:', templateId);
+      const template = templateRegistry.getTemplate(templateId);
+      console.log('Found template:', template ? template.name : 'NOT FOUND');
+      
+      if (template) {
+        // For object selection, only show the primary object from the first ETL step
+        // This avoids showing all related objects (like breakpoints) that are dependencies
+        const templateObjects = new Set<string>();
+        
+        // Only use the first ETL step's object as the primary object for selection
+        const primaryStep = template.etlSteps[0];
+        if (primaryStep?.extractConfig?.objectApiName) {
+          console.log('Adding primary object from first step:', primaryStep.extractConfig.objectApiName);
+          templateObjects.add(primaryStep.extractConfig.objectApiName);
+        }
+
+        console.log('Template objects to filter for:', Array.from(templateObjects));
+        console.log('Total objects before filtering:', objects.length);
+        
+        // Debug: Show some actual object names to compare
+        const interpretationObjects = objects.filter(obj => 
+          obj.name.toLowerCase().includes('interpretation') || 
+          obj.name.toLowerCase().includes('rule')
+        );
+        console.log('Found interpretation-related objects:', interpretationObjects.map(obj => obj.name));
+        
+        // Filter objects to only include those used by the template
+        // Also try case-insensitive matching in case of naming differences
+        const templateObjectsLower = new Set(Array.from(templateObjects).map(name => name.toLowerCase()));
+        objects = objects.filter(obj => 
+          templateObjects.has(obj.name) || templateObjectsLower.has(obj.name.toLowerCase())
+        );
+        
+        console.log('Total objects after filtering:', objects.length);
+        console.log('Filtered objects:', objects.map(obj => obj.name));
+      } else {
+        console.log('Template not found in registry. Available templates:', templateRegistry.getTemplateIds());
+      }
+    } else {
+      console.log('No templateId provided, returning all objects');
+    }
 
     return NextResponse.json({ 
       success: true,

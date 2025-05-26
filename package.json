@@ -6,6 +6,8 @@
     "scripts": {
         "dev": "next dev",
         "dev:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && next dev",
+        "dev:fresh": "./scripts/dev-server.sh",
+        "dev:fresh:env": "./scripts/dev-server-env.sh",
         "build": "next build",
         "build:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && next build",
         "start": "next start",
@@ -46,6 +48,7 @@
         "cmdk": "^1.1.1",
         "date-fns": "^4.1.0",
         "fast-xml-parser": "^5.2.3",
+        "framer-motion": "^12.12.2",
         "ioredis": "^5.4.1",
         "jose": "^5.9.3",
         "jsforce": "^2.0.0-beta.29",

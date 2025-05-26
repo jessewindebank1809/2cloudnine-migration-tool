@@ -20,41 +20,7 @@ export interface AuthSession {
  */
 export async function getAuthSession(request: NextRequest): Promise<AuthSession | null> {
   try {
-    const cookieStore = cookies()
-    
-    // First try our Salesforce session cookie
-    const salesforceSession = cookieStore.get('salesforce-session')
-    if (salesforceSession) {
-      try {
-        const sessionData = JSON.parse(salesforceSession.value)
-        
-        // Check if session is expired
-        if (new Date(sessionData.expires) > new Date()) {
-          // Get fresh user data from database
-          const user = await prisma.user.findUnique({
-            where: { id: sessionData.userId },
-          })
-
-          if (user) {
-            return {
-              user: {
-                id: user.id,
-                email: user.email || '',
-                name: user.name || '',
-                emailVerified: !!user.emailVerified,
-                image: user.image,
-                createdAt: user.createdAt,
-                updatedAt: user.updatedAt,
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error validating Salesforce session:', error)
-      }
-    }
-
-    // Fallback to Better Auth session if no direct session
+    // Use Better Auth session only
     const betterAuthSession = await auth.api.getSession({
       headers: request.headers,
     })
@@ -72,8 +38,6 @@ export async function getAuthSession(request: NextRequest): Promise<AuthSession 
         }
       }
     }
-
-
 
     return null
   } catch (error) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronRight, Search, Loader2, AlertCircle } from 'lucide-react';
+import { Check, Search, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ interface ObjectSelectionProps {
   sourceOrgId: string;
   targetOrgId: string;
   onSelectionChange: (objects: string[]) => void;
-  onNext: () => void;
+  templateId?: string;
 }
 
 // Pre-configured 2cloudnine objects
@@ -46,7 +46,7 @@ export function ObjectSelection({
   sourceOrgId,
   targetOrgId,
   onSelectionChange,
-  onNext,
+  templateId,
 }: ObjectSelectionProps) {
   const [selectedObjects, setSelectedObjects] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,13 +54,24 @@ export function ObjectSelection({
 
   // Fetch available objects from source org
   const { data: objectsData, isLoading, error } = useQuery({
-    queryKey: ['salesforce-objects', sourceOrgId],
+    queryKey: ['salesforce-objects', sourceOrgId, templateId],
     queryFn: async () => {
-      const response = await fetch(
-        `/api/salesforce/discover-objects?orgId=${sourceOrgId}`
-      );
+      console.log('ObjectSelection: Making API call with templateId:', templateId);
+      const response = await fetch('/api/salesforce/discover-objects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orgId: sourceOrgId,
+          includeStandard: true,
+          includeCustom: true,
+          objectPatterns: [],
+          templateId: templateId
+        }),
+      });
       if (!response.ok) throw new Error('Failed to fetch objects');
-      return response.json();
+      const result = await response.json();
+      console.log('ObjectSelection: API response:', result);
+      return result;
     },
     enabled: !!sourceOrgId,
   });
@@ -166,18 +177,9 @@ export function ObjectSelection({
 
   return (
     <div className="space-y-6">
-      {/* Search and Quick Actions */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search objects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        {availableRecommended.length > 0 && (
+      {/* Quick Actions */}
+      {availableRecommended.length > 0 && !templateId && (
+        <div className="flex justify-end">
           <Button
             variant="outline"
             onClick={selectRecommended}
@@ -185,8 +187,8 @@ export function ObjectSelection({
           >
             Select 2cloudnine Objects
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Selection Summary */}
       {selectedObjects.size > 0 && (
@@ -201,10 +203,6 @@ export function ObjectSelection({
                   </span>
                 )}
               </div>
-              <Button onClick={onNext} size="sm">
-                Continue
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -228,6 +226,18 @@ export function ObjectSelection({
           </div>
         </div>
       )}
+
+             {/* No Records Found Message */}
+       {objects.length === 0 && templateId && (
+         <Alert className="bg-amber-50 border-amber-200">
+           <div className="flex items-center">
+             <AlertCircle className="h-4 w-4 mr-2 text-amber-600" />
+             <AlertDescription className="mb-0 text-amber-800">
+               No records found for the selected object: tc9_et__Interpretation_Rule__c.
+             </AlertDescription>
+           </div>
+         </Alert>
+       )}
 
       {/* Custom Objects */}
       {customObjects.length > 0 && (

@@ -65,7 +65,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    return NextResponse.json(project);
+    // Transform the response to use friendly field names
+    const transformedProject = {
+      ...project,
+      sourceOrg: project.organisations_migration_projects_source_org_idToorganisations,
+      targetOrg: project.organisations_migration_projects_target_org_idToorganisations,
+      // Remove the long field names
+      organisations_migration_projects_source_org_idToorganisations: undefined,
+      organisations_migration_projects_target_org_idToorganisations: undefined,
+    };
+
+    return NextResponse.json(transformedProject);
   } catch (error) {
     console.error('Error fetching migration project:', error);
     return NextResponse.json(
@@ -137,7 +147,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     });
 
-    return NextResponse.json(updated);
+    // Transform the response to use friendly field names
+    const transformedUpdated = {
+      ...updated,
+      sourceOrg: updated.organisations_migration_projects_source_org_idToorganisations,
+      targetOrg: updated.organisations_migration_projects_target_org_idToorganisations,
+      // Remove the long field names
+      organisations_migration_projects_source_org_idToorganisations: undefined,
+      organisations_migration_projects_target_org_idToorganisations: undefined,
+    };
+
+    return NextResponse.json(transformedUpdated);
   } catch (error) {
     console.error('Error updating migration project:', error);
     return NextResponse.json(

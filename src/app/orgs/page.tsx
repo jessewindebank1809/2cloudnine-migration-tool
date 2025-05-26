@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Plus, ExternalLink, Trash2, Check, X } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Check, X, Edit2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -15,7 +15,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -47,7 +54,34 @@ export default function OrganisationsPage() {
     }
   }, [searchParams]);
 
-
+  // Handle OAuth callback errors
+  const oauthError = searchParams.get('error');
+  const getErrorMessage = (error: string) => {
+    switch (error) {
+      case 'org_already_connected':
+        return 'This Salesforce organisation is already connected. You cannot connect the same org multiple times.';
+      case 'oauth_failed':
+        return 'OAuth authentication failed. Please try again.';
+      case 'token_exchange_failed':
+        return 'Failed to exchange authorization code for tokens. Please try again.';
+      case 'callback_failed':
+        return 'OAuth callback failed. Please try again.';
+      case 'userinfo_failed':
+        return 'Failed to retrieve user information from Salesforce.';
+      case 'org_not_found':
+        return 'Organisation not found. Please try creating a new organisation.';
+      case 'invalid_state':
+        return 'Invalid OAuth state parameter. Please try again.';
+      case 'missing_params':
+        return 'Missing required OAuth parameters. Please try again.';
+      case 'unauthorized':
+        return 'You are not authorised to perform this action. Please sign in again.';
+      case 'oauth_init_failed':
+        return 'Failed to initiate OAuth authentication. Please try again.';
+      default:
+        return 'An unknown error occurred during authentication.';
+    }
+  };
 
   const { data, isLoading: isOrgsLoading, error, refetch } = useQuery({
     queryKey: ['organisations'],
@@ -158,11 +192,7 @@ export default function OrganisationsPage() {
       <div className="container py-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4" />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded" />
-            ))}
-          </div>
+          <div className="h-64 bg-gray-200 rounded" />
         </div>
       </div>
     );
@@ -258,11 +288,27 @@ export default function OrganisationsPage() {
             </div>
           </DialogContent>
         </Dialog>
-
-
       </div>
 
-      {/* Organisations Grid */}
+      {/* Error Message */}
+      {oauthError && (
+        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+          <p className="text-destructive text-sm font-medium">
+            {getErrorMessage(oauthError)}
+          </p>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {searchParams.get('success') === 'connected' && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-800 text-sm font-medium">
+            Organisation connected successfully!
+          </p>
+        </div>
+      )}
+
+      {/* Organisations Table */}
       {organisations.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -274,120 +320,134 @@ export default function OrganisationsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          {organisations.map((org: Organisation) => (
-            <Card key={org.id} className="relative">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    {editingOrgId === org.id ? (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          className="text-lg font-semibold flex-1"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSaveEdit(org.id);
-                            } else if (e.key === 'Escape') {
-                              handleCancelEdit();
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <Button size="icon" className="h-6 w-6" onClick={() => handleSaveEdit(org.id)}>
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button size="icon" variant="outline" className="h-6 w-6" onClick={handleCancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <CardTitle 
-                        className="text-lg truncate cursor-pointer hover:text-blue-600 transition-colors"
-                        onClick={() => handleEditClick(org)}
-                      >
-                        {org.name}
-                      </CardTitle>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Connected Organisations ({organisations.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Instance URL</TableHead>
+                  <TableHead>Org ID</TableHead>
+                  <TableHead>Connected</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {organisations.map((org: Organisation) => (
+                  <TableRow key={org.id}>
+                    <TableCell>
+                      {editingOrgId === org.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            className="h-8"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSaveEdit(org.id);
+                              } else if (e.key === 'Escape') {
+                                handleCancelEdit();
+                              }
+                            }}
+                            autoFocus
+                          />
+                          <Button size="icon" className="h-6 w-6" onClick={() => handleSaveEdit(org.id)}>
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={handleCancelEdit}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{org.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleEditClick(org)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={org.org_type === 'PRODUCTION' ? 'default' : 'secondary'}>
                         {org.org_type === 'PRODUCTION' ? 'Production' : 'Sandbox'}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Badge 
                         variant={org.salesforce_org_id ? 'secondary' : 'destructive'}
                         className={org.salesforce_org_id ? 'bg-green-500 text-white hover:bg-green-600' : ''}
                       >
                         {org.salesforce_org_id ? 'Connected' : 'Disconnected'}
                       </Badge>
-                    </div>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleDeleteOrg(org.id, org.name)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium">Instance URL</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-muted-foreground truncate">
-                        {org.instance_url}
-                      </p>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6"
-                        onClick={() => window.open(org.instance_url, '_blank')}
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm font-medium">Org ID</p>
-                    <p className="text-sm text-muted-foreground">
-                      {org.salesforce_org_id || 'Not connected'}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Connected</p>
-                      <p className="text-sm text-muted-foreground">
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                          {org.instance_url}
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6"
+                          onClick={() => window.open(org.instance_url, '_blank')}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {org.salesforce_org_id || 'Not connected'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
                         {org.created_at ? new Date(org.created_at).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: '2-digit', 
                           year: 'numeric'
                         }) : 'Unknown'}
-                      </p>
-                    </div>
-                    {!org.salesforce_org_id && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleReconnect(org)}
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Reconnect
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {!org.salesforce_org_id && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleReconnect(org)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            Reconnect
+                          </Button>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleDeleteOrg(org.id, org.name)}
+                          className="text-destructive hover:text-destructive h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

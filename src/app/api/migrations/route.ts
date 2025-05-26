@@ -9,8 +9,10 @@ const CreateProjectSchema = z.object({
   description: z.string().optional(),
   sourceOrgId: z.string().uuid(),
   targetOrgId: z.string().uuid(),
+  templateId: z.string().optional(),
+  selectedObjects: z.array(z.string()).optional(),
   config: z.object({
-    objectTypes: z.array(z.string()).min(1),
+    objectTypes: z.array(z.string()).optional(),
     useBulkApi: z.boolean().optional(),
     preserveRelationships: z.boolean().optional(),
     allowPartialSuccess: z.boolean().optional(),
@@ -22,7 +24,7 @@ const CreateProjectSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    const projects = await prisma.migration_projects.findMany({
+    const rawProjects = await prisma.migration_projects.findMany({
       include: {
         organisations_migration_projects_source_org_idToorganisations: {
           select: {
@@ -58,6 +60,36 @@ export async function GET(request: NextRequest) {
       orderBy: { created_at: 'desc' },
     });
 
+    // Transform the data to match frontend expectations
+    const projects = rawProjects.map(project => ({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      templateId: (project.config as any)?.templateId || null,
+      sourceOrg: {
+        id: project.organisations_migration_projects_source_org_idToorganisations?.id || '',
+        name: project.organisations_migration_projects_source_org_idToorganisations?.name || 'Unknown',
+        instanceUrl: project.organisations_migration_projects_source_org_idToorganisations?.instance_url || '',
+      },
+      targetOrg: {
+        id: project.organisations_migration_projects_target_org_idToorganisations?.id || '',
+        name: project.organisations_migration_projects_target_org_idToorganisations?.name || 'Unknown',
+        instanceUrl: project.organisations_migration_projects_target_org_idToorganisations?.instance_url || '',
+      },
+      sessions: project.migration_sessions.map(session => ({
+        id: session.id,
+        objectType: session.object_type,
+        status: session.status,
+        totalRecords: session.total_records || 0,
+        successfulRecords: session.successful_records || 0,
+        failedRecords: session.failed_records || 0,
+        createdAt: session.created_at.toISOString(),
+      })),
+      createdAt: project.created_at.toISOString(),
+      updatedAt: project.updated_at.toISOString(),
+    }));
+
     return NextResponse.json({
       projects,
       total: projects.length,
@@ -86,7 +118,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, description, sourceOrgId, targetOrgId, config } = validation.data;
+    const { name, description, sourceOrgId, targetOrgId, templateId, selectedObjects, config } = validation.data;
 
     // Verify organizations exist and are connected
     const [sourceOrg, targetOrg] = await Promise.all([
@@ -113,14 +145,26 @@ export async function POST(request: NextRequest) {
     const userId = sourceOrg.user_id; // Use the source org's user as the project creator
 
     // Create the migration project
+    const projectId = crypto.randomUUID();
+    
+    // Build the config object with selected objects and template
+    const projectConfig: any = {
+      ...(config || {}),
+      objectTypes: selectedObjects || [],
+    };
+    
+    if (templateId) {
+      projectConfig.templateId = templateId;
+    }
+
     const project = await prisma.migration_projects.create({
       data: {
-        id: crypto.randomUUID(),
+        id: projectId,
         name,
         description: description || null,
         source_org_id: sourceOrgId,
         target_org_id: targetOrgId,
-        config: config || {},
+        config: projectConfig,
         status: 'DRAFT',
         user_id: userId,
         updated_at: new Date(),
