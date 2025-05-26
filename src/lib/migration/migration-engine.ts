@@ -86,7 +86,7 @@ export class MigrationEngine {
    * Migrate a single object type
    */
   private async migrateObject(
-    project: MigrationProject,
+    project: migration_projects,
     objectType: string,
     options: MigrationOptions
   ): Promise<MigrationResult> {
@@ -102,7 +102,7 @@ export class MigrationEngine {
 
       // Get record count
       const totalRecords = await this.dataExtractor.getRecordCount(
-        project.sourceOrgId,
+        project.source_org_id,
         objectType
       );
 
@@ -140,9 +140,9 @@ export class MigrationEngine {
       return {
         sessionId: session.id,
         success: false,
-        totalRecords: sessionData.totalRecords,
-        successfulRecords: sessionData.successfulRecords,
-        failedRecords: sessionData.failedRecords,
+        totalRecords: sessionData.total_records,
+        successfulRecords: sessionData.successful_records,
+        failedRecords: sessionData.failed_records,
         duration: 0,
         errors: [error instanceof Error ? error.message : 'Unknown error']
       };
@@ -153,7 +153,7 @@ export class MigrationEngine {
    * Simple migration without relationship preservation
    */
   private async migrateSimple(
-    project: MigrationProject,
+    project: migration_projects,
     sessionId: string,
     objectType: string,
     options: MigrationOptions
@@ -163,7 +163,7 @@ export class MigrationEngine {
 
     // Extract and load data in batches
     const extractor = this.dataExtractor.extractRecordsBatched(
-      project.sourceOrgId,
+      project.source_org_id,
       objectType,
       { batchSize: options.batchSize }
     );
@@ -184,8 +184,8 @@ export class MigrationEngine {
 
       // Load batch into target
       const loadResult = await this.dataLoader.loadRecords(
-        project.sourceOrgId,
-        project.targetOrgId,
+        project.source_org_id,
+        project.target_org_id,
         objectType,
         batch,
         {
@@ -240,20 +240,20 @@ export class MigrationEngine {
    * Migration with relationship preservation
    */
   private async migrateWithRelationships(
-    project: MigrationProject,
+    project: migration_projects,
     sessionId: string,
     objectType: string,
     options: MigrationOptions
   ): Promise<MigrationResult> {
     // First, extract all records to analyze relationships
     const allRecords = await this.dataExtractor.extractAllRecords(
-      project.sourceOrgId,
+      project.source_org_id,
       objectType
     );
 
     // Extract relationship information
     const { records, relationships } = await this.dataExtractor.extractWithRelationships(
-      project.sourceOrgId,
+      project.source_org_id,
       objectType,
       allRecords
     );
@@ -264,15 +264,15 @@ export class MigrationEngine {
       // TODO: Get ID mappings from previous migrations
       // For now, extract parent records
       const parentRecords = await this.dataExtractor.extractParentRecords(
-        project.sourceOrgId,
+        project.source_org_id,
         relationships
       );
     }
 
     // Load records with relationship preservation
     const loadResult = await this.dataLoader.loadWithRelationships(
-      project.sourceOrgId,
-      project.targetOrgId,
+      project.source_org_id,
+      project.target_org_id,
       objectType,
       records,
       parentIdMappings,
@@ -326,11 +326,11 @@ export class MigrationEngine {
   /**
    * Validate migration project
    */
-  private async validateProject(project: MigrationProject): Promise<void> {
+  private async validateProject(project: migration_projects): Promise<void> {
     // Check org health
     const healthyOrgs = await sessionManager.areAllOrgsHealthy([
-      project.sourceOrgId,
-      project.targetOrgId
+      project.source_org_id,
+      project.target_org_id
     ]);
 
     if (!healthyOrgs) {
@@ -338,8 +338,8 @@ export class MigrationEngine {
     }
 
     // Check API limits
-    const sourceCapabilities = await sessionManager.getCapabilities(project.sourceOrgId);
-    const targetCapabilities = await sessionManager.getCapabilities(project.targetOrgId);
+    const sourceCapabilities = await sessionManager.getCapabilities(project.source_org_id);
+    const targetCapabilities = await sessionManager.getCapabilities(project.target_org_id);
 
     if (!sourceCapabilities.permissions.canAccessSetup) {
       throw new Error('Insufficient permissions in source org');

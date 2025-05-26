@@ -1,18 +1,19 @@
 import { prisma } from '@/lib/database/prisma';
 import { 
-  MigrationProject, 
-  MigrationSession, 
-  SessionStatus, 
-  RecordStatus,
-  Organisation
+  migration_projects, 
+  migration_sessions, 
+  session_status, 
+  record_status,
+  organisations
 } from '@prisma/client';
 import { EventEmitter } from 'events';
 import { sessionManager } from '@/lib/salesforce/session-manager';
 import { FieldMappingEngine } from './field-mapping-engine';
+import crypto from 'crypto';
 
 export interface MigrationProgress {
   sessionId: string;
-  status: SessionStatus;
+  status: session_status;
   totalRecords: number;
   processedRecords: number;
   successfulRecords: number;
@@ -31,20 +32,20 @@ export interface MigrationError {
 }
 
 export class MigrationSessionManager extends EventEmitter {
-  private activeSession: MigrationSession | null = null;
+  private activeSession: migration_sessions | null = null;
   private startTime: Date | null = null;
   private fieldMappingEngine = new FieldMappingEngine();
 
   /**
    * Create a new migration session
    */
-  async createSession(projectId: string, objectType: string): Promise<MigrationSession> {
+  async createSession(projectId: string, objectType: string): Promise<migration_sessions> {
     // Get project with orgs
-    const project = await prisma.migrationProject.findUnique({
+    const project = await prisma.migration_projects.findUnique({
       where: { id: projectId },
       include: {
-        sourceOrg: true,
-        targetOrg: true,
+        organisations_migration_projects_source_org_idToorganisations: true,
+        organisations_migration_projects_target_org_idToorganisations: true,
       }
     });
 
@@ -54,8 +55,8 @@ export class MigrationSessionManager extends EventEmitter {
 
     // Verify org health
     const [sourceHealth, targetHealth] = await Promise.all([
-      sessionManager.getHealthStatus(project.sourceOrgId),
-      sessionManager.getHealthStatus(project.targetOrgId),
+      sessionManager.getHealthStatus(project.source_org_id),
+      sessionManager.getHealthStatus(project.target_org_id),
     ]);
 
     if (!sourceHealth.isHealthy) {
@@ -67,11 +68,12 @@ export class MigrationSessionManager extends EventEmitter {
     }
 
     // Create migration session
-    const session = await prisma.migrationSession.create({
+    const session = await prisma.migration_sessions.create({
       data: {
-        projectId,
-        objectType,
-        status: SessionStatus.PENDING,
+        id: crypto.randomUUID(),
+        project_id: projectId,
+        object_type: objectType,
+        status: 'PENDING',
       }
     });
 
@@ -90,12 +92,12 @@ export class MigrationSessionManager extends EventEmitter {
   async startSession(sessionId: string): Promise<void> {
     const session = await this.getSession(sessionId);
     
-    if (session.status !== SessionStatus.PENDING) {
+    if (session.status !== 'PENDING') {
       throw new Error(`Cannot start session in ${session.status} status`);
     }
 
     // Update session status
-    await this.updateSessionStatus(sessionId, SessionStatus.RUNNING);
+    await this.updateSessionStatus(sessionId, 'RUNNING');
     
     // Emit session started event
     this.emit('sessionStarted', session);
@@ -108,19 +110,19 @@ export class MigrationSessionManager extends EventEmitter {
     sessionId: string, 
     progress: Partial<MigrationProgress>
   ): Promise<void> {
-    const session = await prisma.migrationSession.update({
+    const session = await prisma.migration_sessions.update({
       where: { id: sessionId },
       data: {
-        totalRecords: progress.totalRecords,
-        processedRecords: progress.processedRecords,
-        successfulRecords: progress.successfulRecords,
-        failedRecords: progress.failedRecords,
+        total_records: progress.totalRecords,
+        processed_records: progress.processedRecords,
+        successful_records: progress.successfulRecords,
+        failed_records: progress.failedRecords,
       }
     });
 
     // Calculate percentage and time remaining
-    const percentComplete = session.totalRecords > 0 
-      ? Math.round((session.processedRecords / session.totalRecords) * 100)
+    const percentComplete = session.total_records > 0 
+      ? Math.round((session.processed_records / session.total_records) * 100)
       : 0;
 
     const estimatedTimeRemaining = this.calculateTimeRemaining(session);
@@ -128,10 +130,10 @@ export class MigrationSessionManager extends EventEmitter {
     const fullProgress: MigrationProgress = {
       sessionId: session.id,
       status: session.status,
-      totalRecords: session.totalRecords,
-      processedRecords: session.processedRecords,
-      successfulRecords: session.successfulRecords,
-      failedRecords: session.failedRecords,
+      totalRecords: session.total_records,
+      processedRecords: session.processed_records,
+      successfulRecords: session.successful_records,
+      failedRecords: session.failed_records,
       percentComplete,
       estimatedTimeRemaining,
       currentBatch: progress.currentBatch,
@@ -151,23 +153,24 @@ export class MigrationSessionManager extends EventEmitter {
     targetRecordId: string,
     recordData: any
   ): Promise<void> {
-    await prisma.migrationRecord.create({
+    await prisma.migration_records.create({
       data: {
-        sessionId,
-        sourceRecordId,
-        targetRecordId,
-        objectType: this.activeSession?.objectType || '',
-        status: RecordStatus.SUCCESS,
-        recordData,
+        id: crypto.randomUUID(),
+        session_id: sessionId,
+        source_record_id: sourceRecordId,
+        target_record_id: targetRecordId,
+        object_type: this.activeSession?.object_type || '',
+        status: 'SUCCESS',
+        record_data: recordData,
       }
     });
 
     // Update session counters
-    await prisma.migrationSession.update({
+    await prisma.migration_sessions.update({
       where: { id: sessionId },
       data: {
-        processedRecords: { increment: 1 },
-        successfulRecords: { increment: 1 },
+        processed_records: { increment: 1 },
+        successful_records: { increment: 1 },
       }
     });
   }
@@ -182,32 +185,25 @@ export class MigrationSessionManager extends EventEmitter {
     recordData: any
   ): Promise<void> {
     // Create migration record
-    await prisma.migrationRecord.create({
+    await prisma.migration_records.create({
       data: {
-        sessionId,
-        sourceRecordId,
-        objectType: this.activeSession?.objectType || '',
-        status: RecordStatus.FAILED,
-        errorMessage: error,
-        recordData,
+        id: crypto.randomUUID(),
+        session_id: sessionId,
+        source_record_id: sourceRecordId,
+        object_type: this.activeSession?.object_type || '',
+        status: 'FAILED',
+        error_message: error,
+        record_data: recordData,
       }
     });
 
     // Update session counters
-    await prisma.migrationSession.update({
+    await prisma.migration_sessions.update({
       where: { id: sessionId },
       data: {
-        processedRecords: { increment: 1 },
-        failedRecords: { increment: 1 },
+        processed_records: { increment: 1 },
+        failed_records: { increment: 1 },
       }
-    });
-
-    // Add to error log
-    await this.addError(sessionId, {
-      timestamp: new Date(),
-      recordId: sourceRecordId,
-      error,
-      details: recordData,
     });
   }
 
@@ -216,17 +212,22 @@ export class MigrationSessionManager extends EventEmitter {
    */
   async addError(sessionId: string, error: MigrationError): Promise<void> {
     const session = await this.getSession(sessionId);
+    const currentErrors = Array.isArray(session.error_log) ? session.error_log : [];
     
-    const errorLog = session.errorLog as any[] || [];
-    errorLog.push(error);
-
-    await prisma.migrationSession.update({
+    await prisma.migration_sessions.update({
       where: { id: sessionId },
-      data: { errorLog }
+      data: {
+        error_log: [
+          ...currentErrors,
+          {
+            timestamp: error.timestamp.toISOString(),
+            recordId: error.recordId,
+            error: error.error,
+            details: error.details,
+          }
+        ]
+      }
     });
-
-    // Emit error event
-    this.emit('error', { sessionId, error });
   }
 
   /**
@@ -235,15 +236,16 @@ export class MigrationSessionManager extends EventEmitter {
   async completeSession(sessionId: string): Promise<void> {
     const session = await this.getSession(sessionId);
     
-    const status = session.failedRecords > 0 
-      ? SessionStatus.COMPLETED 
-      : SessionStatus.COMPLETED;
+    if (session.status !== 'RUNNING') {
+      throw new Error(`Cannot complete session in ${session.status} status`);
+    }
 
-    await prisma.migrationSession.update({
+    // Update session status and completion time
+    await prisma.migration_sessions.update({
       where: { id: sessionId },
       data: {
-        status,
-        completedAt: new Date(),
+        status: 'COMPLETED',
+        completed_at: new Date(),
       }
     });
 
@@ -251,60 +253,59 @@ export class MigrationSessionManager extends EventEmitter {
     const summary = await this.generateSummary(sessionId);
     
     // Emit completion event
-    this.emit('sessionCompleted', { session, summary });
+    this.emit('sessionCompleted', { sessionId, summary });
+    
+    // Clear active session
+    this.activeSession = null;
+    this.startTime = null;
   }
 
   /**
    * Fail the migration session
    */
   async failSession(sessionId: string, error: string): Promise<void> {
-    await prisma.migrationSession.update({
+    await prisma.migration_sessions.update({
       where: { id: sessionId },
       data: {
-        status: SessionStatus.FAILED,
-        completedAt: new Date(),
+        status: 'FAILED',
+        completed_at: new Date(),
+        error_log: {
+          push: {
+            timestamp: new Date().toISOString(),
+            error,
+          }
+        }
       }
-    });
-
-    await this.addError(sessionId, {
-      timestamp: new Date(),
-      error,
     });
 
     // Emit failure event
     this.emit('sessionFailed', { sessionId, error });
+    
+    // Clear active session
+    this.activeSession = null;
+    this.startTime = null;
   }
 
   /**
    * Cancel the migration session
    */
   async cancelSession(sessionId: string): Promise<void> {
-    await prisma.migrationSession.update({
-      where: { id: sessionId },
-      data: {
-        status: SessionStatus.CANCELLED,
-        completedAt: new Date(),
-      }
-    });
-
+    await this.updateSessionStatus(sessionId, 'CANCELLED');
+    
     // Emit cancellation event
     this.emit('sessionCancelled', { sessionId });
+    
+    // Clear active session
+    this.activeSession = null;
+    this.startTime = null;
   }
 
   /**
-   * Get session by ID
+   * Get session details
    */
-  async getSession(sessionId: string): Promise<MigrationSession> {
-    const session = await prisma.migrationSession.findUnique({
+  async getSession(sessionId: string): Promise<migration_sessions> {
+    const session = await prisma.migration_sessions.findUnique({
       where: { id: sessionId },
-      include: {
-        project: {
-          include: {
-            sourceOrg: true,
-            targetOrg: true,
-          }
-        }
-      }
     });
 
     if (!session) {
@@ -315,24 +316,26 @@ export class MigrationSessionManager extends EventEmitter {
   }
 
   /**
-   * Get session progress
+   * Get current progress
    */
   async getProgress(sessionId: string): Promise<MigrationProgress> {
     const session = await this.getSession(sessionId);
     
-    const percentComplete = session.totalRecords > 0 
-      ? Math.round((session.processedRecords / session.totalRecords) * 100)
+    const percentComplete = session.total_records > 0 
+      ? Math.round((session.processed_records / session.total_records) * 100)
       : 0;
+
+    const estimatedTimeRemaining = this.calculateTimeRemaining(session);
 
     return {
       sessionId: session.id,
       status: session.status,
-      totalRecords: session.totalRecords,
-      processedRecords: session.processedRecords,
-      successfulRecords: session.successfulRecords,
-      failedRecords: session.failedRecords,
+      totalRecords: session.total_records,
+      processedRecords: session.processed_records,
+      successfulRecords: session.successful_records,
+      failedRecords: session.failed_records,
       percentComplete,
-      estimatedTimeRemaining: this.calculateTimeRemaining(session),
+      estimatedTimeRemaining,
     };
   }
 
@@ -340,10 +343,10 @@ export class MigrationSessionManager extends EventEmitter {
    * Get failed records for retry
    */
   async getFailedRecords(sessionId: string): Promise<any[]> {
-    const records = await prisma.migrationRecord.findMany({
+    const records = await prisma.migration_records.findMany({
       where: {
-        sessionId,
-        status: RecordStatus.FAILED,
+        session_id: sessionId,
+        status: 'FAILED',
       }
     });
 
@@ -355,13 +358,13 @@ export class MigrationSessionManager extends EventEmitter {
    */
   private async updateSessionStatus(
     sessionId: string, 
-    status: SessionStatus
+    status: session_status
   ): Promise<void> {
-    await prisma.migrationSession.update({
+    await prisma.migration_sessions.update({
       where: { id: sessionId },
       data: { 
         status,
-        startedAt: status === SessionStatus.RUNNING ? new Date() : undefined,
+        started_at: status === 'RUNNING' ? new Date() : undefined,
       }
     });
   }
@@ -369,16 +372,16 @@ export class MigrationSessionManager extends EventEmitter {
   /**
    * Calculate estimated time remaining
    */
-  private calculateTimeRemaining(session: MigrationSession): number | undefined {
-    if (!this.startTime || session.processedRecords === 0) {
+  private calculateTimeRemaining(session: migration_sessions): number | undefined {
+    if (!this.startTime || session.processed_records === 0) {
       return undefined;
     }
 
-    const elapsedMs = Date.now() - this.startTime.getTime();
-    const recordsPerMs = session.processedRecords / elapsedMs;
-    const remainingRecords = session.totalRecords - session.processedRecords;
+    const elapsed = Date.now() - this.startTime.getTime();
+    const rate = session.processed_records / elapsed; // records per ms
+    const remaining = session.total_records - session.processed_records;
     
-    return Math.round(remainingRecords / recordsPerMs);
+    return remaining / rate; // ms remaining
   }
 
   /**
@@ -386,32 +389,20 @@ export class MigrationSessionManager extends EventEmitter {
    */
   private async generateSummary(sessionId: string): Promise<any> {
     const session = await this.getSession(sessionId);
-    const records = await prisma.migrationRecord.findMany({
-      where: { sessionId },
-      select: {
-        status: true,
-        createdAt: true,
-      }
+    const records = await prisma.migration_records.findMany({
+      where: { session_id: sessionId }
     });
-
-    const duration = session.completedAt && session.startedAt
-      ? session.completedAt.getTime() - session.startedAt.getTime()
-      : 0;
 
     return {
       sessionId,
-      objectType: session.objectType,
-      status: session.status,
-      duration,
-      totalRecords: session.totalRecords,
-      successfulRecords: session.successfulRecords,
-      failedRecords: session.failedRecords,
-      successRate: session.totalRecords > 0 
-        ? Math.round((session.successfulRecords / session.totalRecords) * 100)
+      objectType: session.object_type,
+      totalRecords: session.total_records,
+      successfulRecords: session.successful_records,
+      failedRecords: session.failed_records,
+      duration: session.completed_at && session.started_at
+        ? session.completed_at.getTime() - session.started_at.getTime()
         : 0,
-      recordsPerSecond: duration > 0 
-        ? Math.round(session.processedRecords / (duration / 1000))
-        : 0,
+      errors: session.error_log,
     };
   }
 }
