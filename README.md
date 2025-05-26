@@ -52,7 +52,7 @@ tc9-migration-tool/
 
 The project implements the 2CloudNine design language with:
 
-- **Primary Colors**: 2CloudNine blue (#2491EB)
+- **Primary Colors**: 2clo blue (#2491EB)
 - **Typography**: Inter font family with custom sizing
 - **Components**: Built with Radix UI primitives and Tailwind CSS
 - **Spacing**: Consistent layout spacing (24px, 16px, 48px)

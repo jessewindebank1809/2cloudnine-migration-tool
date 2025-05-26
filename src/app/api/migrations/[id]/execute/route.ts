@@ -1,168 +1,254 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ExecutionEngine, DEFAULT_EXECUTION_CONFIG, ExecutionContext } from '@/lib/migration/templates/core/execution-engine';
+import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
 import { prisma } from '@/lib/database/prisma';
-import { migrationEngine } from '@/lib/migration/migration-engine';
-import { z } from 'zod';
+import type { SalesforceOrg } from '@/types';
 
-// Schema for execution options
-const ExecuteOptionsSchema = z.object({
-  objectTypes: z.array(z.string()).min(1),
-  batchSize: z.number().min(1).max(2000).optional(),
-  useBulkApi: z.boolean().optional(),
-  preserveRelationships: z.boolean().optional(),
-  allowPartialSuccess: z.boolean().optional(),
-});
-
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-/**
- * POST /api/migrations/[id]/execute - Execute a migration project
- */
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
+    const migrationId = params.id;
     const body = await request.json();
-    const validation = ExecuteOptionsSchema.safeParse(body);
+    
+    const {
+      templateId,
+      selectedRecords,
+      externalIdField = 'External_Id__c',
+      config = DEFAULT_EXECUTION_CONFIG
+    } = body;
 
-    if (!validation.success) {
+    // Validate required fields
+    if (!templateId) {
       return NextResponse.json(
-        { error: 'Invalid execution options', details: validation.error.format() },
+        { error: 'Template ID is required' },
         { status: 400 }
       );
     }
 
-    // Get project with orgs
-    const project = await prisma.migration_projects.findUnique({
-      where: { id: params.id },
+    if (!selectedRecords || Object.keys(selectedRecords).length === 0) {
+      return NextResponse.json(
+        { error: 'Selected records are required' },
+        { status: 400 }
+      );
+    }
+
+    // Get migration project
+    const migration = await prisma.migration_projects.findUnique({
+      where: { id: migrationId },
       include: {
         organisations_migration_projects_source_org_idToorganisations: true,
-        organisations_migration_projects_target_org_idToorganisations: true,
+        organisations_migration_projects_target_org_idToorganisations: true
       }
     });
 
-    if (!project) {
+    if (!migration) {
       return NextResponse.json(
-        { error: 'Migration project not found' },
+        { error: 'Migration not found' },
         { status: 404 }
       );
     }
 
-    // Check project status
-    if (project.status === 'RUNNING') {
+    const sourceOrg = migration.organisations_migration_projects_source_org_idToorganisations;
+    const targetOrg = migration.organisations_migration_projects_target_org_idToorganisations;
+
+    if (!sourceOrg || !targetOrg) {
       return NextResponse.json(
-        { error: 'Migration is already running' },
+        { error: 'Migration must have both source and target organisations configured' },
         { status: 400 }
       );
     }
 
-    if (project.status === 'COMPLETED') {
+    // Get template from registry
+    const template = templateRegistry.getTemplate(templateId);
+    if (!template) {
       return NextResponse.json(
-        { error: 'Migration has already been completed' },
-        { status: 400 }
+        { error: 'Template not found' },
+        { status: 404 }
       );
     }
 
-    // Update project status to RUNNING
-    await prisma.migration_projects.update({
-      where: { id: params.id },
-      data: { status: 'RUNNING' }
+    // Create execution context
+    const executionContext: ExecutionContext = {
+      sourceOrg: {
+        id: sourceOrg.id,
+        name: sourceOrg.name,
+        instanceUrl: sourceOrg.instance_url,
+        accessToken: '', // Will be decrypted from access_token_encrypted
+        refreshToken: '', // Will be decrypted from refresh_token_encrypted
+        organizationId: sourceOrg.salesforce_org_id || '',
+        organizationName: sourceOrg.name
+      } as SalesforceOrg,
+      targetOrg: {
+        id: targetOrg.id,
+        name: targetOrg.name,
+        instanceUrl: targetOrg.instance_url,
+        accessToken: '', // Will be decrypted from access_token_encrypted
+        refreshToken: '', // Will be decrypted from refresh_token_encrypted
+        organizationId: targetOrg.salesforce_org_id || '',
+        organizationName: targetOrg.name
+      } as SalesforceOrg,
+      template,
+      selectedRecords,
+      externalIdField,
+      config
+    };
+
+    // Create execution engine
+    const executionEngine = new ExecutionEngine();
+
+    // Set up progress tracking
+    const progressUpdates: any[] = [];
+    executionEngine.onProgress((progress) => {
+      progressUpdates.push({
+        timestamp: new Date(),
+        ...progress
+      });
     });
 
-    // Execute migration asynchronously
-    // In a production environment, this would be queued to a background job processor
-    setImmediate(async () => {
-      try {
-        const result = await migrationEngine.executeMigration(
-          project,
-          validation.data
-        );
+    // Execute the template
+    const result = await executionEngine.executeTemplate(executionContext);
 
-        // Update project status based on result
-        await prisma.migration_projects.update({
-          where: { id: params.id },
-          data: {
-            status: result.success ? 'COMPLETED' : 'FAILED',
-            updated_at: new Date(),
-          }
-        });
-      } catch (error) {
-        console.error('Migration execution error:', error);
-        
-        // Update project status to FAILED
-        await prisma.migration_projects.update({
-          where: { id: params.id },
-          data: {
-            status: 'FAILED',
-            updated_at: new Date(),
-          }
-        });
+    // Create migration session record
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const session = await prisma.migration_sessions.create({
+      data: {
+        id: sessionId,
+        project_id: migrationId,
+        object_type: templateId,
+        status: result.status === 'success' ? 'COMPLETED' : 
+                result.status === 'partial' ? 'COMPLETED' : 'FAILED',
+        total_records: result.totalRecords,
+        processed_records: result.successfulRecords + result.failedRecords,
+        successful_records: result.successfulRecords,
+        failed_records: result.failedRecords,
+        error_log: result.stepResults.flatMap(step => 
+          step.errors?.map((error: any) => ({
+            stepName: step.stepName,
+            recordId: error.recordId,
+            error: error.error,
+            retryable: error.retryable
+          })) || []
+        ),
+        started_at: new Date(Date.now() - result.executionTimeMs),
+        completed_at: new Date()
       }
     });
 
-    // Return immediate response
+    // Store record mappings for successful records
+    const recordMappings = Object.entries(result.lookupMappings).map(([sourceId, targetId], index) => ({
+      id: `record_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+      session_id: session.id,
+      source_record_id: sourceId,
+      target_record_id: targetId,
+      object_type: templateId,
+      status: 'SUCCESS' as const,
+      record_data: {}
+    }));
+
+    if (recordMappings.length > 0) {
+      await prisma.migration_records.createMany({
+        data: recordMappings
+      });
+    }
+
+    // Update migration project status
+    await prisma.migration_projects.update({
+      where: { id: migrationId },
+      data: {
+        status: result.status === 'success' ? 'COMPLETED' : 
+                result.status === 'partial' ? 'COMPLETED' : 'FAILED',
+        updated_at: new Date()
+      }
+    });
+
     return NextResponse.json({
-      message: 'Migration started',
-      projectId: project.id,
-      status: 'RUNNING',
+      success: true,
+      sessionId: session.id,
+      result: {
+        status: result.status,
+        totalRecords: result.totalRecords,
+        successfulRecords: result.successfulRecords,
+        failedRecords: result.failedRecords,
+        executionTimeMs: result.executionTimeMs,
+        stepResults: result.stepResults.map(step => ({
+          stepName: step.stepName,
+          status: step.status,
+          totalRecords: step.totalRecords,
+          successfulRecords: step.successfulRecords,
+          failedRecords: step.failedRecords,
+          executionTimeMs: step.executionTimeMs,
+          errorCount: step.errors?.length || 0
+        })),
+        lookupMappings: result.lookupMappings
+      },
+      progressUpdates
     });
 
   } catch (error) {
-    console.error('Error starting migration:', error);
+    console.error('Migration execution error:', error);
+    
     return NextResponse.json(
-      { error: 'Failed to start migration' },
+      { 
+        error: 'Failed to execute migration',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
 }
 
-/**
- * DELETE /api/migrations/[id]/execute - Cancel a running migration
- */
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    // Get project
-    const project = await prisma.migration_projects.findUnique({
-      where: { id: params.id },
+    const migrationId = params.id;
+
+    // Get latest migration session for this project
+    const session = await prisma.migration_sessions.findFirst({
+      where: { project_id: migrationId },
+      orderBy: { created_at: 'desc' },
+      include: {
+        migration_records: true
+      }
     });
 
-    if (!project) {
+    if (!session) {
       return NextResponse.json(
-        { error: 'Migration project not found' },
+        { error: 'No execution session found for this migration' },
         { status: 404 }
       );
     }
 
-    if (project.status !== 'RUNNING') {
-      return NextResponse.json(
-        { error: 'Migration is not running' },
-        { status: 400 }
-      );
-    }
-
-    // Cancel the migration
-    migrationEngine.cancelMigration();
-
-    // Update project status
-    await prisma.migration_projects.update({
-      where: { id: params.id },
-      data: {
-        status: 'DRAFT',
-        updated_at: new Date(),
+    return NextResponse.json({
+      success: true,
+      session: {
+        id: session.id,
+        status: session.status,
+        totalRecords: session.total_records,
+        processedRecords: session.processed_records,
+        successfulRecords: session.successful_records,
+        failedRecords: session.failed_records,
+        startedAt: session.started_at,
+        completedAt: session.completed_at,
+        executionTimeMs: session.completed_at && session.started_at 
+          ? session.completed_at.getTime() - session.started_at.getTime()
+          : null,
+        errorLog: session.error_log,
+        recordCount: session.migration_records.length
       }
     });
 
-    return NextResponse.json({
-      message: 'Migration cancelled',
-      projectId: project.id,
-      status: 'DRAFT',
-    });
-
   } catch (error) {
-    console.error('Error cancelling migration:', error);
+    console.error('Get execution status error:', error);
+    
     return NextResponse.json(
-      { error: 'Failed to cancel migration' },
+      { 
+        error: 'Failed to get execution status',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

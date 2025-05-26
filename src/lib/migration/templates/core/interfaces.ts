@@ -178,4 +178,28 @@ export interface FieldValidationRule {
 export interface ConditionalTransform {
     condition: string;
     transformation: string;
+}
+
+// Execution interfaces for Phase 4
+export interface ExecutionResult {
+    status: 'success' | 'partial' | 'failed';
+    totalRecords: number;
+    successfulRecords: number;
+    failedRecords: number;
+    stepResults: any[];
+    executionTimeMs: number;
+    lookupMappings: Record<string, string>;
+    error?: string;
+}
+
+export interface ExecutionProgress {
+    currentStep: number;
+    totalSteps: number;
+    stepName: string;
+    status: 'running' | 'success' | 'partial' | 'failed';
+    totalRecords: number;
+    successfulRecords: number;
+    failedRecords: number;
+    startTime: Date;
+    estimatedCompletion: Date | null;
 } 

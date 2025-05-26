@@ -74,6 +74,7 @@ model migration_projects {
   migration_sessions                                            migration_sessions[]
   migration_template_usage                                      migration_template_usage[]
   migration_record_selections                                   migration_record_selections[]
+  scheduled_migrations                                          scheduled_migrations[]
 }
 
 model migration_records {
@@ -181,6 +182,31 @@ model migration_record_selections {
   @@index([object_type])
 }
 
+model scheduled_migrations {
+  id                 String             @id
+  name               String             @db.VarChar(255)
+  description        String?
+  project_id         String
+  cron_expression    String             @db.VarChar(100)
+  timezone           String             @db.VarChar(50) @default("UTC")
+  is_active          Boolean            @default(true)
+  status             scheduled_status   @default(ACTIVE)
+  next_run_at        DateTime?
+  last_run_at        DateTime?
+  last_run_status    String?            @db.VarChar(50)
+  total_runs         Int                @default(0)
+  successful_runs    Int                @default(0)
+  failed_runs        Int                @default(0)
+  execution_config   Json               @default("{}")
+  created_at         DateTime           @default(now())
+  updated_at         DateTime           @updatedAt
+  migration_projects migration_projects @relation(fields: [project_id], references: [id])
+
+  @@index([project_id])
+  @@index([status])
+  @@index([next_run_at])
+}
+
 enum migration_status {
   DRAFT
   READY
@@ -207,4 +233,11 @@ enum session_status {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+enum scheduled_status {
+  ACTIVE
+  PAUSED
+  DISABLED
+  ERROR
 }

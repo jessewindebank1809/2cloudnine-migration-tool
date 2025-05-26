@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
+import '@/lib/migration/templates/registry'; // Ensure templates are registered
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+
+    // Get template from registry
+    const template = templateRegistry.getTemplate(id);
+    
+    if (!template) {
+      return NextResponse.json(
+        { error: 'Template not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      template: {
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        category: template.category,
+        version: template.version,
+        metadata: template.metadata,
+        etlSteps: template.etlSteps.map(step => ({
+          stepName: step.stepName,
+          stepOrder: step.stepOrder,
+          objectApiName: step.extractConfig.objectApiName,
+          description: `Extract and transform ${step.extractConfig.objectApiName} records`,
+          dependencies: step.dependencies || []
+        })),
+        stepCount: template.etlSteps.length,
+        estimatedDuration: template.metadata.estimatedDuration,
+        complexity: template.metadata.complexity,
+        requiredPermissions: template.metadata.requiredPermissions
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching template:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to fetch template', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
+      },
+      { status: 500 }
+    );
+  }
+} 

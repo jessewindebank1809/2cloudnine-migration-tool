@@ -46,24 +46,24 @@ export class MultiOrgSessionManager {
    */
   private async createSession(orgId: string): Promise<OrgSession> {
     // Get org from database
-    const org = await prisma.organisation.findUnique({
+    const org = await prisma.organisations.findUnique({
       where: { id: orgId },
     });
 
-    if (!org || !org.accessTokenEncrypted) {
+    if (!org || !org.access_token_encrypted) {
       throw new Error(`Organization ${orgId} not found or not connected`);
     }
 
     // Decrypt tokens
-    const accessToken = decrypt(org.accessTokenEncrypted);
-    const refreshToken = org.refreshTokenEncrypted ? decrypt(org.refreshTokenEncrypted) : undefined;
+    const accessToken = decrypt(org.access_token_encrypted);
+    const refreshToken = org.refresh_token_encrypted ? decrypt(org.refresh_token_encrypted) : undefined;
 
     // Create Salesforce client
     const client = new SalesforceClient({
       id: org.id,
-      organizationId: org.salesforceOrgId || '',
+      organizationId: org.salesforce_org_id || '',
       organizationName: org.name,
-      instanceUrl: org.instanceUrl,
+      instanceUrl: org.instance_url,
       accessToken,
       refreshToken,
     });

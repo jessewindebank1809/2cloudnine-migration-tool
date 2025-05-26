@@ -32,24 +32,24 @@ export class ConnectionHealthMonitor {
   async checkOrgHealth(orgId: string): Promise<HealthCheckResult> {
     try {
       // Get org from database
-      const org = await prisma.organisation.findUnique({
+      const org = await prisma.organisations.findUnique({
         where: { id: orgId },
       });
 
-      if (!org || !org.accessTokenEncrypted) {
+      if (!org || !org.access_token_encrypted) {
         return this.createHealthResult(orgId, false, 'Organization not found or not connected');
       }
 
       // Decrypt tokens
-      const accessToken = decrypt(org.accessTokenEncrypted);
-      const refreshToken = org.refreshTokenEncrypted ? decrypt(org.refreshTokenEncrypted) : undefined;
+      const accessToken = decrypt(org.access_token_encrypted);
+      const refreshToken = org.refresh_token_encrypted ? decrypt(org.refresh_token_encrypted) : undefined;
 
       // Create client
       const client = new SalesforceClient({
         id: org.id,
-        organizationId: org.salesforceOrgId || '',
+        organizationId: org.salesforce_org_id || '',
         organizationName: org.name,
-        instanceUrl: org.instanceUrl,
+        instanceUrl: org.instance_url,
         accessToken,
         refreshToken,
       });
@@ -98,14 +98,14 @@ export class ConnectionHealthMonitor {
    * Check health of all connected organizations
    */
   async checkAllOrgsHealth(): Promise<HealthCheckResult[]> {
-    const orgs = await prisma.organisation.findMany({
+    const orgs = await prisma.organisations.findMany({
       where: {
-        accessTokenEncrypted: { not: null }
+        access_token_encrypted: { not: null }
       }
     });
 
     const results = await Promise.all(
-      orgs.map(org => this.checkOrgHealth(org.id))
+      orgs.map((org: any) => this.checkOrgHealth(org.id))
     );
 
     return results;
@@ -138,11 +138,11 @@ export class ConnectionHealthMonitor {
   /**
    * Check if org needs token refresh
    */
-  async needsTokenRefresh(org: { tokenExpiresAt: Date | null }): Promise<boolean> {
-    if (!org.tokenExpiresAt) return false;
+  async needsTokenRefresh(org: { token_expires_at: Date | null }): Promise<boolean> {
+    if (!org.token_expires_at) return false;
     
     const now = new Date();
-    const expiresAt = new Date(org.tokenExpiresAt);
+    const expiresAt = new Date(org.token_expires_at);
     const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
     
     return now.getTime() > (expiresAt.getTime() - bufferTime);
@@ -152,7 +152,7 @@ export class ConnectionHealthMonitor {
    * Refresh access token if needed
    */
   async refreshTokenIfNeeded(orgId: string): Promise<boolean> {
-    const org = await prisma.organisation.findUnique({
+    const org = await prisma.organisations.findUnique({
       where: { id: orgId }
     });
 
@@ -161,7 +161,7 @@ export class ConnectionHealthMonitor {
     }
 
     try {
-      const refreshToken = org.refreshTokenEncrypted ? decrypt(org.refreshTokenEncrypted) : undefined;
+      const refreshToken = org.refresh_token_encrypted ? decrypt(org.refresh_token_encrypted) : undefined;
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
@@ -169,10 +169,10 @@ export class ConnectionHealthMonitor {
       // Create client and refresh token
       const client = new SalesforceClient({
         id: org.id,
-        organizationId: org.salesforceOrgId || '',
+        organizationId: org.salesforce_org_id || '',
         organizationName: org.name,
-        instanceUrl: org.instanceUrl,
-        accessToken: decrypt(org.accessTokenEncrypted!),
+        instanceUrl: org.instance_url,
+        accessToken: decrypt(org.access_token_encrypted!),
         refreshToken,
       });
 
@@ -220,11 +220,11 @@ export class ConnectionHealthMonitor {
     health: HealthCheckResult
   ): Promise<void> {
     // Store health status in a separate field or related table
-    // For now, we'll just update the updatedAt timestamp
-    await prisma.organisation.update({
+    // For now, we'll just update the updated_at timestamp
+    await prisma.organisations.update({
       where: { id: orgId },
       data: {
-        updatedAt: new Date(),
+        updated_at: new Date(),
         // TODO: Add healthStatus field to schema
       }
     });

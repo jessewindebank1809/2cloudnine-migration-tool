@@ -221,16 +221,16 @@ export class MigrationEngine {
 
     // Get final results
     const session = await migrationSessionManager.getSession(sessionId);
-    const duration = session.completedAt && session.startedAt
-      ? session.completedAt.getTime() - session.startedAt.getTime()
+    const duration = session.completed_at && session.started_at
+      ? session.completed_at.getTime() - session.started_at.getTime()
       : 0;
 
     return {
       sessionId,
-      success: session.failedRecords === 0,
-      totalRecords: session.totalRecords,
-      successfulRecords: session.successfulRecords,
-      failedRecords: session.failedRecords,
+      success: session.failed_records === 0,
+      totalRecords: session.total_records,
+      successfulRecords: session.successful_records,
+      failedRecords: session.failed_records,
       duration,
       errors: []
     };
@@ -308,16 +308,16 @@ export class MigrationEngine {
 
     // Get final results
     const session = await migrationSessionManager.getSession(sessionId);
-    const duration = session.completedAt && session.startedAt
-      ? session.completedAt.getTime() - session.startedAt.getTime()
+    const duration = session.completed_at && session.started_at
+      ? session.completed_at.getTime() - session.started_at.getTime()
       : 0;
 
     return {
       sessionId,
-      success: session.failedRecords === 0,
-      totalRecords: session.totalRecords,
-      successfulRecords: session.successfulRecords,
-      failedRecords: session.failedRecords,
+      success: session.failed_records === 0,
+      totalRecords: session.total_records,
+      successfulRecords: session.successful_records,
+      failedRecords: session.failed_records,
       duration,
       errors: []
     };
