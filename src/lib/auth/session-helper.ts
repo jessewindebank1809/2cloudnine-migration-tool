@@ -41,7 +41,7 @@ export async function getAuthSession(request: NextRequest): Promise<AuthSession 
                 id: user.id,
                 email: user.email || '',
                 name: user.name || '',
-                emailVerified: user.emailVerified,
+                emailVerified: !!user.emailVerified,
                 image: user.image,
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt,

@@ -57,25 +57,29 @@ export async function POST(request: NextRequest) {
       // Create a placeholder user
       const user = await prisma.user.create({
         data: {
+          id: crypto.randomUUID(),
           email: username,
           name: username.split('@')[0],
+          updatedAt: new Date(),
         }
       });
       userId = user.id;
     }
 
     // Save the org connection to database
-    const organization = await prisma.organisation.create({
+    const organization = await prisma.organisations.create({
       data: {
+        id: crypto.randomUUID(),
         name: `${username.split('@')[0]}'s Org`,
-        orgType: 'PRODUCTION', // Default, can be changed later
-        instanceUrl: orgUrl,
-        salesforceOrgId: generateOrgId(), // We'll get the real ID after OAuth
-        userId,
+        org_type: 'PRODUCTION', // Default, can be changed later
+        instance_url: orgUrl,
+        salesforce_org_id: generateOrgId(), // We'll get the real ID after OAuth
+        user_id: userId,
         // Don't store username/password, only OAuth credentials
-        accessTokenEncrypted: null, // Will be populated after OAuth flow
-        refreshTokenEncrypted: null,
-        tokenExpiresAt: null,
+        access_token_encrypted: null, // Will be populated after OAuth flow
+        refresh_token_encrypted: null,
+        token_expires_at: null,
+        updated_at: new Date(),
       }
     })
 

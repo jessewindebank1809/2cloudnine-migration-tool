@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get organization from database
-    const org = await prisma.organisation.findUnique({
+    const org = await prisma.organisations.findUnique({
       where: { id: orgId },
     });
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!org.accessTokenEncrypted) {
+    if (!org.access_token_encrypted) {
       return NextResponse.json(
         { error: 'Organization not connected' },
         { status: 401 }
@@ -36,15 +36,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Decrypt tokens
-    const accessToken = decrypt(org.accessTokenEncrypted);
-    const refreshToken = org.refreshTokenEncrypted ? decrypt(org.refreshTokenEncrypted) : undefined;
+    const accessToken = decrypt(org.access_token_encrypted);
+    const refreshToken = org.refresh_token_encrypted ? decrypt(org.refresh_token_encrypted) : undefined;
 
     // Create Salesforce client
     const client = new SalesforceClient({
       id: org.id,
-      organizationId: org.salesforceOrgId || '',
+      organizationId: org.salesforce_org_id || '',
       organizationName: org.name,
-      instanceUrl: org.instanceUrl,
+      instanceUrl: org.instance_url,
       accessToken,
       refreshToken,
     });

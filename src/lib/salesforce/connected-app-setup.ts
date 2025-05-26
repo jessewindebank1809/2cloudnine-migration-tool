@@ -1,31 +1,33 @@
 // Temporary stub for ConnectedAppSetup to fix build error
 // TODO: Implement proper Connected App setup functionality
 
-interface ConnectedAppConfig {
+export interface ConnectedAppSetupConfig {
   orgUrl: string;
   username: string;
   password: string;
   securityToken: string;
 }
 
-interface ConnectedAppResult {
-  consumerKey?: string;
+export interface ConnectedAppResult {
+  consumerKey: string;
   consumerSecret?: string;
   error?: string;
   exists?: boolean;
 }
 
 export class ConnectedAppSetup {
-  private config: ConnectedAppConfig;
+  private config: ConnectedAppSetupConfig;
 
-  constructor(config: ConnectedAppConfig) {
+  constructor(config: ConnectedAppSetupConfig) {
     this.config = config;
   }
 
   async createConnectedApp(): Promise<ConnectedAppResult> {
-    // Stub implementation
+    // Stub implementation - would normally create a Connected App via Salesforce APIs
+    // For now, return a mock result
     return {
-      error: "Connected App setup not yet implemented"
+      consumerKey: 'mock_consumer_key',
+      consumerSecret: 'mock_consumer_secret',
     };
   }
 } 

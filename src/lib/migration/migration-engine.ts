@@ -1,4 +1,4 @@
-import { MigrationProject, SessionStatus } from '@prisma/client';
+import { migration_projects, session_status } from '@prisma/client';
 import { migrationSessionManager } from './migration-session-manager';
 import { DataExtractor } from './data-extractor';
 import { DataLoader } from './data-loader';
@@ -33,7 +33,7 @@ export class MigrationEngine {
    * Execute a migration project
    */
   async executeMigration(
-    project: MigrationProject,
+    project: migration_projects,
     options: MigrationOptions
   ): Promise<MigrationResult> {
     const startTime = Date.now();
@@ -48,7 +48,7 @@ export class MigrationEngine {
 
       // Determine migration order based on object dependencies
       const orderedObjects = await this.determineObjectOrder(
-        project.sourceOrgId,
+        project.source_org_id,
         options.objectTypes
       );
 

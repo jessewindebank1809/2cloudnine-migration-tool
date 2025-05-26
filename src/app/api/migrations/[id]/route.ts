@@ -118,8 +118,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         updated_at: new Date(),
       },
       include: {
-        sourceOrg: true,
-        targetOrg: true,
+        organisations_migration_projects_source_org_idToorganisations: {
+          select: {
+            id: true,
+            name: true,
+            instance_url: true,
+            salesforce_org_id: true,
+          }
+        },
+        organisations_migration_projects_target_org_idToorganisations: {
+          select: {
+            id: true,
+            name: true,
+            instance_url: true,
+            salesforce_org_id: true,
+          }
+        }
       }
     });
 
@@ -139,7 +153,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Check if project exists and is not running
-    const existing = await prisma.migrationProject.findUnique({
+    const existing = await prisma.migration_projects.findUnique({
       where: { id: params.id },
     });
 
@@ -158,7 +172,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Delete the project (cascade will handle sessions and records)
-    await prisma.migrationProject.delete({
+    await prisma.migration_projects.delete({
       where: { id: params.id },
     });
 

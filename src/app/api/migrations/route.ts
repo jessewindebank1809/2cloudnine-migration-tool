@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Schema for creating a new migration project
 const CreateProjectSchema = z.object({
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
     // Create the migration project
     const project = await prisma.migration_projects.create({
       data: {
+        id: crypto.randomUUID(),
         name,
         description: description || null,
         source_org_id: sourceOrgId,
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
         config: config || {},
         status: 'DRAFT',
         user_id: userId,
+        updated_at: new Date(),
       },
       include: {
         organisations_migration_projects_source_org_idToorganisations: true,
