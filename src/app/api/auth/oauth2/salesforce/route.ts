@@ -3,6 +3,9 @@ import { requireAuth } from '@/lib/auth/session-helper';
 import { prisma } from '@/lib/database/prisma';
 import crypto from 'crypto';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth(request);
@@ -60,7 +63,7 @@ export async function GET(request: NextRequest) {
       background, // Include background flag
     })).toString('base64');
 
-    // Build OAuth URL with PKCE parameters
+    // Build OAuth URL with PKCE parameters and force login prompt
     const oauthParams = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
@@ -69,6 +72,7 @@ export async function GET(request: NextRequest) {
       scope: 'api refresh_token',
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
+      prompt: 'login', // Force user to login even if they have an existing session
     });
 
     const oauthUrl = `${targetInstanceUrl}/services/oauth2/authorize?${oauthParams.toString()}`;

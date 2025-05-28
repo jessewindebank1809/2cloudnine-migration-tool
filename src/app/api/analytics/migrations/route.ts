@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -44,8 +47,8 @@ export async function GET(request: NextRequest) {
 
     // Calculate analytics
     const totalMigrations = sessions.length;
-    const completedMigrations = sessions.filter(s => s.status === 'COMPLETED').length;
-    const failedMigrations = sessions.filter(s => s.status === 'FAILED').length;
+    const completedMigrations = sessions.filter((s: any) => s.status === 'COMPLETED').length;
+    const failedMigrations = sessions.filter((s: any) => s.status === 'FAILED').length;
     const successRate = totalMigrations > 0 ? (completedMigrations / totalMigrations) * 100 : 0;
 
     const totalRecordsProcessed = sessions.reduce((sum, s) => sum + (s.processed_records || 0), 0);
@@ -53,7 +56,7 @@ export async function GET(request: NextRequest) {
     const recordSuccessRate = totalRecordsProcessed > 0 ? (totalRecordsSuccessful / totalRecordsProcessed) * 100 : 0;
 
     // Calculate average duration for completed migrations
-    const completedSessions = sessions.filter(s => s.status === 'COMPLETED' && s.started_at && s.completed_at);
+    const completedSessions = sessions.filter((s: any) => s.status === 'COMPLETED' && s.started_at && s.completed_at);
     const averageDuration = completedSessions.length > 0 
       ? completedSessions.reduce((sum, s) => {
           const duration = new Date(s.completed_at!).getTime() - new Date(s.started_at!).getTime();

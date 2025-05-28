@@ -4,6 +4,9 @@ import { encrypt } from '@/lib/utils/encryption';
 import { TokenManager } from '@/lib/salesforce/token-manager';
 import crypto from 'crypto';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 interface SalesforceTokenResponse {
   access_token: string;
   refresh_token: string;
@@ -17,18 +20,21 @@ interface SalesforceTokenResponse {
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
+    const { searchParams } = request.nextUrl;
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
 
+    // Get the base URL from the request or environment
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+
     if (error) {
       console.error('OAuth error:', error);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=oauth_failed`);
+      return NextResponse.redirect(`${baseUrl}/orgs?error=oauth_failed`);
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=missing_params`);
+      return NextResponse.redirect(`${baseUrl}/orgs?error=missing_params`);
     }
 
     // Decode the state to get the organisation connection data
@@ -37,7 +43,7 @@ export async function GET(request: NextRequest) {
       stateData = JSON.parse(Buffer.from(state, 'base64').toString());
     } catch (e) {
       console.error('Invalid state parameter:', e);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=invalid_state`);
+      return NextResponse.redirect(`${baseUrl}/orgs?error=invalid_state`);
     }
 
     // Handle organisation connection
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     if (!organisation) {
       console.error('Organisation not found:', orgId);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=org_not_found`);
+      return NextResponse.redirect(`${baseUrl}/orgs?error=org_not_found`);
     }
 
     // Select credentials based on org type
@@ -67,7 +73,7 @@ export async function GET(request: NextRequest) {
       grant_type: 'authorization_code',
       client_id: clientId,
       client_secret: clientSecret,
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/salesforce-org`,
+      redirect_uri: `${baseUrl}/api/auth/callback/salesforce-org`,
       code,
       code_verifier: codeVerifier, // Include PKCE code verifier
     });
@@ -83,7 +89,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
       console.error('Token exchange failed:', errorText);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=token_exchange_failed`);
+      return NextResponse.redirect(`${baseUrl}/orgs?error=token_exchange_failed`);
     }
 
     const tokenData = await tokenResponse.json();
@@ -97,7 +103,7 @@ export async function GET(request: NextRequest) {
 
     if (!userInfoResponse.ok) {
       console.error('Failed to fetch user info');
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=userinfo_failed`);
+      return NextResponse.redirect(`${baseUrl}/orgs?error=userinfo_failed`);
     }
 
     const userInfo = await userInfoResponse.json();
@@ -119,7 +125,7 @@ export async function GET(request: NextRequest) {
         where: { id: orgId },
       });
       
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=org_already_connected`);
+      return NextResponse.redirect(`${baseUrl}/orgs?error=org_already_connected`);
     }
 
     // Encrypt tokens before storing
@@ -161,7 +167,7 @@ export async function GET(request: NextRequest) {
           <script>
             // Send success message to parent window
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_SUCCESS', orgId: '${orgId}' }, '${process.env.NEXT_PUBLIC_APP_URL}');
+              window.opener.postMessage({ type: 'OAUTH_SUCCESS', orgId: '${orgId}' }, '${baseUrl}');
             }
             // Close the popup
             window.close();
@@ -176,10 +182,13 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // Traditional redirect for manual OAuth
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?success=connected`);
+      return NextResponse.redirect(`${baseUrl}/orgs?success=connected`);
     }
   } catch (error) {
     console.error('OAuth callback error:', error);
+    
+    // Get the base URL from the request or environment
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
     
     // Extract background flag from state if possible
     let isBackground = false;
@@ -206,7 +215,7 @@ export async function GET(request: NextRequest) {
           <script>
             // Send error message to parent window
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_ERROR', error: 'callback_failed' }, '${process.env.NEXT_PUBLIC_APP_URL}');
+              window.opener.postMessage({ type: 'OAUTH_ERROR', error: 'callback_failed' }, '${baseUrl}');
             }
             // Close the popup
             window.close();
@@ -220,7 +229,7 @@ export async function GET(request: NextRequest) {
         headers: { 'Content-Type': 'text/html' },
       });
     } else {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=callback_failed`);
+      return NextResponse.redirect(`${baseUrl}/orgs?error=callback_failed`);
     }
   }
 } 
