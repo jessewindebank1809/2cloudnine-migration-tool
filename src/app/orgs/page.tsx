@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Plus, ExternalLink, Trash2, Check, X, Edit2 } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Check, X, Edit2, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -34,6 +34,7 @@ interface Organisation {
   instance_url: string;
   salesforce_org_id: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export default function OrganisationsPage() {
@@ -53,6 +54,8 @@ export default function OrganisationsPage() {
       setIsConnectDialogOpen(true);
     }
   }, [searchParams]);
+
+
 
   // Handle OAuth callback errors
   const oauthError = searchParams.get('error');
@@ -91,6 +94,18 @@ export default function OrganisationsPage() {
       return response.json();
     },
   });
+
+  // Check for reconnect parameter to auto-trigger reconnection
+  useEffect(() => {
+    const reconnectOrgId = searchParams.get('reconnect');
+    if (reconnectOrgId && data?.organisations) {
+      const orgToReconnect = data.organisations.find((org: Organisation) => org.id === reconnectOrgId);
+      if (orgToReconnect) {
+        console.log(`Auto-reconnecting organisation: ${orgToReconnect.name}`);
+        handleReconnect(orgToReconnect);
+      }
+    }
+  }, [searchParams, data]);
 
   const handleConnectOrg = async () => {
     try {
@@ -330,10 +345,10 @@ export default function OrganisationsPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Instance URL</TableHead>
+                  <TableHead className="w-16">Status</TableHead>
+                  <TableHead className="w-48">Instance URL</TableHead>
                   <TableHead>Org ID</TableHead>
-                  <TableHead>Connected</TableHead>
+                  <TableHead>Last Connected</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -378,17 +393,22 @@ export default function OrganisationsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={org.org_type === 'PRODUCTION' ? 'default' : 'secondary'}>
+                      <Badge variant={org.org_type === 'PRODUCTION' ? 'production' : 'sandbox'}>
                         {org.org_type === 'PRODUCTION' ? 'Production' : 'Sandbox'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={org.salesforce_org_id ? 'secondary' : 'destructive'}
-                        className={org.salesforce_org_id ? 'bg-green-500 text-white hover:bg-green-600' : ''}
-                      >
-                        {org.salesforce_org_id ? 'Connected' : 'Disconnected'}
-                      </Badge>
+                      <div className="flex justify-center">
+                        {org.salesforce_org_id ? (
+                          <div title="Connected">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          </div>
+                        ) : (
+                          <div title="Disconnected">
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -412,26 +432,24 @@ export default function OrganisationsPage() {
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">
-                        {org.created_at ? new Date(org.created_at).toLocaleDateString('en-GB', {
+                        {org.salesforce_org_id && org.updated_at ? new Date(org.updated_at).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: '2-digit', 
                           year: 'numeric'
-                        }) : 'Unknown'}
+                        }) : 'Not connected'}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {!org.salesforce_org_id && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleReconnect(org)}
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            Reconnect
-                          </Button>
-                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleReconnect(org)}
+                          className="text-blue-600 hover:text-blue-700 h-8 w-8"
+                          title={org.salesforce_org_id ? "Refresh connection" : "Reconnect organisation"}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="icon"

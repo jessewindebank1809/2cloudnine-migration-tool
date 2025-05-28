@@ -1,5 +1,6 @@
 import { SalesforceClient } from './client';
 import { z } from 'zod';
+import { withTokenRefresh } from './token-refresh-helper';
 
 // Schema for Salesforce object metadata
 const SalesforceFieldSchema = z.object({
@@ -65,39 +66,40 @@ export class ObjectDiscoveryEngine {
       objectPatterns = []
     } = options;
 
-    try {
-      // Use the client to get connection and access jsforce methods
-      const connection = (this.client as any).connection;
-      
-      // Get global describe to list all objects
-      const describeResult = await connection.describeGlobal();
-      
-      // Filter objects based on options
-      let objects = describeResult.sobjects.filter((obj: DescribeGlobalSObject) => {
-        if (!obj.queryable) return false;
-        if (!includeStandard && !obj.custom) return false;
-        if (!includeCustom && obj.custom) return false;
+    return withTokenRefresh(
+      this.client,
+      async () => {
+        // Use the client to get connection and access jsforce methods
+        const connection = (this.client as any).connection;
         
-        // Check patterns if provided
-        if (objectPatterns.length > 0) {
-          return objectPatterns.some(pattern => 
-            obj.name.toLowerCase().includes(pattern.toLowerCase())
-          );
-        }
+        // Get global describe to list all objects
+        const describeResult = await connection.describeGlobal();
         
-        return true;
-      });
+        // Filter objects based on options
+        let objects = describeResult.sobjects.filter((obj: DescribeGlobalSObject) => {
+          if (!obj.queryable) return false;
+          if (!includeStandard && !obj.custom) return false;
+          if (!includeCustom && obj.custom) return false;
+          
+          // Check patterns if provided
+          if (objectPatterns.length > 0) {
+            return objectPatterns.some(pattern => 
+              obj.name.toLowerCase().includes(pattern.toLowerCase())
+            );
+          }
+          
+          return true;
+        });
 
-      // Get detailed metadata for each object
-      const detailedObjects = await Promise.all(
-        objects.map((obj: DescribeGlobalSObject) => this.getObjectDetails(obj.name))
-      );
+        // Get detailed metadata for each object
+        const detailedObjects = await Promise.all(
+          objects.map((obj: DescribeGlobalSObject) => this.getObjectDetails(obj.name))
+        );
 
-      return detailedObjects.filter(Boolean) as SalesforceObject[];
-    } catch (error) {
-      console.error('Error discovering objects:', error);
-      throw new Error('Failed to discover Salesforce objects');
-    }
+        return detailedObjects.filter(Boolean) as SalesforceObject[];
+      },
+      'object discovery'
+    );
   }
 
   /**

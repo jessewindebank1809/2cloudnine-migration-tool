@@ -10,7 +10,7 @@ const CreateProjectSchema = z.object({
   sourceOrgId: z.string().uuid(),
   targetOrgId: z.string().uuid(),
   templateId: z.string().optional(),
-  selectedObjects: z.array(z.string()).optional(),
+  selectedRecords: z.array(z.string()).optional(),
   config: z.object({
     objectTypes: z.array(z.string()).optional(),
     useBulkApi: z.boolean().optional(),
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, description, sourceOrgId, targetOrgId, templateId, selectedObjects, config } = validation.data;
+    const { name, description, sourceOrgId, targetOrgId, templateId, selectedRecords, config } = validation.data;
 
     // Verify organizations exist and are connected
     const [sourceOrg, targetOrg] = await Promise.all([
@@ -147,10 +147,10 @@ export async function POST(request: NextRequest) {
     // Create the migration project
     const projectId = crypto.randomUUID();
     
-    // Build the config object with selected objects and template
+    // Build the config object with selected records and template
     const projectConfig: any = {
       ...(config || {}),
-      objectTypes: selectedObjects || [],
+      selectedRecords: selectedRecords || [],
     };
     
     if (templateId) {

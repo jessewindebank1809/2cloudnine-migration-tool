@@ -7,10 +7,8 @@ import {
   Filter, 
   CheckSquare, 
   Square, 
-  Eye, 
   RefreshCw,
   Database,
-  Calendar,
   User
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -27,14 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+
 
 interface SalesforceRecord {
   Id: string;
@@ -68,7 +59,6 @@ export function RecordSelector({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(selectedRecords));
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(50);
-  const [showSoqlPreview, setShowSoqlPreview] = useState(false);
 
   // Fetch records for the object type
   const { data: recordsData, isLoading, error, refetch } = useQuery({
@@ -157,18 +147,7 @@ export function RecordSelector({
     }
   };
 
-  // Generate SOQL preview
-  const generateSoqlPreview = () => {
-    if (selectedIds.size === 0) {
-      return `SELECT Id, Name, CreatedDate, LastModifiedDate FROM ${objectType} LIMIT 100`;
-    }
-    
-    const selectedArray = Array.from(selectedIds);
-    const idList = selectedArray.slice(0, 5).map(id => `'${id}'`).join(', ');
-    const moreText = selectedArray.length > 5 ? ` /* ... and ${selectedArray.length - 5} more */` : '';
-    
-    return `SELECT Id, Name, CreatedDate, LastModifiedDate FROM ${objectType} WHERE Id IN (${idList}${moreText})`;
-  };
+
 
   const allCurrentPageSelected = filteredRecords.length > 0 && 
     filteredRecords.every(record => selectedIds.has(record.Id));
@@ -203,36 +182,15 @@ export function RecordSelector({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Select Records</h3>
+      <div>
+        <h3 className="text-lg font-semibold">Select Records</h3>
+        <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             Choose which {objectType} records to migrate
           </p>
-        </div>
-        <div className="flex items-center gap-2">
           <Badge variant="outline">
             {selectedIds.size} selected
           </Badge>
-          <Dialog open={showSoqlPreview} onOpenChange={setShowSoqlPreview}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Eye className="h-4 w-4 mr-2" />
-                Preview SOQL
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>SOQL Query Preview</DialogTitle>
-                <DialogDescription>
-                  This is the SOQL query that will be used to extract the selected records
-                </DialogDescription>
-              </DialogHeader>
-              <div className="bg-muted p-4 rounded-md">
-                <code className="text-sm">{generateSoqlPreview()}</code>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -353,10 +311,6 @@ function RecordCard({
               </Badge>
             </div>
             <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                <span>Created: {new Date(record.CreatedDate).toLocaleDateString()}</span>
-              </div>
               <div className="flex items-center gap-1">
                 <User className="h-3 w-3" />
                 <span>Modified: {new Date(record.LastModifiedDate).toLocaleDateString()}</span>

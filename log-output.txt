@@ -1,0 +1,17 @@
+
+> 2cloudnine-migration-tool@0.1.0 dev:fresh:env
+> ./scripts/dev-server-env.sh
+
+🔍 Checking for running Next.js servers...
+ℹ️  No running Next.js servers found
+🚀 Starting fresh Next.js server on port 3000 with environment variables...
+
+> 2cloudnine-migration-tool@0.1.0 dev:env
+> source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && next dev
+
+  ▲ Next.js 14.2.29
+  - Local:        http://localhost:3000
+  - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1482ms

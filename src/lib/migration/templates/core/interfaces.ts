@@ -54,7 +54,7 @@ export interface FieldMapping {
     sourceField: string;
     targetField: string;
     isRequired: boolean;
-    transformationType: "direct" | "lookup" | "formula" | "custom" | "boolean" | "number";
+    transformationType: "direct" | "lookup" | "formula" | "custom" | "boolean" | "number" | "picklist";
     transformationConfig?: TransformationConfig;
     validationRules?: FieldValidationRule[];
 }
@@ -68,6 +68,9 @@ export interface LookupMapping {
     lookupValueField: string;
     cacheResults: boolean;
     fallbackValue?: string;
+    sourceExternalIdField?: string;  // Override for source external ID field
+    targetExternalIdField?: string;  // Override for target external ID field
+    crossEnvironmentMapping?: boolean; // Flag for cross-environment scenarios
 }
 
 // Record Type Mapping
@@ -79,10 +82,40 @@ export interface RecordTypeMapping {
 
 // External ID Configuration
 export interface ExternalIdConfig {
-    managedField: string; // tc9_edc__External_ID_Data_Creation__c
-    unmanagedField: string; // External_ID_Data_Creation__c
-    fallbackField: string; // External_Id__c
-    strategy: "auto-detect" | "managed" | "unmanaged";
+    sourceField: string;      // Detected or specified source external ID field
+    targetField: string;      // Detected or specified target external ID field
+    managedField: string;     // tc9_edc__External_ID_Data_Creation__c
+    unmanagedField: string;   // External_ID_Data_Creation__c
+    fallbackField: string;    // External_Id__c
+    strategy: "auto-detect" | "manual" | "cross-environment";
+    crossEnvironmentMapping?: {
+        sourcePackageType: "managed" | "unmanaged";
+        targetPackageType: "managed" | "unmanaged";
+    };
+}
+
+// Environment External ID Information
+export interface EnvironmentExternalIdInfo {
+    packageType: "managed" | "unmanaged";
+    externalIdField: string;
+    detectedFields: string[];
+    fallbackUsed: boolean;
+}
+
+// External ID Validation Results
+export interface ExternalIdValidationResult {
+    sourceEnvironment: EnvironmentExternalIdInfo;
+    targetEnvironment: EnvironmentExternalIdInfo;
+    crossEnvironmentDetected: boolean;
+    potentialIssues: ExternalIdIssue[];
+    recommendations: string[];
+}
+
+export interface ExternalIdIssue {
+    severity: "error" | "warning" | "info";
+    message: string;
+    affectedObjects: string[];
+    suggestedAction: string;
 }
 
 // Retry Configuration
@@ -182,7 +215,7 @@ export interface ConditionalTransform {
 
 // Execution interfaces for Phase 4
 export interface ExecutionResult {
-    status: 'success' | 'partial' | 'failed';
+    status: 'success' | 'failed';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;
@@ -196,7 +229,7 @@ export interface ExecutionProgress {
     currentStep: number;
     totalSteps: number;
     stepName: string;
-    status: 'running' | 'success' | 'partial' | 'failed';
+    status: 'running' | 'success' | 'failed';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;

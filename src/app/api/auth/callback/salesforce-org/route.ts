@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { encrypt } from '@/lib/utils/encryption';
+import { TokenManager } from '@/lib/salesforce/token-manager';
 import crypto from 'crypto';
 
 interface SalesforceTokenResponse {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Handle organisation connection
-    const { orgId, userId, orgType, targetInstanceUrl } = stateData;
+    const { orgId, userId, orgType, targetInstanceUrl, codeVerifier, background } = stateData;
 
     // Verify the organisation exists and belongs to the user
     const organisation = await prisma.organisations.findFirst({
@@ -61,13 +62,14 @@ export async function GET(request: NextRequest) {
       ? process.env.SALESFORCE_PRODUCTION_CLIENT_SECRET!
       : process.env.SALESFORCE_SANDBOX_CLIENT_SECRET!;
 
-    // Exchange the code for tokens using the target org's token endpoint
+    // Exchange the code for tokens using the target org's token endpoint with PKCE
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: clientId,
       client_secret: clientSecret,
       redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/salesforce-org`,
       code,
+      code_verifier: codeVerifier, // Include PKCE code verifier
     });
 
     const tokenResponse = await fetch(`${targetInstanceUrl}/services/oauth2/token`, {
@@ -124,6 +126,11 @@ export async function GET(request: NextRequest) {
     const encryptedAccessToken = encrypt(tokenData.access_token);
     const encryptedRefreshToken = encrypt(tokenData.refresh_token);
 
+    // Calculate proper expiration time (Salesforce tokens typically last 2 hours)
+    const tokenExpiresAt = tokenData.issued_at 
+      ? new Date(parseInt(tokenData.issued_at) + (2 * 60 * 60 * 1000)) // issued_at + 2 hours
+      : new Date(Date.now() + (2 * 60 * 60 * 1000)); // fallback: now + 2 hours
+
     await prisma.organisations.update({
       where: { id: orgId },
       data: {
@@ -131,17 +138,89 @@ export async function GET(request: NextRequest) {
         instance_url: tokenData.instance_url,
         access_token_encrypted: encryptedAccessToken,
         refresh_token_encrypted: encryptedRefreshToken,
-        token_expires_at: tokenData.issued_at ? new Date(parseInt(tokenData.issued_at)) : null,
+        token_expires_at: tokenExpiresAt,
         updated_at: new Date(),
       },
     });
 
+    // Clear token cache to ensure fresh tokens are used
+    const tokenManager = TokenManager.getInstance();
+    tokenManager.clearTokenCache(orgId);
+
     console.log('Successfully connected organisation:', organisation.name);
     
-    // Redirect back to organisations page with success
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?success=connected`);
+    if (background) {
+      // For background OAuth, return an HTML page that sends a message to the parent window
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>OAuth Success</title>
+        </head>
+        <body>
+          <script>
+            // Send success message to parent window
+            if (window.opener) {
+              window.opener.postMessage({ type: 'OAUTH_SUCCESS', orgId: '${orgId}' }, '${process.env.NEXT_PUBLIC_APP_URL}');
+            }
+            // Close the popup
+            window.close();
+          </script>
+          <p>Authentication successful. This window will close automatically.</p>
+        </body>
+        </html>
+      `;
+      
+      return new NextResponse(html, {
+        headers: { 'Content-Type': 'text/html' },
+      });
+    } else {
+      // Traditional redirect for manual OAuth
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?success=connected`);
+    }
   } catch (error) {
     console.error('OAuth callback error:', error);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=callback_failed`);
+    
+    // Extract background flag from state if possible
+    let isBackground = false;
+    try {
+      const searchParams = request.nextUrl.searchParams;
+      const state = searchParams.get('state');
+      if (state) {
+        const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+        isBackground = stateData.background;
+      }
+    } catch (e) {
+      // Ignore state parsing errors in error handler
+    }
+    
+    if (isBackground) {
+      // For background OAuth, return an HTML page that sends an error message
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>OAuth Error</title>
+        </head>
+        <body>
+          <script>
+            // Send error message to parent window
+            if (window.opener) {
+              window.opener.postMessage({ type: 'OAUTH_ERROR', error: 'callback_failed' }, '${process.env.NEXT_PUBLIC_APP_URL}');
+            }
+            // Close the popup
+            window.close();
+          </script>
+          <p>Authentication failed. This window will close automatically.</p>
+        </body>
+        </html>
+      `;
+      
+      return new NextResponse(html, {
+        headers: { 'Content-Type': 'text/html' },
+      });
+    } else {
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=callback_failed`);
+    }
   }
 } 

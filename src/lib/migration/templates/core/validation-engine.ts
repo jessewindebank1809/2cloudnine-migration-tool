@@ -47,18 +47,32 @@ export class ValidationEngine {
             }
 
             // Run validation for each ETL step
+            console.log(`Starting validation for template: ${template.name} (${template.etlSteps.length} steps)`);
+            
             for (const step of template.etlSteps) {
                 if (step.validationConfig) {
+                    console.log(`\n=== Validating step: ${step.stepName} ===`);
                     const stepResult = await this.validateStep(
                         step,
                         selectedRecords,
                     );
                     this.mergeValidationResults(results, stepResult);
+                    console.log(`Step ${step.stepName} validation completed: ${stepResult.errors.length} errors, ${stepResult.warnings.length} warnings`);
+                } else {
+                    console.log(`Skipping step ${step.stepName} - no validation config`);
                 }
             }
 
             results.isValid = results.errors.length === 0;
             this.updateValidationSummary(results);
+            
+            console.log(`\n=== Validation Summary ===`);
+            console.log(`Total checks: ${results.summary.totalChecks}`);
+            console.log(`Passed: ${results.summary.passedChecks}`);
+            console.log(`Failed: ${results.summary.failedChecks}`);
+            console.log(`Warnings: ${results.summary.warningChecks}`);
+            console.log(`Valid: ${results.isValid}`);
+            
             return results;
         } catch (error) {
             results.errors.push({
@@ -128,7 +142,17 @@ export class ValidationEngine {
         for (const query of queries) {
             try {
                 console.log(`Executing pre-validation query: ${query.queryName}`);
-                const results = await this.executeSoqlQuery(query.soqlQuery, this.targetOrgId);
+                
+                // Replace external ID field placeholders in pre-validation query
+                let soqlQuery = query.soqlQuery;
+                const objectName = this.extractObjectFromQuery(soqlQuery);
+                const externalIdField = await ExternalIdUtils.detectExternalIdField(
+                    objectName,
+                    targetClient
+                );
+                soqlQuery = ExternalIdUtils.replaceExternalIdPlaceholders(soqlQuery, externalIdField);
+                
+                const results = await this.executeSoqlQuery(soqlQuery, this.targetOrgId);
                 this.validationCache.set(query.cacheKey, results);
                 console.log(`Cached ${results.length} records for ${query.cacheKey}`);
             } catch (error) {
@@ -176,26 +200,47 @@ export class ValidationEngine {
         const results: ValidationResult = this.createEmptyValidationResult();
 
         for (const check of checks) {
-            const targetCache = this.validationCache.get(
-                this.getCacheKeyForObject(check.targetObject),
-            );
+            const cacheKey = this.getCacheKeyForObject(check.targetObject);
+            const targetCache = this.validationCache.get(cacheKey);
+            
+            console.log(`Running dependency check: ${check.checkName} for ${check.targetObject} (cache key: ${cacheKey})`);
             
             if (!targetCache) {
+                console.error(`Target cache not found for ${check.targetObject} (cache key: ${cacheKey})`);
+                console.error(`Available cache keys: ${Array.from(this.validationCache.keys()).join(', ')}`);
                 results.errors.push({
                     checkName: check.checkName,
-                    message: `Target cache for ${check.targetObject} not found`,
+                    message: `Target cache for ${check.targetObject} not found (cache key: ${cacheKey})`,
                     severity: "error",
                     recordId: null,
                     recordName: null,
                 });
                 continue;
             }
+            
+            console.log(`Found ${targetCache.length} cached records for ${check.targetObject}`);
+
+            // Replace external ID field placeholder in target field
+            const sourceClient = await sessionManager.getClient(this.sourceOrgId);
+            const externalIdField = await ExternalIdUtils.detectExternalIdField(
+                check.targetObject,
+                sourceClient
+            );
+            const resolvedTargetField = ExternalIdUtils.replaceExternalIdPlaceholders(
+                check.targetField,
+                externalIdField
+            );
 
             // Check each source record
+            let checkedRecords = 0;
+            let foundIssues = 0;
+            
             for (const record of sourceData) {
+                checkedRecords++;
                 const sourceValue = this.getFieldValue(record, check.sourceField);
                 
                 if (!sourceValue && check.isRequired) {
+                    foundIssues++;
                     results.errors.push({
                         checkName: check.checkName,
                         message: check.errorMessage
@@ -207,10 +252,11 @@ export class ValidationEngine {
                     });
                 } else if (sourceValue) {
                     const targetExists = targetCache.some((target) =>
-                        target[check.targetField] === sourceValue
+                        target[resolvedTargetField] === sourceValue
                     );
 
                     if (!targetExists) {
+                        foundIssues++;
                         if (check.isRequired) {
                             results.errors.push({
                                 checkName: check.checkName,
@@ -235,6 +281,8 @@ export class ValidationEngine {
                     }
                 }
             }
+            
+            console.log(`✓ Dependency check ${check.checkName}: checked ${checkedRecords} records, found ${foundIssues} issues`);
         }
 
         return results;
@@ -258,8 +306,11 @@ export class ValidationEngine {
                 );
                 query = ExternalIdUtils.replaceExternalIdPlaceholders(query, externalIdField);
                 
+                console.log(`Executing query: ${query}`);
                 const queryResult = await this.executeSoqlQuery(query, this.sourceOrgId);
                 const count = Array.isArray(queryResult) ? queryResult.length : queryResult;
+
+                console.log(`Query returned ${count} records for check: ${check.checkName}`);
 
                 let isValid = false;
                 switch (check.expectedResult) {
@@ -277,6 +328,7 @@ export class ValidationEngine {
                 }
 
                 if (!isValid) {
+                    console.log(`❌ Data integrity check failed: ${check.checkName} (expected ${check.expectedResult}, found ${count} records)`);
                     const issue: ValidationIssue = {
                         checkName: check.checkName,
                         message: `${check.errorMessage} (Found ${count} records)`,
@@ -298,7 +350,7 @@ export class ValidationEngine {
                             break;
                     }
                 } else {
-                    console.log(`✓ Data integrity check passed: ${check.checkName}`);
+                    console.log(`✓ Data integrity check passed: ${check.checkName} (expected ${check.expectedResult}, found ${count} records)`);
                 }
             } catch (error) {
                 results.errors.push({
@@ -378,7 +430,16 @@ export class ValidationEngine {
     }
 
     private getCacheKeyForObject(objectName: string): string {
-        return `target_${objectName.toLowerCase().replace('__c', '').replace('tc9_et__', '')}`;
+        // Map object names to their corresponding cache keys as defined in templates
+        const cacheKeyMap: { [key: string]: string } = {
+            'tc9_pr__Pay_Code__c': 'target_pay_codes',
+            'tc9_et__Interpretation_Rule__c': 'target_interpretation_rules',
+            'tc9_et__Leave_Header__c': 'target_leave_headers',
+            'tc9_pr__Leave_Rule__c': 'target_leave_rules',
+            'tc9_et__Interpretation_Breakpoint__c': 'target_interpretation_breakpoints',
+        };
+        
+        return cacheKeyMap[objectName] || `target_${objectName.toLowerCase().replace('__c', '').replace('tc9_et__', '')}`;
     }
 
     private async executeSoqlQuery(query: string, orgId: string): Promise<any[]> {

@@ -101,8 +101,14 @@ export class MultiOrgSessionManager {
    * Get client for an organization
    */
   async getClient(orgId: string): Promise<SalesforceClient> {
-    const session = await this.getSession(orgId);
-    return session.client;
+    // Try to get client with valid tokens
+    const client = await SalesforceClient.createWithValidTokens(orgId);
+    
+    if (!client) {
+      throw new Error(`Organization ${orgId} not connected or tokens expired`);
+    }
+    
+    return client;
   }
 
   /**

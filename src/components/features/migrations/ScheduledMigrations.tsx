@@ -147,13 +147,13 @@ export function ScheduledMigrations() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-green-100 text-green-800';
-      case 'PAUSED': return 'bg-yellow-100 text-yellow-800';
-      case 'DISABLED': return 'bg-grey-100 text-grey-800';
-      case 'ERROR': return 'bg-red-100 text-red-800';
-      default: return 'bg-grey-100 text-grey-800';
+      case 'ACTIVE': return 'success';
+      case 'PAUSED': return 'warning';
+      case 'DISABLED': return 'pending';
+      case 'ERROR': return 'error';
+      default: return 'pending';
     }
   };
 
@@ -286,7 +286,7 @@ export function ScheduledMigrations() {
                   placeholder="0 2 * * *"
                 />
                 <p className="text-xs text-grey-600 mt-1">
-                  Format: minute hour day month weekday (e.g., "0 2 * * *" = daily at 2 AM)
+                  Format: minute hour day month weekday (e.g., &quot;0 2 * * *&quot; = daily at 2 AM)
                 </p>
               </div>
               <div>
@@ -356,11 +356,11 @@ export function ScheduledMigrations() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-medium">{scheduled.name}</h3>
-                      <Badge className={getStatusColor(scheduled.status)}>
+                      <Badge variant={getStatusVariant(scheduled.status) as any}>
                         {scheduled.status}
                       </Badge>
                       {!scheduled.isActive && (
-                        <Badge variant="outline" className="bg-grey-100 text-grey-600">
+                        <Badge variant="pending">
                           Inactive
                         </Badge>
                       )}

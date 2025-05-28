@@ -128,10 +128,9 @@ export default function MigrationExecutePage({ params }: PageProps) {
               </div>
 
               <ObjectSelection
-                sourceOrgId={project.sourceOrgId}
-                targetOrgId={project.targetOrgId}
+                sourceOrgId={project.source_org_id}
+                targetOrgId={project.target_org_id}
                 onSelectionChange={setSelectedObjects}
-                onNext={handleExecute}
               />
             </CardContent>
           </Card>
@@ -144,7 +143,10 @@ export default function MigrationExecutePage({ params }: PageProps) {
               disabled={selectedObjects.length === 0 || executeMigration.isPending}
             >
               {executeMigration.isPending ? (
-                <>Starting Migration...</>
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Starting Migration...
+                </>
               ) : (
                 <>
                   <Play className="mr-2 h-4 w-4" />
@@ -155,12 +157,49 @@ export default function MigrationExecutePage({ params }: PageProps) {
           </div>
 
           {executeMigration.error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {executeMigration.error.message}
-              </AlertDescription>
-            </Alert>
+            <div className="space-y-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Migration execution failed
+                </AlertDescription>
+              </Alert>
+              
+              {/* Detailed Error Information */}
+              <Card className="border-red-200">
+                <CardHeader>
+                  <CardTitle className="text-red-800 text-base">Error Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded">
+                    <div className="text-sm text-red-800 font-mono">
+                      {executeMigration.error.message}
+                    </div>
+                  </div>
+                  
+                  {/* Show step-by-step errors if available */}
+                  {(executeMigration.error as any)?.details && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm">Step Failures:</h4>
+                      {(executeMigration.error as any).details.map((detail: any, index: number) => (
+                        <div key={index} className="p-2 bg-red-50 border border-red-200 rounded text-sm">
+                          <div className="font-medium text-red-800">{detail.stepName}</div>
+                          {detail.errors?.map((error: any, errorIndex: number) => (
+                            <div key={errorIndex} className="text-red-700 mt-1 font-mono text-xs">
+                              {error.error}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-muted-foreground">
+                    Check the project details for more information about the migration session.
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       ) : (

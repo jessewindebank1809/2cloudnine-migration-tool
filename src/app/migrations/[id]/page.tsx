@@ -23,13 +23,13 @@ interface MigrationProject {
   name: string;
   description?: string;
   status: 'DRAFT' | 'READY' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-  organisations_migration_projects_source_org_idToorganisations: {
+  sourceOrg: {
     id: string;
     name: string;
     instance_url: string;
     salesforce_org_id: string | null;
   };
-  organisations_migration_projects_target_org_idToorganisations: {
+  targetOrg: {
     id: string;
     name: string;
     instance_url: string;
@@ -50,11 +50,11 @@ interface MigrationProject {
 }
 
 const statusColors = {
-  DRAFT: 'secondary',
-  READY: 'default',
-  RUNNING: 'default',
-  COMPLETED: 'default',
-  FAILED: 'destructive',
+  DRAFT: 'draft',
+  READY: 'info',
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
 } as const;
 
 const statusLabels = {
@@ -119,8 +119,8 @@ export default function MigrationProjectPage({ params }: PageProps) {
     );
   }
 
-  const sourceOrg = project.organisations_migration_projects_source_org_idToorganisations;
-  const targetOrg = project.organisations_migration_projects_target_org_idToorganisations;
+  const sourceOrg = project.sourceOrg;
+  const targetOrg = project.targetOrg;
   const latestSession = project.migration_sessions[0];
 
   return (
@@ -227,7 +227,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
                   <div key={session.id} className="border rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="font-medium">{session.object_type}</div>
-                      <Badge variant={session.status === 'COMPLETED' ? 'default' : 'secondary'}>
+                      <Badge variant={session.status === 'COMPLETED' ? 'completed' : 'pending'}>
                         {session.status}
                       </Badge>
                     </div>

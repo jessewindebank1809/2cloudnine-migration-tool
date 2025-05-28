@@ -185,7 +185,7 @@ export function ValidationReport({
           title="Critical Errors"
           issues={errors}
           icon={<XCircle className="h-4 w-4 text-red-500" />}
-          badgeVariant="destructive"
+          badgeVariant="error"
           isExpanded={expandedSections.has('errors')}
           onToggle={() => toggleSection('errors')}
         />
@@ -197,7 +197,7 @@ export function ValidationReport({
           title="Warnings"
           issues={warnings}
           icon={<AlertTriangle className="h-4 w-4 text-yellow-500" />}
-          badgeVariant="secondary"
+          badgeVariant="warning"
           isExpanded={expandedSections.has('warnings')}
           onToggle={() => toggleSection('warnings')}
         />
@@ -209,7 +209,7 @@ export function ValidationReport({
           title="Information"
           issues={info}
           icon={<Info className="h-4 w-4 text-blue-500" />}
-          badgeVariant="outline"
+          badgeVariant="info"
           isExpanded={expandedSections.has('info')}
           onToggle={() => toggleSection('info')}
         />
@@ -222,7 +222,7 @@ interface ValidationSectionProps {
   title: string;
   issues: ValidationIssue[];
   icon: React.ReactNode;
-  badgeVariant: "default" | "secondary" | "destructive" | "outline";
+  badgeVariant: "default" | "secondary" | "destructive" | "outline" | "error" | "warning" | "info";
   isExpanded: boolean;
   onToggle: () => void;
 }
@@ -282,8 +282,8 @@ function ValidationIssueCard({ issue }: ValidationIssueCardProps) {
         </div>
         <Badge 
           variant={
-            issue.severity === 'error' ? 'destructive' : 
-            issue.severity === 'warning' ? 'secondary' : 'outline'
+            issue.severity === 'error' ? 'error' : 
+            issue.severity === 'warning' ? 'warning' : 'info'
           }
           className="ml-2"
         >

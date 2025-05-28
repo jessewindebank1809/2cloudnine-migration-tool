@@ -82,26 +82,72 @@ export function MigrationProgressHome({ projectId, onComplete }: MigrationProgre
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            Loading Migration Progress
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span>Fetching migration status...</span>
+              <div className="animate-pulse h-2 w-2 bg-primary rounded-full"></div>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Loading session details...</span>
+              <div className="animate-pulse h-2 w-2 bg-primary rounded-full"></div>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Calculating progress...</span>
+              <div className="animate-pulse h-2 w-2 bg-primary rounded-full"></div>
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+            <div className="text-blue-800">
+              Please wait while we load the latest migration progress...
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Failed to load migration progress
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load migration progress
+          </AlertDescription>
+        </Alert>
+        
+        <Card className="border-red-200">
+          <CardHeader>
+            <CardTitle className="text-red-800 text-base">Error Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="p-3 bg-red-50 border border-red-200 rounded">
+              <div className="text-sm text-red-800 font-mono">
+                {error instanceof Error ? error.message : 'Unknown error occurred'}
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-muted-foreground">
+              Try refreshing the page or check the project details for more information.
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   const isRunning = data?.status === 'RUNNING';
   const isCompleted = data?.status === 'COMPLETED';
   const isFailed = data?.status === 'FAILED';
+  const isPartialSuccess = data?.status === 'PARTIAL_SUCCESS';
+  const hasErrors = data?.overall?.failedRecords > 0;
 
   const statusIcon: Record<string, React.ReactElement> = {
     RUNNING: <Loader2 className="h-5 w-5 animate-spin" />,
@@ -225,6 +271,57 @@ export function MigrationProgressHome({ projectId, onComplete }: MigrationProgre
         </CardContent>
       </Card>
 
+      {/* Error Details for Failed Migrations or Completed with Errors */}
+      {(isFailed || isPartialSuccess || (isCompleted && hasErrors)) && data?.errorLog && (
+        <Card className={isFailed ? "border-red-200" : "border-yellow-200"}>
+          <CardHeader>
+            <CardTitle className={isFailed ? "text-red-800 text-base flex items-center gap-2" : "text-yellow-800 text-base flex items-center gap-2"}>
+              {isFailed ? <XCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+              {isFailed ? 'Migration Error Details' : 'Migration Completed with Errors'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className={isFailed ? "p-3 bg-red-50 border border-red-200 rounded" : "p-3 bg-yellow-50 border border-yellow-200 rounded"}>
+              <div className={isFailed ? "text-sm text-red-800 font-mono" : "text-sm text-yellow-800 font-mono"}>
+                {data.errorLog}
+              </div>
+            </div>
+            
+            {/* Show step-by-step errors if available */}
+            {data?.stepResults && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Step Failures:</h4>
+                {data.stepResults
+                  .filter((step: any) => (step.status === 'failed' || step.status === 'partial') && step.errors?.length > 0)
+                  .map((step: any, index: number) => (
+                    <div key={index} className={step.status === 'failed' ? "p-2 bg-red-50 border border-red-200 rounded text-sm" : "p-2 bg-yellow-50 border border-yellow-200 rounded text-sm"}>
+                      <div className={step.status === 'failed' ? "font-medium text-red-800" : "font-medium text-yellow-800"}>
+                        {step.stepName} ({step.successfulRecords}/{step.totalRecords} records successful)
+                      </div>
+                      {step.errors?.slice(0, 5).map((error: any, errorIndex: number) => (
+                        <div key={errorIndex} className={step.status === 'failed' ? "text-red-700 mt-1 font-mono text-xs" : "text-yellow-700 mt-1 font-mono text-xs"}>
+                          {error.error}
+                        </div>
+                      ))}
+                      {step.errors?.length > 5 && (
+                        <div className={step.status === 'failed' ? "text-red-600 mt-1 text-xs" : "text-yellow-600 mt-1 text-xs"}>
+                          ... and {step.errors.length - 5} more errors
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+            
+            <div className="text-xs text-muted-foreground">
+              {isFailed 
+                ? 'Review the errors above to understand what went wrong during migration.'
+                : 'Migration completed successfully for some records. Review the errors above to understand what went wrong with the failed records.'}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Individual Session Progress */}
       {data?.sessions && data.sessions.length > 0 && (
         <div className="space-y-4">
@@ -238,10 +335,10 @@ export function MigrationProgressHome({ projectId, onComplete }: MigrationProgre
                     <span className="font-medium">{session.objectType}</span>
                   </div>
                   <Badge variant={
-                    session.status === 'COMPLETED' ? 'default' :
-                    session.status === 'RUNNING' ? 'secondary' :
-                    session.status === 'FAILED' ? 'destructive' :
-                    'outline'
+                    session.status === 'COMPLETED' ? 'completed' :
+                    session.status === 'RUNNING' ? 'running' :
+                    session.status === 'FAILED' ? 'failed' :
+                    'pending'
                   }>
                     {session.status}
                   </Badge>

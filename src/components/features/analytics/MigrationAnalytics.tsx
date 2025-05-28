@@ -112,13 +112,13 @@ export function MigrationAnalytics({ orgId }: MigrationAnalyticsProps) {
     return num.toString();
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      case 'FAILED': return 'bg-red-100 text-red-800';
-      case 'RUNNING': return 'bg-blue-100 text-blue-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-grey-100 text-grey-800';
+      case 'COMPLETED': return 'completed';
+      case 'FAILED': return 'failed';
+      case 'RUNNING': return 'running';
+      case 'PENDING': return 'pending';
+      default: return 'pending';
     }
   };
 
@@ -304,7 +304,7 @@ export function MigrationAnalytics({ orgId }: MigrationAnalyticsProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">{activity.projectName}</span>
-                      <Badge variant="outline" className={getStatusColor(activity.status)}>
+                      <Badge variant={getStatusVariant(activity.status) as any}>
                         {activity.status}
                       </Badge>
                     </div>
@@ -351,7 +351,7 @@ export function MigrationAnalytics({ orgId }: MigrationAnalyticsProps) {
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-grey-600">{day.total} migrations</span>
-                      <Badge variant="outline" className={successRate >= 90 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                      <Badge variant={successRate >= 90 ? 'success' : 'warning'}>
                         {Math.round(successRate)}% success
                       </Badge>
                     </div>

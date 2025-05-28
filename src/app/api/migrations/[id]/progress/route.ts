@@ -87,11 +87,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const hasRunning = sessions.some(s => s.status === 'RUNNING');
     const hasFailed = sessions.some(s => s.status === 'FAILED');
     const allCompleted = sessions.every(s => s.status === 'COMPLETED');
+    const hasFailedRecords = failedRecords > 0;
     
     let overallStatus = 'IDLE';
     if (hasRunning) overallStatus = 'RUNNING';
+    else if (hasFailed) overallStatus = 'FAILED';
+    else if (allCompleted && hasFailedRecords) overallStatus = 'PARTIAL_SUCCESS';
     else if (allCompleted) overallStatus = 'COMPLETED';
-    else if (hasFailed) overallStatus = 'PARTIAL_SUCCESS';
+    else overallStatus = 'PARTIAL_SUCCESS';
 
     return NextResponse.json({
       projectId: params.id,

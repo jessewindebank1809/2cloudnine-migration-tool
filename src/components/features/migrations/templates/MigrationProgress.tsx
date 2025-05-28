@@ -11,7 +11,7 @@ interface MigrationProgressProps {
   progress: ExecutionProgress;
   stepResults?: Array<{
     stepName: string;
-    status: 'success' | 'partial' | 'failed';
+    status: 'success' | 'failed';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;
@@ -39,15 +39,15 @@ export function MigrationProgress({ progress, stepResults = [] }: MigrationProgr
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'success':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Success</Badge>;
+        return <Badge variant="success">Success</Badge>;
       case 'partial':
-        return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Partial</Badge>;
+        return <Badge variant="partial">Partial</Badge>;
       case 'failed':
-        return <Badge variant="destructive">Failed</Badge>;
+        return <Badge variant="failed">Failed</Badge>;
       case 'running':
-        return <Badge variant="default" className="bg-blue-100 text-blue-800">Running</Badge>;
+        return <Badge variant="running">Running</Badge>;
       default:
-        return <Badge variant="secondary">Pending</Badge>;
+        return <Badge variant="pending">Pending</Badge>;
     }
   };
 

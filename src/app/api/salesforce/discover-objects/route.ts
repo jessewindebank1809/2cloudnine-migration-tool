@@ -71,12 +71,43 @@ export async function POST(request: NextRequest) {
     // Create object discovery engine
     const discoveryEngine = new ObjectDiscoveryEngine(client);
 
-    // Discover objects
-    let objects = await discoveryEngine.discoverObjects({
-      includeStandard,
-      includeCustom,
-      objectPatterns,
-    });
+    // Discover objects with automatic token refresh retry
+    let objects;
+    try {
+      objects = await discoveryEngine.discoverObjects({
+        includeStandard,
+        includeCustom,
+        objectPatterns,
+      });
+    } catch (error) {
+      // If token expired, try to refresh and retry once
+      if (error instanceof Error && (
+        error.message.includes('Authentication token has expired') ||
+        error.message.includes('expired access/refresh token') ||
+        error.message.includes('Connection failed: expired access/refresh token')
+             )) {
+         console.log('Token expired, attempting automatic refresh and retry...');
+         
+         // Attempt token refresh directly
+         const refreshResult = await client.refreshAccessToken();
+         if (refreshResult.success) {
+           console.log('Token refresh successful, retrying object discovery...');
+           // Retry the discovery after successful token refresh
+           objects = await discoveryEngine.discoverObjects({
+             includeStandard,
+             includeCustom,
+             objectPatterns,
+           });
+         } else {
+           console.error('Token refresh failed:', refreshResult.error);
+           // Token refresh failed, throw a more descriptive error
+           throw new Error(refreshResult.error || 'Authentication token has expired. Please reconnect the organisation.');
+         }
+      } else {
+        // Not a token error, re-throw
+        throw error;
+      }
+    }
 
     // Filter objects based on template if templateId is provided
     if (templateId) {
@@ -129,6 +160,25 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Object discovery error:', error);
+    
+    // Check if it's a token-related error
+    if (error instanceof Error && (
+      error.message.includes('invalid_grant') || 
+      error.message.includes('expired') ||
+      error.message.includes('INVALID_SESSION_ID') ||
+      error.message.includes('Authentication token has expired') ||
+      error.message.includes('expired access/refresh token') ||
+      error.message.includes('Connection failed: expired access/refresh token')
+    )) {
+      return NextResponse.json(
+        { 
+          error: 'Authentication token has expired. Please reconnect the organisation.',
+          code: 'TOKEN_EXPIRED'
+        },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to discover objects' },
       { status: 500 }

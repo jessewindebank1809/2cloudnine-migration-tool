@@ -165,11 +165,31 @@ export function ObjectSelection({
   }
 
   if (error) {
+    const isTokenExpired = error instanceof Error && 
+      (error.message.includes('Authentication token has expired') || 
+       error.message.includes('TOKEN_EXPIRED') ||
+       error.message.includes('expired access/refresh token') ||
+       error.message.includes('Connection failed: expired access/refresh token') ||
+       error.message.includes('Refresh token expired'));
+    
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Failed to load objects from source organization
+          {isTokenExpired ? (
+            <>
+              Authentication token has expired. Please{' '}
+              <a 
+                href="/orgs" 
+                className="underline font-medium hover:no-underline"
+              >
+                reconnect the organisation
+              </a>{' '}
+              to continue.
+            </>
+          ) : (
+            'Failed to load objects from source organisation'
+          )}
         </AlertDescription>
       </Alert>
     );

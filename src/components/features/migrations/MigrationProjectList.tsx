@@ -53,11 +53,11 @@ interface MigrationProject {
 }
 
 const statusColors: Record<string, string> = {
-  DRAFT: 'secondary',
-  READY: 'default',
-  RUNNING: 'blue',
-  COMPLETED: 'green',
-  FAILED: 'destructive',
+  DRAFT: 'draft',
+  READY: 'info',
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
 };
 
 const statusLabels: Record<string, string> = {

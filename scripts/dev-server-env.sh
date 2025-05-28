@@ -27,6 +27,7 @@ if [ -n "$PORT_3000_PID" ]; then
 fi
 
 echo "🚀 Starting fresh Next.js server on port 3000 with environment variables..."
+echo "📝 All output will be captured to migration-output.log"
 
-# Start the development server with environment variables
-npm run dev:env 
+# Start the development server with environment variables and capture output
+npm run dev:env 2>&1 | tee migration-output.log 

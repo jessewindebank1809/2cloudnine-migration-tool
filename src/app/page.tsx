@@ -112,7 +112,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="container py-24">
         <div className="text-center max-w-4xl mx-auto">
-          <Badge variant="secondary" className="mb-6 bg-blue-100 text-blue-800">
+          <Badge variant="info" className="mb-6">
             Revolutionary Salesforce Migration Platform
           </Badge>
           <h1 className="text-5xl font-bold text-slate-900 mb-6 leading-tight">
