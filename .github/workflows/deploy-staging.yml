@@ -69,6 +69,9 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
+      - name: Wait for secrets to propagate
+        run: sleep 10
+
       - name: Create staging fly.toml
         run: |
           cp fly.toml fly.staging.toml
@@ -81,6 +84,17 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
+      - name: Wait for app to be ready
+        run: |
+          echo "Waiting for app to be fully ready after deployment..."
+          sleep 30
+
+      - name: Verify DATABASE_URL
+        run: |
+          flyctl ssh console --app tc9-migration-tool-staging -C "echo DATABASE_URL=\$DATABASE_URL"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Run database migrations
         run: |
           flyctl ssh console --app tc9-migration-tool-staging -C "npx prisma migrate deploy"
@@ -89,7 +103,6 @@ jobs:
 
       - name: Health check
         run: |
-          sleep 30
           curl -f https://tc9-migration-tool-staging.fly.dev/api/health || exit 1
 
       - name: Notify deployment
