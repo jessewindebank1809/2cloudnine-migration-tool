@@ -8,7 +8,13 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔵 OAuth Initiation - Getting session...');
     const session = await requireAuth(request);
+    console.log('🔵 OAuth Initiation - Session retrieved:', {
+      userId: session.user.id,
+      userEmail: session.user.email,
+    });
+    
     const { searchParams } = new URL(request.url);
     const orgId = searchParams.get('orgId');
     const instanceUrl = searchParams.get('instanceUrl');
@@ -21,17 +27,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=missing_params`);
     }
 
+    console.log('🔵 OAuth Initiation - Verifying organisation ownership...');
     // Verify the organisation exists and belongs to the user
     const organisation = await prisma.organisations.findFirst({
       where: { id: orgId, user_id: session.user.id },
     });
 
     if (!organisation) {
+      console.log('❌ OAuth Initiation - Organisation not found:', {
+        orgId,
+        userId: session.user.id,
+      });
+      
       if (background) {
         return NextResponse.json({ error: 'Organisation not found' }, { status: 404 });
       }
       return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=org_not_found`);
     }
+
+    console.log('✅ OAuth Initiation - Organisation verified:', {
+      orgId: organisation.id,
+      orgName: organisation.name,
+      userId: organisation.user_id,
+    });
 
     // Use instanceUrl from parameter or fall back to organisation's instance URL
     const targetInstanceUrl = instanceUrl || organisation.instance_url;
@@ -54,14 +72,23 @@ export async function GET(request: NextRequest) {
     const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 
     // Generate state parameter with organisation connection data and code verifier
-    const state = Buffer.from(JSON.stringify({
+    const stateData = {
       orgId,
       userId: session.user.id,
       orgType,
       targetInstanceUrl,
-      codeVerifier, // Include code verifier in state for callback
-      background, // Include background flag
-    })).toString('base64');
+      codeVerifier,
+      background,
+      timestamp: Date.now(), // Add timestamp for debugging
+    };
+    
+    console.log('🔵 OAuth Initiation - Creating state parameter:', {
+      orgId: stateData.orgId,
+      userId: stateData.userId,
+      orgType: stateData.orgType,
+    });
+    
+    const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
 
     // Build OAuth URL with PKCE parameters and force login prompt
     const oauthParams = new URLSearchParams({
@@ -77,6 +104,8 @@ export async function GET(request: NextRequest) {
 
     const oauthUrl = `${targetInstanceUrl}/services/oauth2/authorize?${oauthParams.toString()}`;
     
+    console.log('✅ OAuth Initiation - Redirecting to Salesforce');
+    
     if (background) {
       // Return OAuth URL as JSON for background processing
       return NextResponse.json({ url: oauthUrl });
@@ -85,13 +114,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(oauthUrl);
     }
   } catch (error) {
-    console.error('OAuth initiation error:', error);
+    console.error('💥 OAuth initiation error:', error);
     
     // Extract background flag from search params
     const { searchParams } = new URL(request.url);
     const background = searchParams.get('background') === 'true';
     
     if (error instanceof Error && error.message === 'Unauthorized') {
+      console.log('🚨 OAuth Initiation - Unauthorized error (no valid session)');
       if (background) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }

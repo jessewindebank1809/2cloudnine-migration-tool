@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { encrypt } from '@/lib/utils/encryption';
 import { TokenManager } from '@/lib/salesforce/token-manager';
+import crypto from 'crypto';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,8 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
+
+    console.log('🟢 OAuth Callback - Processing request');
 
     // Get the base URL from the request or environment
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
@@ -28,24 +31,61 @@ export async function GET(request: NextRequest) {
     // Decode the state to get the organisation connection data
     let stateData;
     try {
+      console.log('🟢 OAuth Callback - Decoding state parameter...');
       stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+      console.log('🟢 OAuth Callback - State decoded:', {
+        orgId: stateData.orgId,
+        userId: stateData.userId,
+        orgType: stateData.orgType,
+        timestamp: stateData.timestamp,
+      });
     } catch (_) {
-      console.error('Invalid state parameter');
+      console.error('💥 OAuth Callback - Invalid state parameter');
       return NextResponse.redirect(`${baseUrl}/orgs?error=invalid_state`);
     }
 
     // Handle organisation connection
-    const { orgId, userId, orgType, targetInstanceUrl, codeVerifier, background } = stateData;
+    const { orgId, userId, orgType, targetInstanceUrl, codeVerifier, background, timestamp } = stateData;
 
+    // Basic timestamp validation (optional)
+    if (timestamp && Date.now() - timestamp > 30 * 60 * 1000) { // 30 minutes max
+      console.warn('⚠️ OAuth Callback - State is quite old, but proceeding...');
+    }
+
+    console.log('🟢 OAuth Callback - Verifying organisation ownership...');
     // Verify the organisation exists and belongs to the user
     const organisation = await prisma.organisations.findFirst({
       where: { id: orgId, user_id: userId },
     });
 
     if (!organisation) {
-      console.error('Organisation not found:', orgId);
+      console.error('❌ OAuth Callback - Organisation not found:', {
+        orgId,
+        userId,
+      });
+      
+      // Additional debugging: check if org exists but with different user
+      const orgCheck = await prisma.organisations.findUnique({
+        where: { id: orgId },
+        select: { id: true, name: true, user_id: true },
+      });
+      
+      if (orgCheck) {
+        console.error('⚠️ Organisation exists but belongs to different user:', {
+          orgId: orgCheck.id,
+          actualUserId: orgCheck.user_id,
+          stateUserId: userId,
+        });
+        console.error('🚨 This indicates a potential session or state management issue!');
+      }
+      
       return NextResponse.redirect(`${baseUrl}/orgs?error=org_not_found`);
     }
+
+    console.log('✅ OAuth Callback - Organisation verified:', {
+      orgId: organisation.id,
+      orgName: organisation.name,
+    });
 
     // Select credentials based on org type
     const clientId = orgType === 'PRODUCTION' 
@@ -96,6 +136,12 @@ export async function GET(request: NextRequest) {
 
     const userInfo = await userInfoResponse.json();
 
+    console.log('🟢 OAuth Callback - Retrieved Salesforce org info:', {
+      organizationId: userInfo.organization_id,
+      userId: userInfo.user_id,
+    });
+
+    console.log('🟢 OAuth Callback - Performing duplicate check...');
     // Check if another organisation already has this Salesforce org ID
     const existingOrg = await prisma.organisations.findFirst({
       where: {
@@ -105,8 +151,18 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    console.log('🟢 OAuth Callback - Duplicate check query:', {
+      salesforceOrgId: userInfo.organization_id,
+      userId: userId,
+      excludeOrgId: orgId,
+      foundExisting: !!existingOrg,
+    });
+
     if (existingOrg) {
-      console.error('Salesforce org already connected:', userInfo.organization_id);
+      console.error('🚨 OAuth Callback - Duplicate org found!');
+      console.error('   User:', userId, 'already has org connected to Salesforce org:', userInfo.organization_id);
+      console.error('   Existing org:', existingOrg.id, existingOrg.name);
+      console.error('   This should only happen if same user tries to connect same org twice');
       
       // Clean up the duplicate organisation record that was created
       await prisma.organisations.delete({
@@ -125,6 +181,7 @@ export async function GET(request: NextRequest) {
       ? new Date(parseInt(tokenData.issued_at) + (2 * 60 * 60 * 1000)) // issued_at + 2 hours
       : new Date(Date.now() + (2 * 60 * 60 * 1000)); // fallback: now + 2 hours
 
+    console.log('🟢 OAuth Callback - Updating organisation with tokens...');
     try {
       await prisma.organisations.update({
         where: { id: orgId },
@@ -137,10 +194,19 @@ export async function GET(request: NextRequest) {
           updated_at: new Date(),
         },
       });
+      
+      console.log('✅ OAuth Callback - Organisation updated successfully');
     } catch (dbError: any) {
       // Handle database constraint violations (e.g., duplicate salesforce_org_id for same user)
       if (dbError.code === 'P2002' && dbError.meta?.target?.includes('salesforce_org_id')) {
-        console.error('Database constraint violation - org already connected to this user:', userInfo.organization_id);
+        console.error('💥 Database constraint violation:', {
+          code: dbError.code,
+          constraint: dbError.meta?.target,
+          salesforceOrgId: userInfo.organization_id,
+          userId: userId,
+        });
+        console.error('   This means the database constraint prevented the update');
+        console.error('   Constraint should be: @@unique([salesforce_org_id, user_id])');
         
         // Clean up the organisation record that was created
         await prisma.organisations.delete({
@@ -156,7 +222,7 @@ export async function GET(request: NextRequest) {
     const tokenManager = TokenManager.getInstance();
     tokenManager.clearTokenCache(orgId);
 
-    console.log('Successfully connected organisation:', organisation.name);
+    console.log('🎉 OAuth Callback - Successfully connected organisation:', organisation.name);
     
     if (background) {
       // For background OAuth, return an HTML page that sends a message to the parent window
@@ -188,7 +254,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${baseUrl}/orgs?success=connected`);
     }
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    console.error('💥 OAuth callback error:', error);
     
     // Get the base URL from the request or environment
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;

@@ -69,3 +69,4 @@ specs
 scripts/
 migration-output.txt
 screenshots/
+.github/

@@ -63,6 +63,16 @@ export default function OrganisationsPage() {
     switch (error) {
       case 'org_already_connected':
         return 'You have already connected this Salesforce organisation. Each organisation can only be connected once per user account.';
+      case 'session_mismatch':
+        return 'Session mismatch detected. Please refresh the page and try again. If the problem persists, sign out and sign in again.';
+      case 'session_validation_failed':
+        return 'Session validation failed. Please sign out and sign in again to resolve this issue.';
+      case 'session_management_issue':
+        return 'A session management issue was detected. Please refresh the page and try again. If this continues, clear your browser cache and sign in again.';
+      case 'critical_session_error':
+        return 'Critical session error detected. Please sign out completely, clear your browser cache, and sign in again.';
+      case 'state_expired':
+        return 'Authentication session expired. Please try connecting again.';
       case 'oauth_failed':
         return 'OAuth authentication failed. Please try again.';
       case 'token_exchange_failed':
