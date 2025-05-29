@@ -38,6 +38,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: Cache Prisma client
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.prisma
+          key: ${{ runner.os }}-prisma-${{ hashFiles('**/schema.prisma') }}
+          restore-keys: |
+            ${{ runner.os }}-prisma-
+
       - name: Install dependencies
         run: npm ci
 
@@ -51,19 +59,32 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tc9_test
 
+      - name: Seed test database
+        run: npx prisma db seed || echo "No seed script found"
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tc9_test
+          JWT_SECRET: test-jwt-secret-for-ci
+          ENCRYPTION_KEY: test-encryption-key-for-ci-testing-purposes
+
       - name: Run type checking
         run: npm run type-check
 
       - name: Run linting
         run: npm run lint
-        continue-on-error: true
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --coverage
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tc9_test
           JWT_SECRET: test-jwt-secret-for-ci
           ENCRYPTION_KEY: test-encryption-key-for-ci-testing-purposes
+
+      - name: Upload test coverage
+        uses: codecov/codecov-action@v4
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   build:
     name: Build Application

@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
+import { requireAuth } from '@/lib/auth/session-helper';
+import crypto from 'crypto';
 
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Build where clause
-    const whereClause: any = {};
+    // Build where clause with user filtering
+    const whereClause: any = {
+      migration_projects: {
+        user_id: session.user.id // Only show scheduled migrations for user's projects
+      }
+    };
     if (status) {
       whereClause.status = status.toUpperCase();
     }
@@ -75,6 +84,12 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching scheduled migrations:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { 
         error: 'Failed to fetch scheduled migrations', 
@@ -87,6 +102,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const body = await request.json();
     const {
       name,
@@ -115,14 +133,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify project exists
-    const project = await prisma.migration_projects.findUnique({
-      where: { id: projectId }
+    // Verify project exists and belongs to current user
+    const project = await prisma.migration_projects.findFirst({
+      where: { 
+        id: projectId,
+        user_id: session.user.id // Ensure project belongs to current user
+      }
     });
 
     if (!project) {
       return NextResponse.json(
-        { error: 'Project not found' },
+        { error: 'Project not found or does not belong to you' },
         { status: 404 }
       );
     }
@@ -178,6 +199,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating scheduled migration:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { 
         error: 'Failed to create scheduled migration', 

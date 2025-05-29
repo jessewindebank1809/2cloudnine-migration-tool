@@ -104,12 +104,6 @@ export default function MigrationProjectPage({ params }: PageProps) {
     },
   });
 
-  // Create template name mapping
-  const templateNameMap = (templatesData || []).reduce((acc, template) => {
-    acc[template.id] = template.name;
-    return acc;
-  }, {} as Record<string, string>);
-
   if (isLoading) {
     return (
       <div className="container mx-auto py-8">
@@ -145,6 +139,14 @@ export default function MigrationProjectPage({ params }: PageProps) {
       </div>
     );
   }
+
+  // Create template name mapping - moved after loading and error checks
+  const templateNameMap = Array.isArray(templatesData) 
+    ? templatesData.reduce((acc, template) => {
+        acc[template.id] = template.name;
+        return acc;
+      }, {} as Record<string, string>)
+    : {};
 
   const sourceOrg = project.sourceOrg;
   const targetOrg = project.targetOrg;

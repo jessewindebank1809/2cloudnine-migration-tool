@@ -74,16 +74,90 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
+      - name: Ensure app is running
+        run: |
+          echo "🔄 Ensuring app is running before migrations..."
+          flyctl scale count 1 --app tc9-migration-tool || true
+          
+          # Wait for app to be ready
+          max_attempts=10
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "⏳ Attempt $attempt/$max_attempts: Checking if app is ready..."
+            
+            if flyctl status --app tc9-migration-tool | grep -q "started"; then
+              echo "✅ App is running"
+              break
+            else
+              echo "⏳ App not ready yet, waiting 30 seconds..."
+              sleep 30
+            fi
+            
+            attempt=$((attempt + 1))
+            
+            if [ $attempt -gt $max_attempts ]; then
+              echo "❌ App failed to start after $max_attempts attempts"
+              exit 1
+            fi
+          done
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Run database migrations
         run: |
-          flyctl ssh console --app tc9-migration-tool -C "npx prisma migrate deploy"
+          echo "🔄 Running database migrations..."
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "📊 Migration attempt $attempt/$max_attempts..."
+            
+            if flyctl ssh console --app tc9-migration-tool -C "npx prisma migrate deploy"; then
+              echo "✅ Database migrations completed successfully"
+              break
+            else
+              echo "⚠️ Migration failed, retrying in 15 seconds..."
+              sleep 15
+              attempt=$((attempt + 1))
+              
+              if [ $attempt -gt $max_attempts ]; then
+                echo "❌ Migrations failed after $max_attempts attempts"
+                echo "🔧 You may need to run migrations manually:"
+                echo "flyctl ssh console --app tc9-migration-tool -C 'npx prisma migrate deploy'"
+                exit 1
+              fi
+            fi
+          done
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Health check
         run: |
-          sleep 45
-          curl -f https://tc9-migration-tool.fly.dev/api/health || exit 1
+          echo "🏥 Performing health check..."
+          sleep 30
+          
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "🔍 Health check attempt $attempt/$max_attempts..."
+            
+            if curl -f --max-time 30 https://tc9-migration-tool.fly.dev/api/health; then
+              echo "✅ Health check passed"
+              break
+            else
+              echo "⚠️ Health check failed, retrying in 15 seconds..."
+              sleep 15
+              attempt=$((attempt + 1))
+              
+              if [ $attempt -gt $max_attempts ]; then
+                echo "❌ Health check failed after $max_attempts attempts"
+                echo "⚠️ Deployment completed but app may not be responding correctly"
+                break
+              fi
+            fi
+          done
 
       - name: Smoke tests
         run: |

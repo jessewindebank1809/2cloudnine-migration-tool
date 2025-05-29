@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
+import { requireAuth } from '@/lib/auth/session-helper';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const { searchParams } = new URL(request.url);
     const timeRange = searchParams.get('timeRange') || '30d'; // 7d, 30d, 90d, 1y
     const orgId = searchParams.get('orgId');
@@ -15,18 +19,43 @@ export async function GET(request: NextRequest) {
     const daysBack = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365;
     const startDate = new Date(now.getTime() - (daysBack * 24 * 60 * 60 * 1000));
 
-    // Build where clause
+    // Build where clause with user filtering
     const whereClause: any = {
       created_at: {
         gte: startDate
+      },
+      migration_projects: {
+        user_id: session.user.id // Only show analytics for user's projects
       }
     };
 
     if (orgId) {
-      whereClause.OR = [
-        { project: { source_org_id: orgId } },
-        { project: { target_org_id: orgId } }
-      ];
+      // Verify the org belongs to the current user before filtering by it
+      const org = await prisma.organisations.findFirst({
+        where: { 
+          id: orgId,
+          user_id: session.user.id 
+        }
+      });
+      
+      if (org) {
+        whereClause.OR = [
+          { 
+            migration_projects: { 
+              source_org_id: orgId,
+              user_id: session.user.id 
+            } 
+          },
+          { 
+            migration_projects: { 
+              target_org_id: orgId,
+              user_id: session.user.id 
+            } 
+          }
+        ];
+        // Remove the general user_id filter since it's now in the OR clause
+        delete whereClause.migration_projects;
+      }
     }
 
     // Get migration sessions with project data
@@ -148,6 +177,12 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching migration analytics:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { 
         error: 'Failed to fetch migration analytics', 

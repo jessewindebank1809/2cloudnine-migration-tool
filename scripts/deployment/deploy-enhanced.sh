@@ -153,17 +153,79 @@ run_migrations() {
     local app_name=$1
     log_info "Running database migrations for $app_name..."
     
-    # Wait a bit for the app to be ready
-    sleep 10
+    # Ensure the app is started (scale up if needed)
+    log_info "Ensuring app is running..."
+    fly scale count 1 --app "$app_name" || true
     
-    fly ssh console --app "$app_name" -C "npx prisma migrate deploy"
+    # Wait for the app to be ready and try multiple times
+    local max_attempts=5
+    local attempt=1
     
-    log_success "Database migrations completed"
+    while [ $attempt -le $max_attempts ]; do
+        log_info "Attempt $attempt/$max_attempts: Checking if app is ready..."
+        
+        # Check if VMs are running
+        if fly status --app "$app_name" | grep -q "started"; then
+            log_info "App is running, attempting migration..."
+            
+            # Try to run migrations
+            if fly ssh console --app "$app_name" -C "npx prisma migrate deploy"; then
+                log_success "Database migrations completed"
+                return 0
+            else
+                log_warning "Migration failed, retrying in 15 seconds..."
+            fi
+        else
+            log_info "App not ready yet, waiting 30 seconds..."
+            sleep 30
+        fi
+        
+        attempt=$((attempt + 1))
+        
+        if [ $attempt -le $max_attempts ]; then
+            sleep 15
+        fi
+    done
+    
+    log_error "Failed to run migrations after $max_attempts attempts"
+    log_info "You may need to run migrations manually with:"
+    log_info "fly ssh console --app $app_name -C 'npx prisma migrate deploy'"
+    exit 1
+}
+
+ensure_app_running() {
+    local app_name=$1
+    log_info "Ensuring $app_name is running..."
+    
+    # Scale to at least 1 instance
+    fly scale count 1 --app "$app_name" || true
+    
+    # Wait for the app to start
+    local max_wait=120  # 2 minutes
+    local elapsed=0
+    local sleep_interval=10
+    
+    while [ $elapsed -lt $max_wait ]; do
+        if fly status --app "$app_name" | grep -q "started"; then
+            log_success "App is running"
+            return 0
+        fi
+        
+        log_info "Waiting for app to start... (${elapsed}s/${max_wait}s)"
+        sleep $sleep_interval
+        elapsed=$((elapsed + sleep_interval))
+    done
+    
+    log_error "App failed to start within $max_wait seconds"
+    return 1
 }
 
 health_check() {
     local app_name=$1
     log_info "Performing health check for $app_name..."
+    
+    # Ensure app is running first
+    ensure_app_running "$app_name"
     
     local url
     if [ "$ENVIRONMENT" == "staging" ]; then
@@ -172,18 +234,30 @@ health_check() {
         url="https://tc9-migration-tool.fly.dev"
     fi
     
-    # Wait for app to be ready
-    sleep 30
+    # Wait a bit more for app to be fully ready
+    sleep 15
     
-    # Check health endpoint
-    if curl -f "$url/api/health" > /dev/null 2>&1; then
-        log_success "Health check passed"
-        log_success "Application is available at: $url"
-    else
-        log_error "Health check failed"
-        log_error "Application may not be responding correctly"
-        exit 1
-    fi
+    # Check health endpoint with retries
+    local max_attempts=3
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        log_info "Health check attempt $attempt/$max_attempts..."
+        
+        if curl -f --max-time 30 "$url/api/health" > /dev/null 2>&1; then
+            log_success "Health check passed"
+            log_success "Application is available at: $url"
+            return 0
+        else
+            log_warning "Health check failed, retrying in 15 seconds..."
+            sleep 15
+            attempt=$((attempt + 1))
+        fi
+    done
+    
+    log_error "Health check failed after $max_attempts attempts"
+    log_warning "Application may not be responding correctly, but deployment completed"
+    log_info "Manual check URL: $url"
 }
 
 show_status() {

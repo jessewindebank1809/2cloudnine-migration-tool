@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
+import { requireAuth } from '@/lib/auth/session-helper';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -20,11 +21,17 @@ const CreateProjectSchema = z.object({
 });
 
 /**
- * GET /api/migrations - List all migration projects
+ * GET /api/migrations - List all migration projects for the current user
  */
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const rawProjects = await prisma.migration_projects.findMany({
+      where: {
+        user_id: session.user.id, // Filter by current user
+      },
       include: {
         organisations_migration_projects_source_org_idToorganisations: {
           select: {
@@ -108,6 +115,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const body = await request.json();
     const validation = CreateProjectSchema.safeParse(body);
 
@@ -120,29 +130,35 @@ export async function POST(request: NextRequest) {
 
     const { name, description, sourceOrgId, targetOrgId, templateId, selectedRecords, config } = validation.data;
 
-    // Verify organizations exist and are connected
+    // Verify organizations exist and belong to the current user
     const [sourceOrg, targetOrg] = await Promise.all([
-      prisma.organisations.findUnique({ where: { id: sourceOrgId } }),
-      prisma.organisations.findUnique({ where: { id: targetOrgId } }),
+      prisma.organisations.findFirst({ 
+        where: { 
+          id: sourceOrgId,
+          user_id: session.user.id // Ensure org belongs to current user
+        } 
+      }),
+      prisma.organisations.findFirst({ 
+        where: { 
+          id: targetOrgId,
+          user_id: session.user.id // Ensure org belongs to current user
+        } 
+      }),
     ]);
 
     if (!sourceOrg || !targetOrg) {
       return NextResponse.json(
-        { error: 'One or more organizations not found' },
+        { error: 'One or more organisations not found or do not belong to you' },
         { status: 404 }
       );
     }
 
     if (!sourceOrg.access_token_encrypted || !targetOrg.access_token_encrypted) {
       return NextResponse.json(
-        { error: 'One or more organizations not connected' },
+        { error: 'One or more organisations not connected' },
         { status: 400 }
       );
     }
-
-    // TODO: Get userId from session when auth is implemented
-    // For now, we'll use the first user in the database or create a placeholder
-    const userId = sourceOrg.user_id; // Use the source org's user as the project creator
 
     // Create the migration project
     const projectId = crypto.randomUUID();
@@ -166,7 +182,7 @@ export async function POST(request: NextRequest) {
         target_org_id: targetOrgId,
         config: projectConfig,
         status: 'DRAFT',
-        user_id: userId,
+        user_id: session.user.id, // Use authenticated user
         updated_at: new Date(),
       },
       include: {
@@ -178,6 +194,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(project, { status: 201 });
   } catch (error) {
     console.error('Error creating migration project:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create migration project' },
       { status: 500 }

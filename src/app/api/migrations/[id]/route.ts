@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
+import { requireAuth } from '@/lib/auth/session-helper';
 import { z } from 'zod';
 
 // Schema for updating a migration project
@@ -26,8 +27,14 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const project = await prisma.migration_projects.findUnique({
-      where: { id: params.id },
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
+    const project = await prisma.migration_projects.findFirst({
+      where: { 
+        id: params.id,
+        user_id: session.user.id // Ensure project belongs to current user
+      },
       include: {
         organisations_migration_projects_source_org_idToorganisations: {
           select: {
@@ -79,6 +86,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(transformedProject);
   } catch (error) {
     console.error('Error fetching migration project:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch migration project' },
       { status: 500 }
@@ -91,6 +104,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const body = await request.json();
     const validation = UpdateProjectSchema.safeParse(body);
 
@@ -101,9 +117,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check if project exists
-    const existing = await prisma.migration_projects.findUnique({
-      where: { id: params.id },
+    // Check if project exists and belongs to current user
+    const existing = await prisma.migration_projects.findFirst({
+      where: { 
+        id: params.id,
+        user_id: session.user.id // Ensure project belongs to current user
+      },
     });
 
     if (!existing) {
@@ -162,6 +181,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(transformedUpdated);
   } catch (error) {
     console.error('Error updating migration project:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to update migration project' },
       { status: 500 }
@@ -174,9 +199,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    // Check if project exists and is not running
-    const existing = await prisma.migration_projects.findUnique({
-      where: { id: params.id },
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
+    // Check if project exists and belongs to current user
+    const existing = await prisma.migration_projects.findFirst({
+      where: { 
+        id: params.id,
+        user_id: session.user.id // Ensure project belongs to current user
+      },
     });
 
     if (!existing) {
@@ -186,6 +217,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Don't allow deletion of running projects
     if (existing.status === 'RUNNING') {
       return NextResponse.json(
         { error: 'Cannot delete a running migration' },
@@ -193,14 +225,20 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Delete the project (cascade will handle sessions and records)
+    // Delete the project (cascade will handle related records)
     await prisma.migration_projects.delete({
       where: { id: params.id },
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting migration project:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to delete migration project' },
       { status: 500 }

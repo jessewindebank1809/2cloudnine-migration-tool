@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
+import { requireAuth } from '@/lib/auth/session-helper';
 import { sessionManager } from '@/lib/salesforce/session-manager';
 import { RollbackService } from '@/lib/migration/rollback-service';
 import type { SalesforceOrg } from '@/types';
@@ -9,11 +10,17 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const migrationId = params.id;
 
-    // Get migration project
-    const migration = await prisma.migration_projects.findUnique({
-      where: { id: migrationId },
+    // Get migration project and ensure it belongs to current user
+    const migration = await prisma.migration_projects.findFirst({
+      where: { 
+        id: migrationId,
+        user_id: session.user.id // Ensure project belongs to current user
+      },
       include: {
         organisations_migration_projects_target_org_idToorganisations: true,
         migration_sessions: {
@@ -147,6 +154,11 @@ export async function POST(
 
   } catch (error) {
     console.error('Rollback error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     return NextResponse.json(
       { 

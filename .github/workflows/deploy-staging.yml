@@ -4,21 +4,14 @@ on:
   push:
     branches: [develop]
   workflow_dispatch:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-    branches: [develop]
 
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-  FLY_APP_NAME: tc9-migration-tool-staging
 
 jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
     
     steps:
       - name: Checkout code
@@ -48,12 +41,17 @@ jobs:
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Create staging fly.toml
+        run: |
+          cp fly.toml fly.staging.toml
+          sed -i 's/app = "tc9-migration-tool"/app = "tc9-migration-tool-staging"/' fly.staging.toml
+
       - name: Set staging secrets
         run: |
           flyctl secrets set \
-            DATABASE_URL="postgres://postgres:VMUl1eOPY66dUs2@tc9-migration-tool-staging-db.flycast:5432?sslmode=disable" \
+            DATABASE_URL="postgres://tc9_migration_tool_staging:${{ secrets.STAGING_DB_PASSWORD }}@tc9-migration-tool-staging-db.flycast:5432/tc9_migration_tool_staging?sslmode=disable" \
             NODE_ENV="staging" \
-            BETTER_AUTH_SECRET="${{ secrets.BETTER_AUTH_SECRET }}" \
+            BETTER_AUTH_SECRET="${{ secrets.STAGING_BETTER_AUTH_SECRET }}" \
             BETTER_AUTH_URL="https://tc9-migration-tool-staging.fly.dev" \
             NEXT_PUBLIC_APP_URL="https://tc9-migration-tool-staging.fly.dev" \
             NEXT_PUBLIC_BASE_URL="https://tc9-migration-tool-staging.fly.dev" \
@@ -61,56 +59,118 @@ jobs:
             SALESFORCE_PRODUCTION_CLIENT_SECRET="${{ secrets.SALESFORCE_PRODUCTION_CLIENT_SECRET }}" \
             SALESFORCE_SANDBOX_CLIENT_ID="${{ secrets.SALESFORCE_SANDBOX_CLIENT_ID }}" \
             SALESFORCE_SANDBOX_CLIENT_SECRET="${{ secrets.SALESFORCE_SANDBOX_CLIENT_SECRET }}" \
-            ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}" \
-            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            ENCRYPTION_KEY="${{ secrets.STAGING_ENCRYPTION_KEY }}" \
+            JWT_SECRET="${{ secrets.STAGING_JWT_SECRET }}" \
             SENTRY_DSN="${{ secrets.SENTRY_DSN }}" \
             NEXT_PUBLIC_SENTRY_DSN="${{ secrets.SENTRY_DSN }}" \
             --app tc9-migration-tool-staging
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-      - name: Wait for secrets to propagate
-        run: sleep 10
-
-      - name: Create staging fly.toml
-        run: |
-          cp fly.toml fly.staging.toml
-          sed -i 's/app = .*/app = "tc9-migration-tool-staging"/' fly.staging.toml
-          sed -i 's/primary_region = .*/primary_region = "sjc"/' fly.staging.toml
-
       - name: Deploy to Fly.io Staging
         run: |
-          flyctl deploy --config fly.staging.toml --app tc9-migration-tool-staging
+          flyctl deploy --config fly.staging.toml --app tc9-migration-tool-staging --strategy=immediate
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-      - name: Wait for app to be ready
+      - name: Ensure app is running
         run: |
-          echo "Waiting for app to be fully ready after deployment..."
-          sleep 30
-
-      - name: Verify DATABASE_URL
-        run: |
-          flyctl ssh console --app tc9-migration-tool-staging -C "echo DATABASE_URL=\$DATABASE_URL"
+          echo "🔄 Ensuring staging app is running before migrations..."
+          flyctl scale count 1 --app tc9-migration-tool-staging || true
+          
+          # Wait for app to be ready
+          max_attempts=10
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "⏳ Attempt $attempt/$max_attempts: Checking if app is ready..."
+            
+            if flyctl status --app tc9-migration-tool-staging | grep -q "started"; then
+              echo "✅ App is running"
+              break
+            else
+              echo "⏳ App not ready yet, waiting 30 seconds..."
+              sleep 30
+            fi
+            
+            attempt=$((attempt + 1))
+            
+            if [ $attempt -gt $max_attempts ]; then
+              echo "❌ App failed to start after $max_attempts attempts"
+              exit 1
+            fi
+          done
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Run database migrations
         run: |
-          flyctl ssh console --app tc9-migration-tool-staging -C "npx prisma migrate deploy"
+          echo "🔄 Running database migrations..."
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "📊 Migration attempt $attempt/$max_attempts..."
+            
+            if flyctl ssh console --app tc9-migration-tool-staging -C "npx prisma migrate deploy"; then
+              echo "✅ Database migrations completed successfully"
+              break
+            else
+              echo "⚠️ Migration failed, retrying in 15 seconds..."
+              sleep 15
+              attempt=$((attempt + 1))
+              
+              if [ $attempt -gt $max_attempts ]; then
+                echo "❌ Migrations failed after $max_attempts attempts"
+                echo "🔧 You may need to run migrations manually:"
+                echo "flyctl ssh console --app tc9-migration-tool-staging -C 'npx prisma migrate deploy'"
+                exit 1
+              fi
+            fi
+          done
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Health check
         run: |
-          curl -f https://tc9-migration-tool-staging.fly.dev/api/health || exit 1
+          echo "🏥 Performing health check..."
+          sleep 30
+          
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "🔍 Health check attempt $attempt/$max_attempts..."
+            
+            if curl -f --max-time 30 https://tc9-migration-tool-staging.fly.dev/api/health; then
+              echo "✅ Health check passed"
+              break
+            else
+              echo "⚠️ Health check failed, retrying in 15 seconds..."
+              sleep 15
+              attempt=$((attempt + 1))
+              
+              if [ $attempt -gt $max_attempts ]; then
+                echo "❌ Health check failed after $max_attempts attempts"
+                echo "⚠️ Deployment completed but app may not be responding correctly"
+                break
+              fi
+            fi
+          done
 
-      - name: Notify deployment
+      - name: Cleanup
         if: always()
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Staging deployment successful: https://tc9-migration-tool-staging.fly.dev"
-          else
-            echo "❌ Staging deployment failed"
-            exit 1
-          fi 
+          rm -f fly.staging.toml
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Staging deployment successful: https://tc9-migration-tool-staging.fly.dev"
+          echo "🧪 Ready for testing"
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Staging deployment failed"
+          echo "🔍 Check logs for issues" 

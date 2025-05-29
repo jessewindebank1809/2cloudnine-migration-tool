@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
+import { requireAuth } from '@/lib/auth/session-helper';
 import { sessionManager } from '@/lib/salesforce/session-manager';
 
 export async function GET(
@@ -7,6 +8,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const { id: projectId } = params;
     const { searchParams } = new URL(request.url);
     const objectType = searchParams.get('objectType');
@@ -20,9 +24,12 @@ export async function GET(
       );
     }
 
-    // Get migration project
-    const project = await prisma.migration_projects.findUnique({
-      where: { id: projectId },
+    // Get migration project and ensure it belongs to current user
+    const project = await prisma.migration_projects.findFirst({
+      where: { 
+        id: projectId,
+        user_id: session.user.id // Ensure project belongs to current user
+      },
       include: {
         organisations_migration_projects_source_org_idToorganisations: true
       }
@@ -86,6 +93,12 @@ export async function GET(
 
   } catch (error) {
     console.error('Error fetching records:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { 
         error: 'Failed to fetch records', 
@@ -101,6 +114,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const { id: projectId } = params;
     const body = await request.json();
     const { objectType, recordIds, action = 'select' } = body;
@@ -112,9 +128,12 @@ export async function POST(
       );
     }
 
-    // Verify project exists
-    const project = await prisma.migration_projects.findUnique({
-      where: { id: projectId }
+    // Verify project exists and belongs to current user
+    const project = await prisma.migration_projects.findFirst({
+      where: { 
+        id: projectId,
+        user_id: session.user.id // Ensure project belongs to current user
+      }
     });
 
     if (!project) {
@@ -135,6 +154,12 @@ export async function POST(
 
   } catch (error) {
     console.error('Error updating record selection:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { 
         error: 'Failed to update record selection', 

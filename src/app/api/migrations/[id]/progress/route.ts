@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
+import { requireAuth } from '@/lib/auth/session-helper';
 import { migrationSessionManager } from '@/lib/migration/migration-session-manager';
 
 interface RouteParams {
@@ -13,6 +14,24 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
+    // First verify the migration project belongs to current user
+    const project = await prisma.migration_projects.findFirst({
+      where: { 
+        id: params.id,
+        user_id: session.user.id // Ensure project belongs to current user
+      }
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Migration project not found' },
+        { status: 404 }
+      );
+    }
+
     // Get active sessions for this project
     const sessions = await prisma.migration_sessions.findMany({
       where: {
@@ -111,6 +130,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   } catch (error) {
     console.error('Error getting migration progress:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to get migration progress' },
       { status: 500 }

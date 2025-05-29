@@ -7,6 +7,8 @@ import { ExternalIdUtils } from '@/lib/migration/templates/utils/external-id-uti
 import { prisma } from '@/lib/database/prisma';
 import { sessionManager } from '@/lib/salesforce/session-manager';
 import type { SalesforceOrg } from '@/types';
+import { requireAuth } from '@/lib/auth/session-helper';
+import { migrationSessionManager } from '@/lib/migration/migration-session-manager';
 
 export async function POST(
   request: NextRequest,
@@ -26,6 +28,9 @@ export async function POST(
     },
     async () => {
       try {
+        // Require authentication and get current user
+        const authSession = await requireAuth(request);
+        
         // Ensure templates are registered
         registerAllTemplates();
         
@@ -36,9 +41,12 @@ export async function POST(
           config = DEFAULT_EXECUTION_CONFIG
         } = body;
 
-        // Get migration project
-        const migration = await prisma.migration_projects.findUnique({
-          where: { id: migrationId },
+        // Get migration project and ensure it belongs to current user
+        const migration = await prisma.migration_projects.findFirst({
+          where: { 
+            id: migrationId,
+            user_id: authSession.user.id // Ensure project belongs to current user
+          },
           include: {
             organisations_migration_projects_source_org_idToorganisations: true,
             organisations_migration_projects_target_org_idToorganisations: true
@@ -841,7 +849,25 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication and get current user
+    const authSession = await requireAuth(request);
+    
     const migrationId = params.id;
+
+    // First verify the migration project belongs to current user
+    const project = await prisma.migration_projects.findFirst({
+      where: { 
+        id: migrationId,
+        user_id: authSession.user.id // Ensure project belongs to current user
+      }
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Migration project not found' },
+        { status: 404 }
+      );
+    }
 
     // Get latest migration session for this project
     const session = await prisma.migration_sessions.findFirst({
@@ -880,6 +906,11 @@ export async function GET(
 
   } catch (error) {
     console.error('Get execution status error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     return NextResponse.json(
       { 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
+import { requireAuth } from '@/lib/auth/session-helper';
 import { ValidationEngine } from '@/lib/migration/templates/core/validation-engine';
 import { TemplateRegistry } from '@/lib/migration/templates/core/template-registry';
 
@@ -8,13 +9,19 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const { id: projectId } = params;
     const body = await request.json();
     const { selectedRecords } = body;
 
-    // Get migration project
-    const project = await prisma.migration_projects.findUnique({
-      where: { id: projectId },
+    // Get migration project and ensure it belongs to current user
+    const project = await prisma.migration_projects.findFirst({
+      where: { 
+        id: projectId,
+        user_id: session.user.id // Ensure project belongs to current user
+      },
       include: {
         migration_template_usage: {
           include: {
@@ -84,6 +91,12 @@ export async function POST(
 
   } catch (error) {
     console.error('Validation error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { 
         error: 'Validation failed', 
@@ -99,7 +112,25 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication and get current user
+    const session = await requireAuth(request);
+    
     const { id: projectId } = params;
+
+    // First verify the migration project belongs to current user
+    const project = await prisma.migration_projects.findFirst({
+      where: { 
+        id: projectId,
+        user_id: session.user.id // Ensure project belongs to current user
+      }
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Migration project not found' },
+        { status: 404 }
+      );
+    }
 
     // Get stored validation results
     const templateUsage = await prisma.migration_template_usage.findFirst({
@@ -131,6 +162,12 @@ export async function GET(
 
   } catch (error) {
     console.error('Error retrieving validation results:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     return NextResponse.json(
       { 
         error: 'Failed to retrieve validation results', 
