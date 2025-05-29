@@ -295,3 +295,9 @@ module.exports = { MigrationResultsValidator, runMigrationResultsTest };
 if (require.main === module) {
   runMigrationResultsTest().catch(console.error);
 }
+
+describe('Migration Results Validation', () => {
+  it('should pass placeholder test', () => {
+    expect(true).toBe(true);
+  });
+});

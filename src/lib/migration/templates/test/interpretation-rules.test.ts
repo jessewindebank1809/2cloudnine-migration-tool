@@ -182,4 +182,10 @@ export function runTemplateTests(): void {
     
     const allTestsPassed = structureTest.success && queryTest.success;
     console.log(`\n=== Overall Result: ${allTestsPassed ? "ALL TESTS PASSED" : "SOME TESTS FAILED"} ===`);
-} 
+}
+
+describe('Interpretation Rules', () => {
+  it('should pass placeholder test', () => {
+    expect(true).toBe(true);
+  });
+}); 

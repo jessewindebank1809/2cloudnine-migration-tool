@@ -4,6 +4,11 @@ on:
   push:
     branches: [develop]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: [develop]
 
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -13,6 +18,7 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
     
     steps:
       - name: Checkout code
@@ -45,7 +51,7 @@ jobs:
       - name: Set staging secrets
         run: |
           flyctl secrets set \
-            DATABASE_URL="postgres://postgres:VMUl1eOPY66dUs2@tc9-migration-tool-staging-db.flycast:5432" \
+            DATABASE_URL="postgres://postgres:VMUl1eOPY66dUs2@tc9-migration-tool-staging-db.flycast:5432?sslmode=disable" \
             NODE_ENV="staging" \
             BETTER_AUTH_SECRET="${{ secrets.BETTER_AUTH_SECRET }}" \
             BETTER_AUTH_URL="https://tc9-migration-tool-staging.fly.dev" \
