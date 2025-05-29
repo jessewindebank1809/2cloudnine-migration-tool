@@ -77,7 +77,7 @@ jobs:
       - name: Ensure app is running
         run: |
           echo "🔄 Ensuring app is running before migrations..."
-          flyctl scale count 1 --yes --app tc9-migration-tool || true
+          flyctl machine list --app tc9-migration-tool --json | jq -r '.[] | select(.state=="stopped") | .id' | xargs -I {} flyctl machine start {} --app tc9-migration-tool
           
           # Wait a bit for the scale command to take effect
           sleep 10
