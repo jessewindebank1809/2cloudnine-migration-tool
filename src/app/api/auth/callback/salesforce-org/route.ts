@@ -2,21 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { encrypt } from '@/lib/utils/encryption';
 import { TokenManager } from '@/lib/salesforce/token-manager';
-import crypto from 'crypto';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
-
-interface SalesforceTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  instance_url: string;
-  id: string;
-  token_type: string;
-  issued_at: string;
-  signature: string;
-  scope: string;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,8 +29,8 @@ export async function GET(request: NextRequest) {
     let stateData;
     try {
       stateData = JSON.parse(Buffer.from(state, 'base64').toString());
-    } catch (e) {
-      console.error('Invalid state parameter:', e);
+    } catch (_) {
+      console.error('Invalid state parameter');
       return NextResponse.redirect(`${baseUrl}/orgs?error=invalid_state`);
     }
 

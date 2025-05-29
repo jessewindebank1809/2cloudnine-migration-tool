@@ -1,12 +1,11 @@
 "use client";
-import * as Sentry from "@sentry/nextjs";
 import { ErrorBoundary as SentryErrorBoundary } from "@sentry/react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 export function GlobalErrorBoundary({ children }: { children: React.ReactNode }) {
     return (
         <SentryErrorBoundary
-            fallback={({ error, resetError }) => (
+            fallback={({ resetError }) => (
                 <div className="min-h-screen flex items-center justify-center bg-background">
                     <div className="text-center max-w-md mx-auto p-6">
                         <div className="flex justify-center mb-4">
@@ -16,7 +15,7 @@ export function GlobalErrorBoundary({ children }: { children: React.ReactNode })
                             Something went wrong
                         </h2>
                         <p className="text-muted-foreground mb-6">
-                            We've been notified about this error and are working to fix it.
+                            We&apos;ve been notified about this error and are working to fix it.
                         </p>
                         <button
                             onClick={resetError}

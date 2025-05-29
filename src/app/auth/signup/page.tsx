@@ -6,7 +6,7 @@ import { authClient } from '@/lib/auth/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, CloudIcon, Shield, Users } from 'lucide-react';
+import { AlertCircle, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 // Salesforce Logo Component

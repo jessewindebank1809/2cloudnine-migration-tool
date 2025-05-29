@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,11 +45,7 @@ export function ObjectSelector({
   const [searchQuery, setSearchQuery] = useState('');
   const [showStandard, setShowStandard] = useState(false);
 
-  useEffect(() => {
-    loadObjects();
-  }, [orgId, showStandard]);
-
-  const loadObjects = async () => {
+  const loadObjects = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/salesforce/discover-objects', {
@@ -71,7 +67,11 @@ export function ObjectSelector({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [orgId, showStandard]);
+
+  useEffect(() => {
+    loadObjects();
+  }, [loadObjects]);
 
   const groupObjectsByCategory = (): ObjectGroup[] => {
     const groups: { [key: string]: ObjectGroup } = {
