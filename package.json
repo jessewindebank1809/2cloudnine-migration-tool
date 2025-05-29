@@ -24,7 +24,13 @@
         "test": "jest",
         "test:watch": "jest --watch",
         "test:e2e": "node tests/e2e/migration-results-validation.test.js",
-        "test:quick": "node tests/e2e/quick-results-check.js"
+        "test:quick": "node tests/e2e/quick-results-check.js",
+        "deploy": "./scripts/deploy.sh",
+        "deploy:staging": "./scripts/deploy.sh staging",
+        "deploy:production": "./scripts/deploy.sh production",
+        "deploy:quick": "./scripts/quick-deploy.sh",
+        "deploy:quick:staging": "./scripts/quick-deploy.sh staging",
+        "deploy:quick:production": "./scripts/quick-deploy.sh production"
     },
     "dependencies": {
         "@prisma/client": "^5.20.0",
