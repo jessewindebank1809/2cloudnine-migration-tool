@@ -3,20 +3,24 @@ import { genericOAuth } from "better-auth/plugins"
 import { prismaAdapter } from "better-auth/adapters/prisma"
 import { prisma } from "@/lib/database/prisma"
 
-
+// Use placeholder values during build time when secrets aren't available
+const getClientId = () => process.env.SALESFORCE_PRODUCTION_CLIENT_ID || 'build-time-placeholder-client-id';
+const getClientSecret = () => process.env.SALESFORCE_PRODUCTION_CLIENT_SECRET || 'build-time-placeholder-client-secret';
+const getBaseURL = () => process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL: getBaseURL(),
+  secret: process.env.BETTER_AUTH_SECRET || 'build-time-placeholder-secret-key-for-development',
   plugins: [
     genericOAuth({
       config: [
         {
           providerId: "salesforce",
-          clientId: process.env.SALESFORCE_PRODUCTION_CLIENT_ID!,
-          clientSecret: process.env.SALESFORCE_PRODUCTION_CLIENT_SECRET!,
+          clientId: getClientId(),
+          clientSecret: getClientSecret(),
           authorizationUrl: "https://login.salesforce.com/services/oauth2/authorize",
           tokenUrl: "https://login.salesforce.com/services/oauth2/token",
           userInfoUrl: "https://login.salesforce.com/services/oauth2/userinfo",
@@ -59,7 +63,5 @@ export const auth = betterAuth({
     },
   },
 })
-
-
 
 export type Session = typeof auth.$Infer.Session 

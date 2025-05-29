@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 
 export async function GET(_: NextRequest) {
+  // Skip database operations during build time
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json(
+      { error: 'Database not available during build' },
+      { status: 503 }
+    );
+  }
+
   try {
     const users = await prisma.user.findMany({
       select: {

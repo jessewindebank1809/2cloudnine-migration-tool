@@ -15,6 +15,10 @@ const nextConfig = {
     // Disable type checking during builds for deployment
     ignoreBuildErrors: true,
   },
+  // Exclude API routes that require database access from being statically generated
+  generateBuildId: async () => {
+    return process.env.VERCEL_GIT_COMMIT_SHA || process.env.FLY_APP_NAME || 'development'
+  },
   env: {
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,

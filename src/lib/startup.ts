@@ -7,6 +7,12 @@ export function initializeApp() {
     return;
   }
 
+  // Skip initialization during build time when DATABASE_URL is not available
+  if (!process.env.DATABASE_URL) {
+    console.log('⚠️ Skipping app initialization during build time');
+    return;
+  }
+
   console.log('🚀 Initializing application...');
   
   // Start the token refresh scheduler

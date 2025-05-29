@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 
 export async function GET(_: NextRequest) {
+  // Skip database operations during build time
+  if (!process.env.DATABASE_URL) {
+    const health = {
+      status: 'build-time',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || 'unknown',
+      environment: process.env.NODE_ENV || 'unknown',
+      database: 'build-time-skip',
+      uptime: process.uptime(),
+    };
+    return NextResponse.json(health, { status: 200 });
+  }
+
   try {
     // Check database connectivity
     await prisma.$queryRaw`SELECT 1`;
