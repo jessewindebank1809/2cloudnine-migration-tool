@@ -13,7 +13,7 @@
         "build:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && next build",
         "start": "next start",
         "start:env": "source /Users/jessewindebank/Documents/code/auth/tc9-migration-tool/variables.env && next start",
-        "lint": "next lint",
+        "lint": "next lint --max-warnings 1000",
         "type-check": "tsc --noEmit",
         "db:generate": "prisma generate",
         "db:push": "prisma db push",
