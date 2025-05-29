@@ -4,7 +4,7 @@ import { ExternalIdUtils } from "../../utils/external-id-utils";
 export const interpretationRulesTemplate: MigrationTemplate = {
     id: "payroll-interpretation-rules",
     name: "Interpretation Rules",
-    description: "Migrate interpretation rules with breakpoints following exact legacy ETL pattern",
+    description: "Migrate interpretation rules with breakpoints",
     category: "payroll",
     version: "1.0.0",
     etlSteps: [

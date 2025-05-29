@@ -23,6 +23,7 @@ interface MigrationProject {
   name: string;
   description?: string;
   status: 'DRAFT' | 'READY' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  templateId?: string;
   sourceOrg: {
     id: string;
     name: string;
@@ -47,6 +48,13 @@ interface MigrationProject {
   }>;
   created_at: string;
   updated_at: string;
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
 }
 
 const statusColors = {
@@ -82,6 +90,25 @@ export default function MigrationProjectPage({ params }: PageProps) {
       return response.json() as Promise<MigrationProject>;
     },
   });
+
+  // Fetch templates
+  const { data: templatesData } = useQuery({
+    queryKey: ['templates'],
+    queryFn: async () => {
+      const response = await fetch('/api/templates');
+      if (!response.ok) {
+        throw new Error('Failed to fetch templates');
+      }
+      const data = await response.json();
+      return data.templates as Template[];
+    },
+  });
+
+  // Create template name mapping
+  const templateNameMap = (templatesData || []).reduce((acc, template) => {
+    acc[template.id] = template.name;
+    return acc;
+  }, {} as Record<string, string>);
 
   if (isLoading) {
     return (
@@ -122,6 +149,15 @@ export default function MigrationProjectPage({ params }: PageProps) {
   const sourceOrg = project.sourceOrg;
   const targetOrg = project.targetOrg;
   const latestSession = project.migration_sessions[0];
+
+  // Get template name for display
+  const getTemplateName = (objectType: string) => {
+    if (project.templateId && templateNameMap[project.templateId]) {
+      return templateNameMap[project.templateId];
+    }
+    // Fallback to object type if no template mapping found
+    return objectType;
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -226,7 +262,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
                 {project.migration_sessions.slice(0, 5).map((session) => (
                   <div key={session.id} className="border rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium">{session.object_type}</div>
+                      <div className="font-medium">{getTemplateName(session.object_type)}</div>
                       <Badge variant={session.status === 'COMPLETED' ? 'completed' : 'pending'}>
                         {session.status}
                       </Badge>

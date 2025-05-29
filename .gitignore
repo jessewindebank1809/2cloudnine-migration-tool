@@ -63,3 +63,5 @@ config/
 
 # Screenshots and documentation images
 docs/screenshots/ 
+# Sentry Config File
+.env.sentry-build-plugin

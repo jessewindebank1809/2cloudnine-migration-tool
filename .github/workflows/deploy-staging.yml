@@ -1,0 +1,97 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+  FLY_APP_NAME: tc9-migration-tool-staging
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build application
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          JWT_SECRET: build-time-placeholder
+          ENCRYPTION_KEY: build-time-placeholder-key-for-testing
+          NEXT_PUBLIC_BASE_URL: https://tc9-migration-tool-staging.fly.dev
+          NEXT_PUBLIC_APP_URL: https://tc9-migration-tool-staging.fly.dev
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Set staging secrets
+        run: |
+          flyctl secrets set \
+            DATABASE_URL="postgres://postgres:VMUl1eOPY66dUs2@tc9-migration-tool-staging-db.flycast:5432" \
+            NODE_ENV="staging" \
+            BETTER_AUTH_SECRET="${{ secrets.BETTER_AUTH_SECRET }}" \
+            BETTER_AUTH_URL="https://tc9-migration-tool-staging.fly.dev" \
+            NEXT_PUBLIC_APP_URL="https://tc9-migration-tool-staging.fly.dev" \
+            NEXT_PUBLIC_BASE_URL="https://tc9-migration-tool-staging.fly.dev" \
+            SALESFORCE_PRODUCTION_CLIENT_ID="${{ secrets.SALESFORCE_PRODUCTION_CLIENT_ID }}" \
+            SALESFORCE_PRODUCTION_CLIENT_SECRET="${{ secrets.SALESFORCE_PRODUCTION_CLIENT_SECRET }}" \
+            SALESFORCE_SANDBOX_CLIENT_ID="${{ secrets.SALESFORCE_SANDBOX_CLIENT_ID }}" \
+            SALESFORCE_SANDBOX_CLIENT_SECRET="${{ secrets.SALESFORCE_SANDBOX_CLIENT_SECRET }}" \
+            ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}" \
+            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            SENTRY_DSN="${{ secrets.SENTRY_DSN }}" \
+            NEXT_PUBLIC_SENTRY_DSN="${{ secrets.SENTRY_DSN }}" \
+            --app tc9-migration-tool-staging
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Create staging fly.toml
+        run: |
+          cp fly.toml fly.staging.toml
+          sed -i 's/app = .*/app = "tc9-migration-tool-staging"/' fly.staging.toml
+          sed -i 's/primary_region = .*/primary_region = "sjc"/' fly.staging.toml
+
+      - name: Deploy to Fly.io Staging
+        run: |
+          flyctl deploy --config fly.staging.toml --app tc9-migration-tool-staging
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Run database migrations
+        run: |
+          flyctl ssh console --app tc9-migration-tool-staging -C "npx prisma migrate deploy"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Health check
+        run: |
+          sleep 30
+          curl -f https://tc9-migration-tool-staging.fly.dev/api/health || exit 1
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Staging deployment successful: https://tc9-migration-tool-staging.fly.dev"
+          else
+            echo "❌ Staging deployment failed"
+            exit 1
+          fi 

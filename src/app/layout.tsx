@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
+import { GlobalErrorBoundary } from '@/components/providers/ErrorBoundary'
 import { initializeApp } from '@/lib/startup'
 
 // Initialize app on server startup
@@ -38,9 +39,11 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         <div className="min-h-screen bg-background font-sans">
-          <Providers>
-            {children}
-          </Providers>
+          <GlobalErrorBoundary>
+            <Providers>
+              {children}
+            </Providers>
+          </GlobalErrorBoundary>
         </div>
       </body>
     </html>

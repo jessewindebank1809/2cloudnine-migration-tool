@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from "@sentry/nextjs";
 import { ExecutionEngine, DEFAULT_EXECUTION_CONFIG, ExecutionContext } from '@/lib/migration/templates/core/execution-engine';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
 import { registerAllTemplates } from '@/lib/migration/templates/registry'; // Ensure templates are registered
@@ -11,770 +12,828 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    // Ensure templates are registered
-    registerAllTemplates();
-    
-    const migrationId = params.id;
-    const body = await request.json();
+  const migrationId = params.id;
+  
+  // Set Sentry context for this migration
+  Sentry.setTag("migration.id", migrationId);
+  Sentry.setTag("operation", "migration.execute");
+  
+  return Sentry.startSpan(
+    { 
+      name: "Migration Execution", 
+      op: "migration.execute",
+      attributes: { migrationId }
+    },
+    async () => {
+      try {
+        // Ensure templates are registered
+        registerAllTemplates();
+        
+        const body = await request.json();
 
-    const {
-      externalIdField: providedExternalIdField,
-      config = DEFAULT_EXECUTION_CONFIG
-    } = body;
+        const {
+          externalIdField: providedExternalIdField,
+          config = DEFAULT_EXECUTION_CONFIG
+        } = body;
 
-    // Get migration project
-    const migration = await prisma.migration_projects.findUnique({
-      where: { id: migrationId },
-      include: {
-        organisations_migration_projects_source_org_idToorganisations: true,
-        organisations_migration_projects_target_org_idToorganisations: true
-      }
-    });
+        // Get migration project
+        const migration = await prisma.migration_projects.findUnique({
+          where: { id: migrationId },
+          include: {
+            organisations_migration_projects_source_org_idToorganisations: true,
+            organisations_migration_projects_target_org_idToorganisations: true
+          }
+        });
 
-    if (!migration) {
-      return NextResponse.json(
-        { error: 'Migration not found' },
-        { status: 404 }
-      );
-    }
+        if (!migration) {
+          Sentry.setContext("migration", { id: migrationId, found: false });
+          return NextResponse.json(
+            { error: 'Migration not found' },
+            { status: 404 }
+          );
+        }
 
-    // Extract templateId and selectedRecords from project config
-    const projectConfig = migration.config as any;
-    const templateId = projectConfig.templateId;
-    const selectedRecords = projectConfig.selectedRecords || [];
+        // Extract templateId and selectedRecords from project config
+        const projectConfig = migration.config as any;
+        const templateId = projectConfig.templateId;
+        const selectedRecords = projectConfig.selectedRecords || [];
 
-    // Debug logging
-    console.log('Template ID from config:', templateId);
-    console.log('Selected records:', selectedRecords.length);
-
-    // Validate required fields
-    if (!templateId) {
-      return NextResponse.json(
-        { error: 'Template ID not found in project configuration' },
-        { status: 400 }
-      );
-    }
-
-    if (!selectedRecords || selectedRecords.length === 0) {
-      return NextResponse.json(
-        { error: 'No records selected for migration' },
-        { status: 400 }
-      );
-    }
-
-    const sourceOrg = migration.organisations_migration_projects_source_org_idToorganisations;
-    const targetOrg = migration.organisations_migration_projects_target_org_idToorganisations;
-
-    if (!sourceOrg || !targetOrg) {
-      return NextResponse.json(
-        { error: 'Migration must have both source and target organisations configured' },
-        { status: 400 }
-      );
-    }
-
-    // Get template from registry
-    const template = templateRegistry.getTemplate(templateId);
-    if (!template) {
-      console.error(`Template not found: ${templateId}`);
-      console.error('Available template IDs:', templateRegistry.getTemplateIds());
-      console.error('Template registry has template:', templateRegistry.hasTemplate(templateId));
-      return NextResponse.json(
-        { 
-          error: 'Template not found',
+        // Set additional Sentry context
+        Sentry.setContext("migration", {
+          id: migrationId,
           templateId,
-          availableTemplates: templateRegistry.getTemplateIds()
-        },
-        { status: 404 }
-      );
-    }
-
-    // Get authenticated clients from session manager
-    let sourceClient, targetClient;
-    try {
-      sourceClient = await sessionManager.getClient(sourceOrg.id);
-      targetClient = await sessionManager.getClient(targetOrg.id);
-    } catch (error) {
-      console.error('Failed to get authenticated clients:', error);
-      
-      // Check if it's a token-related error
-      if (error instanceof Error && (
-        error.message.includes('not connected') ||
-        error.message.includes('not found')
-      )) {
-        return NextResponse.json(
-          { 
-            error: 'One or more organisations need to be reconnected. Please reconnect your Salesforce organisations.',
-            code: 'RECONNECT_REQUIRED',
-            reconnectUrl: `/orgs`
-          },
-          { status: 401 }
-        );
-      }
-      
-      throw error;
-    }
-
-    // Convert selectedRecords array to the expected format for ExecutionContext
-    // The execution engine expects selectedRecords as Record<objectType, recordIds[]>
-    const primaryObjectType = template.etlSteps[0]?.extractConfig?.objectApiName || 'tc9_et__Interpretation_Rule__c';
-    const formattedSelectedRecords: Record<string, string[]> = {
-      [primaryObjectType]: selectedRecords
-    };
-
-    // Detect external ID fields for both source and target environments
-    let externalIdField = providedExternalIdField;
-    let externalIdConfig;
-    
-    try {
-      // Detect external ID information for both environments
-      const sourceExternalIdInfo = await ExternalIdUtils.detectEnvironmentExternalIdInfo(primaryObjectType, sourceClient);
-      const targetExternalIdInfo = await ExternalIdUtils.detectEnvironmentExternalIdInfo(primaryObjectType, targetClient);
-      
-      console.log('Source external ID info:', sourceExternalIdInfo);
-      console.log('Target external ID info:', targetExternalIdInfo);
-      
-      // Create cross-environment configuration
-      externalIdConfig = await ExternalIdUtils.detectCrossEnvironmentMapping(sourceExternalIdInfo, targetExternalIdInfo);
-      
-      // Validate compatibility and log any issues
-      const validationResult = ExternalIdUtils.validateCrossEnvironmentCompatibility(sourceExternalIdInfo, targetExternalIdInfo);
-      
-      if (validationResult.potentialIssues.length > 0) {
-        console.warn('External ID compatibility issues detected:');
-        validationResult.potentialIssues.forEach(issue => {
-          console.warn(`${issue.severity.toUpperCase()}: ${issue.message}`);
-          if (issue.suggestedAction) {
-            console.warn(`Suggested action: ${issue.suggestedAction}`);
-          }
+          recordCount: selectedRecords.length,
+          sourceOrgId: migration.source_org_id,
+          targetOrgId: migration.target_org_id
         });
-      }
-      
-      if (validationResult.recommendations.length > 0) {
-        console.log('External ID recommendations:');
-        validationResult.recommendations.forEach(rec => console.log(`- ${rec}`));
-      }
-      
-      // Use the source field for backward compatibility
-      externalIdField = externalIdField || externalIdConfig.sourceField;
-      
-      console.log(`Using external ID configuration:`, {
-        strategy: externalIdConfig.strategy,
-        sourceField: externalIdConfig.sourceField,
-        targetField: externalIdConfig.targetField,
-        crossEnvironment: externalIdConfig.crossEnvironmentMapping
-      });
-      
-    } catch (error) {
-      console.warn(`Failed to detect cross-environment external ID configuration:`, error);
-      
-      // Fallback to legacy detection
-      if (!externalIdField) {
-        try {
-          externalIdField = await ExternalIdUtils.detectExternalIdField(primaryObjectType, sourceClient);
-          console.log(`Auto-detected external ID field: ${externalIdField} for object ${primaryObjectType}`);
-        } catch (legacyError) {
-          console.warn(`Failed to auto-detect external ID field, using managed default:`, legacyError);
-          externalIdField = ExternalIdUtils.createDefaultConfig().sourceField;
+
+        // Debug logging
+        console.log('Template ID from config:', templateId);
+        console.log('Selected records:', selectedRecords.length);
+
+        // Validate required fields
+        if (!templateId) {
+          Sentry.captureMessage("Template ID not found in project configuration", "error");
+          return NextResponse.json(
+            { error: 'Template ID not found in project configuration' },
+            { status: 400 }
+          );
         }
-      }
-      
-      // Create default configuration
-      externalIdConfig = ExternalIdUtils.createDefaultConfig();
-      externalIdConfig.sourceField = externalIdField;
-      externalIdConfig.targetField = externalIdField;
-    }
 
-    // Create execution context with properly authenticated org data
-    const executionContext: ExecutionContext = {
-      sourceOrg: {
-        id: sourceOrg.id,
-        name: sourceOrg.name,
-        instanceUrl: sourceOrg.instance_url,
-        accessToken: sourceClient.accessToken || '',
-        refreshToken: sourceClient.refreshToken || '',
-        organizationId: sourceOrg.salesforce_org_id || '',
-        organizationName: sourceOrg.name
-      } as SalesforceOrg,
-      targetOrg: {
-        id: targetOrg.id,
-        name: targetOrg.name,
-        instanceUrl: targetOrg.instance_url,
-        accessToken: targetClient.accessToken || '',
-        refreshToken: targetClient.refreshToken || '',
-        organizationId: targetOrg.salesforce_org_id || '',
-        organizationName: targetOrg.name
-      } as SalesforceOrg,
-      template,
-      selectedRecords: formattedSelectedRecords,
-      externalIdField, // Keep for backward compatibility
-      externalIdConfig, // New cross-environment configuration
-      config
-    };
-
-    // Create execution engine
-    const executionEngine = new ExecutionEngine();
-
-    // Set up progress tracking
-    const progressUpdates: any[] = [];
-    executionEngine.onProgress((progress) => {
-      progressUpdates.push({
-        timestamp: new Date(),
-        ...progress
-      });
-    });
-
-    // Execute the template
-    console.log('Starting template execution...');
-    const result = await executionEngine.executeTemplate(executionContext);
-    
-    // Log execution summary first
-    console.log('Template execution completed with summary:', {
-      status: result.status,
-      totalRecords: result.totalRecords,
-      successfulRecords: result.successfulRecords,
-      failedRecords: result.failedRecords,
-      executionTimeMs: result.executionTimeMs,
-      stepCount: result.stepResults.length,
-      lookupMappingsCount: Object.keys(result.lookupMappings).length
-    });
-    
-    // Log each step result separately to avoid truncation
-    result.stepResults.forEach((step, index) => {
-      console.log(`Step ${index + 1} (${step.stepName}):`, {
-        status: step.status,
-        totalRecords: step.totalRecords,
-        successfulRecords: step.successfulRecords,
-        failedRecords: step.failedRecords,
-        executionTimeMs: step.executionTimeMs,
-        errorCount: step.errors?.length || 0
-      });
-      
-      // Log errors separately if they exist
-      if (step.errors && step.errors.length > 0) {
-        console.log(`Step ${index + 1} errors (${step.errors.length} total):`);
-        step.errors.forEach((error: any, errorIndex: number) => {
-          console.log(`  Error ${errorIndex + 1}:`, {
-            recordId: error.recordId,
-            error: error.error,
-            retryable: error.retryable
-          });
-        });
-      }
-    });
-    
-    // Log lookup mappings separately
-    console.log('Lookup mappings:', Object.keys(result.lookupMappings).length, 'total mappings');
-    if (Object.keys(result.lookupMappings).length > 0) {
-      console.log('Sample lookup mappings (first 10):');
-      Object.entries(result.lookupMappings).slice(0, 10).forEach(([source, target]) => {
-        console.log(`  ${source} -> ${target}`);
-      });
-    }
-
-    // Create migration session record
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const session = await prisma.migration_sessions.create({
-      data: {
-        id: sessionId,
-        project_id: migrationId,
-        object_type: templateId,
-        status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
-        total_records: result.totalRecords,
-        processed_records: result.successfulRecords + result.failedRecords,
-        successful_records: result.successfulRecords,
-        failed_records: result.failedRecords,
-        error_log: result.stepResults.flatMap(step => 
-          step.errors?.map((error: any) => ({
-            stepName: step.stepName,
-            recordId: error.recordId,
-            error: error.error,
-            retryable: error.retryable
-          })) || []
-        ),
-        started_at: new Date(Date.now() - result.executionTimeMs),
-        completed_at: new Date()
-      }
-    });
-
-    // Store record mappings for successful records
-    const recordMappings = Object.entries(result.lookupMappings).map(([sourceId, targetId], index) => ({
-      id: `record_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
-      session_id: session.id,
-      source_record_id: sourceId,
-      target_record_id: targetId,
-      object_type: templateId,
-      status: 'SUCCESS' as const,
-      record_data: {}
-    }));
-
-    if (recordMappings.length > 0) {
-      await prisma.migration_records.createMany({
-        data: recordMappings
-      });
-    }
-
-    // Update migration project status
-    await prisma.migration_projects.update({
-      where: { id: migrationId },
-      data: {
-        status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
-        updated_at: new Date()
-      }
-    });
-
-    // Helper function to get detailed record results grouped by parent records
-    const getDetailedRecordResults = async (stepResults: any[], lookupMappings: Record<string, string>, selectedRecords: string[], targetOrg: any, sourceClient: any, template: any) => {
-      console.log('getDetailedRecordResults called with targetOrg:', {
-        id: targetOrg.id,
-        name: targetOrg.name,
-        instanceUrl: targetOrg.instanceUrl,
-        instance_url: targetOrg.instance_url,
-        keys: Object.keys(targetOrg)
-      });
-      
-      // Fetch record names from source org based on the template's primary object
-      const recordNames = new Map<string, string>();
-      if (selectedRecords.length > 0 && sourceClient && template) {
-        try {
-          const primaryObjectType = template.etlSteps[0]?.extractConfig?.objectApiName;
-          if (primaryObjectType) {
-            const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
-            const nameResult = await sourceClient.query(nameQuery);
-            if (nameResult.success && nameResult.data) {
-              nameResult.data.forEach((record: any) => {
-                recordNames.set(record.Id, record.Name);
-              });
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to fetch record names:', error);
+        if (!selectedRecords || selectedRecords.length === 0) {
+          Sentry.captureMessage("No records selected for migration", "error");
+          return NextResponse.json(
+            { error: 'No records selected for migration' },
+            { status: 400 }
+          );
         }
-      }
-      
-      const recordResults = new Map<string, {
-        sourceId: string;
-        sourceName: string;
-        recordName?: string;
-        targetId?: string;
-        targetUrl?: string;
-        status: 'success' | 'failed';
-        successfulChildRecords: number;
-        failedChildRecords: number;
-        totalChildRecords: number;
-        errors: any[];
-        childRecordDetails: {
-          stepName: string;
-          successCount: number;
-          failCount: number;
-          errors: any[];
-        }[];
-      }>();
 
-      // Initialize results for each selected record
-      selectedRecords.forEach(recordId => {
-        const recordName = recordNames.get(recordId) || recordId;
-        recordResults.set(recordId, {
-          sourceId: recordId,
-          sourceName: recordName,
-          recordName: recordName,
-          status: 'success',
-          successfulChildRecords: 0,
-          failedChildRecords: 0,
-          totalChildRecords: 0,
-          errors: [],
-          childRecordDetails: []
-        });
-      });
+        const sourceOrg = migration.organisations_migration_projects_source_org_idToorganisations;
+        const targetOrg = migration.organisations_migration_projects_target_org_idToorganisations;
 
-      // Get the number of successful parent records
-      const parentStep = stepResults.find(step => step.stepName === 'interpretationRuleMaster');
-      const successfulParentCount = parentStep ? parentStep.successfulRecords : 0;
-      // Only use selected records that were actually successful in the migration
-      const successfulParentIds = selectedRecords.filter(recordId => lookupMappings[recordId]);
+        if (!sourceOrg || !targetOrg) {
+          Sentry.captureMessage("Migration missing source or target organisation", "error");
+          return NextResponse.json(
+            { error: 'Migration must have both source and target organisations configured' },
+            { status: 400 }
+          );
+        }
 
-      // Get actual child record counts from target org for all migrated records
-      const actualChildCounts = new Map<string, Map<string, number>>(); // sourceParentId -> stepName -> count
-      
-      if (successfulParentIds.length > 0 && targetClient) {
-        try {
-          // Get target IDs for selected parents from lookup mappings
-          const selectedTargetIds = successfulParentIds.map(sourceId => lookupMappings[sourceId]).filter(Boolean);
-          const selectedTargetIdsStr = selectedTargetIds.map(id => `'${id}'`).join(',');
+        // Set org context for Sentry
+        Sentry.setTag("org.source", sourceOrg.name);
+        Sentry.setTag("org.target", targetOrg.name);
+
+        // Get template from registry
+        const template = templateRegistry.getTemplate(templateId);
+        if (!template) {
+          console.error(`Template not found: ${templateId}`);
+          console.error('Available template IDs:', templateRegistry.getTemplateIds());
+          console.error('Template registry has template:', templateRegistry.hasTemplate(templateId));
           
-          console.log('🔍 DEBUGGING: Querying child records in TARGET org for selected parents:');
-          console.log('Source IDs:', successfulParentIds);
-          console.log('Target IDs:', selectedTargetIds);
-          
-          // Query each child object type separately in the TARGET org
-          const childObjectQueries = [
-            {
-              stepName: 'interpretationBreakpointLeaveHeader',
-              objectType: 'tc9_et__Interpretation_Breakpoint__c',
-              parentField: 'tc9_et__Interpretation_Rule__c',
-              whereClause: `RecordType.Name = 'Leave Breakpoint' AND tc9_et__Breakpoint_Type__c = 'Leave Header'`
+          Sentry.captureMessage(`Template not found: ${templateId}`, "error");
+          return NextResponse.json(
+            { 
+              error: 'Template not found',
+              templateId,
+              availableTemplates: templateRegistry.getTemplateIds()
             },
-            {
-              stepName: 'interpretationBreakpointPayCodeCap',
-              objectType: 'tc9_et__Interpretation_Breakpoint__c',
-              parentField: 'tc9_et__Interpretation_Rule__c',
-              whereClause: `(RecordType.Name = 'Pay Code Cap' OR RecordType.Name = 'Leave Breakpoint') AND tc9_et__Breakpoint_Type__c != 'Leave Header'`
-            },
-            {
-              stepName: 'interpretationBreakpointOther',
-              objectType: 'tc9_et__Interpretation_Breakpoint__c',
-              parentField: 'tc9_et__Interpretation_Rule__c',
-              whereClause: `RecordType.Name != 'Pay Code Cap' AND RecordType.Name != 'Leave Breakpoint'`
-            }
-          ];
+            { status: 404 }
+          );
+        }
 
-          for (const queryConfig of childObjectQueries) {
-            const query = `
-              SELECT ${queryConfig.parentField}, COUNT(Id) 
-              FROM ${queryConfig.objectType} 
-              WHERE ${queryConfig.parentField} IN (${selectedTargetIdsStr}) 
-              AND ${queryConfig.whereClause}
-              GROUP BY ${queryConfig.parentField}
-            `;
-            
-            console.log(`🔍 DEBUGGING: Querying ${queryConfig.stepName}: ${query}`);
-            
-            try {
-              const result = await targetClient.query(query);
-              
-              if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
-                result.data.forEach((record: any) => {
-                  const targetParentId = record[queryConfig.parentField];
-                  const count = record.expr0 || 0;
-                  
-                  // Validate the record structure
-                  if (!targetParentId || count === undefined) {
-                    console.warn(`Unexpected record structure for ${queryConfig.stepName}:`, record);
-                    return;
-                  }
-                  
-                  // Find the source parent ID that maps to this target parent ID
-                  const sourceParentId = Object.keys(lookupMappings).find(sourceId => 
-                    lookupMappings[sourceId] === targetParentId
-                  );
-                  
-                  if (sourceParentId) {
-                    if (!actualChildCounts.has(sourceParentId)) {
-                      actualChildCounts.set(sourceParentId, new Map());
-                    }
-                    actualChildCounts.get(sourceParentId)!.set(queryConfig.stepName, count);
-                    
-                    console.log(`🔍 DEBUGGING: Found ${count} ${queryConfig.stepName} records for source parent ${sourceParentId} (target: ${targetParentId})`);
-                  }
-                });
-              } else {
-                console.log(`🔍 DEBUGGING: No results for ${queryConfig.stepName} query`);
-              }
-            } catch (error: any) {
-              console.error(`Error querying ${queryConfig.stepName}:`, error);
-              // Log the specific error message which might indicate field name issues
-              if (error.message?.includes('No such column') || error.message?.includes('Invalid field')) {
-                console.error('Field name issue detected. Query:', query);
-                console.error('Error details:', error.message);
-              }
-            }
-          }
-          
-          console.log('🔍 DEBUGGING: Complete child counts map:', Object.fromEntries(
-            Array.from(actualChildCounts.entries()).map(([sourceId, stepCounts]) => [
-              sourceId, 
-              Object.fromEntries(stepCounts.entries())
-            ])
-          ));
+        // Get authenticated clients from session manager
+        let sourceClient, targetClient;
+        try {
+          sourceClient = await sessionManager.getClient(sourceOrg.id);
+          targetClient = await sessionManager.getClient(targetOrg.id);
         } catch (error) {
-          console.error('Error querying child record counts:', error);
-        }
-      }
-
-      // Calculate total child records for each selected parent
-      successfulParentIds.forEach(parentId => {
-        if (recordResults.has(parentId)) {
-          const record = recordResults.get(parentId)!;
-          const stepCounts = actualChildCounts.get(parentId);
-          if (stepCounts) {
-            record.totalChildRecords = Array.from(stepCounts.values()).reduce((sum, count) => sum + count, 0);
-          }
-        }
-      });
-
-      // Process each step result
-      for (const step of stepResults) {
-        // Update record results based on step outcomes
-        if (step.stepName === 'interpretationRuleMaster') {
-          // This is the parent record step
-          step.errors?.forEach((error: any) => {
-            const sourceId = error.sourceRecordId || error.recordId;
-            if (recordResults.has(sourceId)) {
-              const record = recordResults.get(sourceId)!;
-              record.status = 'failed';
-              record.errors.push(error);
-            }
-          });
-
-          // Update successful parent records with target IDs and URLs
-          Object.entries(lookupMappings).forEach(([sourceId, targetId]) => {
-            if (recordResults.has(sourceId)) {
-              const record = recordResults.get(sourceId)!;
-              record.targetId = targetId;
-              // Ensure we have a valid instance URL and construct the full Salesforce record URL
-              const instanceUrl = targetOrg.instanceUrl || targetOrg.instance_url;
-              if (instanceUrl) {
-                record.targetUrl = `${instanceUrl}/${targetId}`;
-              } else {
-                console.warn('Target organisation instanceUrl is undefined:', targetOrg);
-                record.targetUrl = undefined;
-              }
-            }
-          });
-        } else {
-          // This is a child record step
-          if (successfulParentCount > 0 && step.totalRecords > 0) {
-            // Distribute step results based on actual child record counts for this specific step
-            successfulParentIds.forEach((parentId) => {
-              if (recordResults.has(parentId)) {
-                const record = recordResults.get(parentId)!;
-                
-                // Check if we already have details for this step
-                const existingStepDetail = record.childRecordDetails.find(d => d.stepName === step.stepName);
-                
-                if (!existingStepDetail) {
-                  const stepCounts = actualChildCounts.get(parentId);
-                  const actualChildCountForStep = stepCounts?.get(step.stepName) || 0;
-                  
-                  // Calculate this parent's proportion of the step results
-                  const totalChildrenForStep = Array.from(actualChildCounts.values())
-                    .reduce((sum, stepMap) => sum + (stepMap.get(step.stepName) || 0), 0);
-                  
-                  const proportion = totalChildrenForStep > 0 ? actualChildCountForStep / totalChildrenForStep : 0;
-                  const thisParentSuccess = Math.round(step.successfulRecords * proportion);
-                  const thisParentFail = Math.round(step.failedRecords * proportion);
-                  
-                  // Add step details with proportional counts
-                  const stepDetail = {
-                    stepName: step.stepName,
-                    successCount: thisParentSuccess,
-                    failCount: thisParentFail,
-                    errors: step.errors?.filter((error: any) => 
-                      error.sourceRecordId === parentId || error.recordId === parentId
-                    ) || []
-                  };
-                  
-                  record.childRecordDetails.push(stepDetail);
-                  
-                  // Update totals for this specific parent
-                  record.successfulChildRecords += thisParentSuccess;
-                  record.failedChildRecords += thisParentFail;
-                }
-              }
-            });
-          }
-        }
-      }
-
-      return Array.from(recordResults.values());
-    };
-
-    // Helper function to get unique errors with improved pattern matching and parent record grouping
-    const getUniqueErrors = (stepResults: any[]) => {
-      const errorMap = new Map<string, { 
-        count: number; 
-        examples: string[]; 
-        originalMessage: string;
-        parentRecords: Set<string>;
-        interpretationRules: Set<string>;
-      }>();
-      
-      // Function to normalize error messages and extract parent record information
-      const normalizeErrorMessage = (message: string) => {
-        // Extract interpretation rule name from breakpoint error messages
-        const breakpointMatch = message.match(/please check Breakpoint: ([^:]+):/);
-        const interpretationRule = breakpointMatch ? breakpointMatch[1] : null;
-        
-        // Normalize the error message by replacing specific breakpoint names with placeholder
-        const normalized = message
-          .replace(/please check Breakpoint: [^:]+:/g, 'please check Breakpoint: [BREAKPOINT_NAME]:')
-          .replace(/Breakpoint: [^:]+:/g, 'Breakpoint: [BREAKPOINT_NAME]:');
-        
-        return { normalized, interpretationRule };
-      };
-      
-      stepResults.forEach(step => {
-        step.errors?.forEach((error: any) => {
-          const { normalized, interpretationRule } = normalizeErrorMessage(error.error);
+          console.error('Failed to get authenticated clients:', error);
           
-          if (errorMap.has(normalized)) {
-            const existing = errorMap.get(normalized)!;
-            existing.count++;
-            if (existing.examples.length < 3) {
-              existing.examples.push(error.recordId);
-            }
-            if (interpretationRule) {
-              existing.interpretationRules.add(interpretationRule);
-            }
-          } else {
-            const interpretationRules = new Set<string>();
-            if (interpretationRule) {
-              interpretationRules.add(interpretationRule);
-            }
-            
-            errorMap.set(normalized, {
-              count: 1,
-              examples: [error.recordId],
-              originalMessage: error.error,
-              parentRecords: new Set(),
-              interpretationRules
-            });
-          }
-        });
-      });
-
-      return Array.from(errorMap.entries()).map(([normalizedMessage, data]) => {
-        // Create a more descriptive message that includes parent record context
-        let enhancedMessage = normalizedMessage;
-        
-        if (data.interpretationRules.size > 0) {
-          const ruleNames = Array.from(data.interpretationRules);
-          if (ruleNames.length === 1) {
-            enhancedMessage = enhancedMessage.replace(
-              '[BREAKPOINT_NAME]', 
-              ruleNames[0]
+          // Enhanced error context for Sentry
+          Sentry.setContext("authentication", {
+            sourceOrgId: sourceOrg.id,
+            targetOrgId: targetOrg.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          
+          // Check if it's a token-related error
+          if (error instanceof Error && (
+            error.message.includes('not connected') ||
+            error.message.includes('not found')
+          )) {
+            Sentry.captureException(error);
+            return NextResponse.json(
+              { 
+                error: 'One or more organisations need to be reconnected. Please reconnect your Salesforce organisations.',
+                code: 'RECONNECT_REQUIRED',
+                reconnectUrl: `/orgs`
+              },
+              { status: 401 }
             );
-          } else {
-            enhancedMessage = `${enhancedMessage} (Affects ${ruleNames.length} interpretation rules: ${ruleNames.slice(0, 3).join(', ')}${ruleNames.length > 3 ? '...' : ''})`;
           }
+          
+          throw error;
         }
-        
-        return {
-          message: enhancedMessage,
-          originalMessage: data.originalMessage,
-          count: data.count,
-          examples: data.examples,
-          interpretationRules: Array.from(data.interpretationRules)
+
+        // Convert selectedRecords array to the expected format for ExecutionContext
+        // The execution engine expects selectedRecords as Record<objectType, recordIds[]>
+        const primaryObjectType = template.etlSteps[0]?.extractConfig?.objectApiName || 'tc9_et__Interpretation_Rule__c';
+        const formattedSelectedRecords: Record<string, string[]> = {
+          [primaryObjectType]: selectedRecords
         };
-      });
-    };
 
-    // If the migration failed completely, return an error response
-    if (result.status === 'failed') {
-      const errorDetails = result.stepResults
-        .filter(step => step.errors.length > 0)
-        .map(step => ({
-          stepName: step.stepName,
-          errors: step.errors
-        }));
+        // Detect external ID fields for both source and target environments
+        let externalIdField = providedExternalIdField;
+        let externalIdConfig;
+        
+        try {
+          // Detect external ID information for both environments
+          const sourceExternalIdInfo = await ExternalIdUtils.detectEnvironmentExternalIdInfo(primaryObjectType, sourceClient);
+          const targetExternalIdInfo = await ExternalIdUtils.detectEnvironmentExternalIdInfo(primaryObjectType, targetClient);
+          
+          console.log('Source external ID info:', sourceExternalIdInfo);
+          console.log('Target external ID info:', targetExternalIdInfo);
+          
+          // Create cross-environment configuration
+          externalIdConfig = await ExternalIdUtils.detectCrossEnvironmentMapping(sourceExternalIdInfo, targetExternalIdInfo);
+          
+          // Validate compatibility and log any issues
+          const validationResult = ExternalIdUtils.validateCrossEnvironmentCompatibility(sourceExternalIdInfo, targetExternalIdInfo);
+          
+          if (validationResult.potentialIssues.length > 0) {
+            console.warn('External ID compatibility issues detected:');
+            validationResult.potentialIssues.forEach(issue => {
+              console.warn(`${issue.severity.toUpperCase()}: ${issue.message}`);
+              if (issue.suggestedAction) {
+                console.warn(`Suggested action: ${issue.suggestedAction}`);
+              }
+            });
+          }
+          
+          if (validationResult.recommendations.length > 0) {
+            console.log('External ID recommendations:');
+            validationResult.recommendations.forEach(rec => console.log(`- ${rec}`));
+          }
+          
+          // Use the source field for backward compatibility
+          externalIdField = externalIdField || externalIdConfig.sourceField;
+          
+          console.log(`Using external ID configuration:`, {
+            strategy: externalIdConfig.strategy,
+            sourceField: externalIdConfig.sourceField,
+            targetField: externalIdConfig.targetField,
+            crossEnvironment: externalIdConfig.crossEnvironmentMapping
+          });
+          
+        } catch (error) {
+          console.warn(`Failed to detect cross-environment external ID configuration:`, error);
+          
+          // Fallback to legacy detection
+          if (!externalIdField) {
+            try {
+              externalIdField = await ExternalIdUtils.detectExternalIdField(primaryObjectType, sourceClient);
+              console.log(`Auto-detected external ID field: ${externalIdField} for object ${primaryObjectType}`);
+            } catch (legacyError) {
+              console.warn(`Failed to auto-detect external ID field, using managed default:`, legacyError);
+              externalIdField = ExternalIdUtils.createDefaultConfig().sourceField;
+            }
+          }
+          
+          // Create default configuration
+          externalIdConfig = ExternalIdUtils.createDefaultConfig();
+          externalIdConfig.sourceField = externalIdField;
+          externalIdConfig.targetField = externalIdField;
+        }
 
-      const detailedRecordResults = await getDetailedRecordResults(
-        result.stepResults, 
-        result.lookupMappings, 
-        selectedRecords, 
-        executionContext.targetOrg,
-        sourceClient,
-        template
-      );
+        // Create execution context with properly authenticated org data
+        const executionContext: ExecutionContext = {
+          sourceOrg: {
+            id: sourceOrg.id,
+            name: sourceOrg.name,
+            instanceUrl: sourceOrg.instance_url,
+            accessToken: sourceClient.accessToken || '',
+            refreshToken: sourceClient.refreshToken || '',
+            organizationId: sourceOrg.salesforce_org_id || '',
+            organizationName: sourceOrg.name
+          } as SalesforceOrg,
+          targetOrg: {
+            id: targetOrg.id,
+            name: targetOrg.name,
+            instanceUrl: targetOrg.instance_url,
+            accessToken: targetClient.accessToken || '',
+            refreshToken: targetClient.refreshToken || '',
+            organizationId: targetOrg.salesforce_org_id || '',
+            organizationName: targetOrg.name
+          } as SalesforceOrg,
+          template,
+          selectedRecords: formattedSelectedRecords,
+          externalIdField, // Keep for backward compatibility
+          externalIdConfig, // New cross-environment configuration
+          config
+        };
 
-      return NextResponse.json({
-        success: false,
-        error: 'Migration execution failed. Any successfully inserted records have been automatically rolled back.',
-        details: errorDetails,
-        uniqueErrors: getUniqueErrors(result.stepResults),
-        recordResults: detailedRecordResults,
-        sessionId: session.id,
-        result: {
+        // Create execution engine
+        const executionEngine = new ExecutionEngine();
+
+        // Set up progress tracking
+        const progressUpdates: any[] = [];
+        executionEngine.onProgress((progress) => {
+          progressUpdates.push({
+            timestamp: new Date(),
+            ...progress
+          });
+        });
+
+        // Execute the template
+        console.log('Starting template execution...');
+        const result = await executionEngine.executeTemplate(executionContext);
+        
+        // Log execution summary first
+        console.log('Template execution completed with summary:', {
           status: result.status,
           totalRecords: result.totalRecords,
           successfulRecords: result.successfulRecords,
           failedRecords: result.failedRecords,
           executionTimeMs: result.executionTimeMs,
-          stepResults: result.stepResults.map(step => ({
-            stepName: step.stepName,
+          stepCount: result.stepResults.length,
+          lookupMappingsCount: Object.keys(result.lookupMappings).length
+        });
+        
+        // Log each step result separately to avoid truncation
+        result.stepResults.forEach((step, index) => {
+          console.log(`Step ${index + 1} (${step.stepName}):`, {
             status: step.status,
             totalRecords: step.totalRecords,
             successfulRecords: step.successfulRecords,
             failedRecords: step.failedRecords,
             executionTimeMs: step.executionTimeMs,
-            errorCount: step.errors?.length || 0,
-            errors: step.errors
-          })),
-          lookupMappings: result.lookupMappings
-        },
-        progressUpdates
-      }, { status: 400 });
+            errorCount: step.errors?.length || 0
+          });
+          
+          // Log errors separately if they exist
+          if (step.errors && step.errors.length > 0) {
+            console.log(`Step ${index + 1} errors (${step.errors.length} total):`);
+            step.errors.forEach((error: any, errorIndex: number) => {
+              console.log(`  Error ${errorIndex + 1}:`, {
+                recordId: error.recordId,
+                error: error.error,
+                retryable: error.retryable
+              });
+            });
+          }
+        });
+        
+        // Log lookup mappings separately
+        console.log('Lookup mappings:', Object.keys(result.lookupMappings).length, 'total mappings');
+        if (Object.keys(result.lookupMappings).length > 0) {
+          console.log('Sample lookup mappings (first 10):');
+          Object.entries(result.lookupMappings).slice(0, 10).forEach(([source, target]) => {
+            console.log(`  ${source} -> ${target}`);
+          });
+        }
+
+        // Create migration session record
+        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const session = await prisma.migration_sessions.create({
+          data: {
+            id: sessionId,
+            project_id: migrationId,
+            object_type: templateId,
+            status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
+            total_records: result.totalRecords,
+            processed_records: result.successfulRecords + result.failedRecords,
+            successful_records: result.successfulRecords,
+            failed_records: result.failedRecords,
+            error_log: result.stepResults.flatMap(step => 
+              step.errors?.map((error: any) => ({
+                stepName: step.stepName,
+                recordId: error.recordId,
+                error: error.error,
+                retryable: error.retryable
+              })) || []
+            ),
+            started_at: new Date(Date.now() - result.executionTimeMs),
+            completed_at: new Date()
+          }
+        });
+
+        // Store record mappings for successful records
+        const recordMappings = Object.entries(result.lookupMappings).map(([sourceId, targetId], index) => ({
+          id: `record_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+          session_id: session.id,
+          source_record_id: sourceId,
+          target_record_id: targetId,
+          object_type: templateId,
+          status: 'SUCCESS' as const,
+          record_data: {}
+        }));
+
+        if (recordMappings.length > 0) {
+          await prisma.migration_records.createMany({
+            data: recordMappings
+          });
+        }
+
+        // Update migration project status
+        await prisma.migration_projects.update({
+          where: { id: migrationId },
+          data: {
+            status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
+            updated_at: new Date()
+          }
+        });
+
+        // Helper function to get detailed record results grouped by parent records
+        const getDetailedRecordResults = async (stepResults: any[], lookupMappings: Record<string, string>, selectedRecords: string[], targetOrg: any, sourceClient: any, template: any) => {
+          console.log('getDetailedRecordResults called with targetOrg:', {
+            id: targetOrg.id,
+            name: targetOrg.name,
+            instanceUrl: targetOrg.instanceUrl,
+            instance_url: targetOrg.instance_url,
+            keys: Object.keys(targetOrg)
+          });
+          
+          // Fetch record names from source org based on the template's primary object
+          const recordNames = new Map<string, string>();
+          if (selectedRecords.length > 0 && sourceClient && template) {
+            try {
+              const primaryObjectType = template.etlSteps[0]?.extractConfig?.objectApiName;
+              if (primaryObjectType) {
+                const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
+                const nameResult = await sourceClient.query(nameQuery);
+                if (nameResult.success && nameResult.data) {
+                  nameResult.data.forEach((record: any) => {
+                    recordNames.set(record.Id, record.Name);
+                  });
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to fetch record names:', error);
+            }
+          }
+          
+          const recordResults = new Map<string, {
+            sourceId: string;
+            sourceName: string;
+            recordName?: string;
+            targetId?: string;
+            targetUrl?: string;
+            status: 'success' | 'failed';
+            successfulChildRecords: number;
+            failedChildRecords: number;
+            totalChildRecords: number;
+            errors: any[];
+            childRecordDetails: {
+              stepName: string;
+              successCount: number;
+              failCount: number;
+              errors: any[];
+            }[];
+          }>();
+
+          // Initialize results for each selected record
+          selectedRecords.forEach(recordId => {
+            const recordName = recordNames.get(recordId) || recordId;
+            recordResults.set(recordId, {
+              sourceId: recordId,
+              sourceName: recordName,
+              recordName: recordName,
+              status: 'success',
+              successfulChildRecords: 0,
+              failedChildRecords: 0,
+              totalChildRecords: 0,
+              errors: [],
+              childRecordDetails: []
+            });
+          });
+
+          // Get the number of successful parent records
+          const parentStep = stepResults.find(step => step.stepName === 'interpretationRuleMaster');
+          const successfulParentCount = parentStep ? parentStep.successfulRecords : 0;
+          // Only use selected records that were actually successful in the migration
+          const successfulParentIds = selectedRecords.filter(recordId => lookupMappings[recordId]);
+
+          // Get actual child record counts from target org for all migrated records
+          const actualChildCounts = new Map<string, Map<string, number>>(); // sourceParentId -> stepName -> count
+          
+          if (successfulParentIds.length > 0 && targetClient) {
+            try {
+              // Get target IDs for selected parents from lookup mappings
+              const selectedTargetIds = successfulParentIds.map(sourceId => lookupMappings[sourceId]).filter(Boolean);
+              const selectedTargetIdsStr = selectedTargetIds.map(id => `'${id}'`).join(',');
+              
+              console.log('🔍 DEBUGGING: Querying child records in TARGET org for selected parents:');
+              console.log('Source IDs:', successfulParentIds);
+              console.log('Target IDs:', selectedTargetIds);
+              
+              // Query each child object type separately in the TARGET org
+              const childObjectQueries = [
+                {
+                  stepName: 'interpretationBreakpointLeaveHeader',
+                  objectType: 'tc9_et__Interpretation_Breakpoint__c',
+                  parentField: 'tc9_et__Interpretation_Rule__c',
+                  whereClause: `RecordType.Name = 'Leave Breakpoint' AND tc9_et__Breakpoint_Type__c = 'Leave Header'`
+                },
+                {
+                  stepName: 'interpretationBreakpointPayCodeCap',
+                  objectType: 'tc9_et__Interpretation_Breakpoint__c',
+                  parentField: 'tc9_et__Interpretation_Rule__c',
+                  whereClause: `(RecordType.Name = 'Pay Code Cap' OR RecordType.Name = 'Leave Breakpoint') AND tc9_et__Breakpoint_Type__c != 'Leave Header'`
+                },
+                {
+                  stepName: 'interpretationBreakpointOther',
+                  objectType: 'tc9_et__Interpretation_Breakpoint__c',
+                  parentField: 'tc9_et__Interpretation_Rule__c',
+                  whereClause: `RecordType.Name != 'Pay Code Cap' AND RecordType.Name != 'Leave Breakpoint'`
+                }
+              ];
+
+              for (const queryConfig of childObjectQueries) {
+                const query = `
+                  SELECT ${queryConfig.parentField}, COUNT(Id) 
+                  FROM ${queryConfig.objectType} 
+                  WHERE ${queryConfig.parentField} IN (${selectedTargetIdsStr}) 
+                  AND ${queryConfig.whereClause}
+                  GROUP BY ${queryConfig.parentField}
+                `;
+                
+                console.log(`🔍 DEBUGGING: Querying ${queryConfig.stepName}: ${query}`);
+                
+                try {
+                  const result = await targetClient.query(query);
+                  
+                  if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+                    result.data.forEach((record: any) => {
+                      const targetParentId = record[queryConfig.parentField];
+                      const count = record.expr0 || 0;
+                      
+                      // Validate the record structure
+                      if (!targetParentId || count === undefined) {
+                        console.warn(`Unexpected record structure for ${queryConfig.stepName}:`, record);
+                        return;
+                      }
+                      
+                      // Find the source parent ID that maps to this target parent ID
+                      const sourceParentId = Object.keys(lookupMappings).find(sourceId => 
+                        lookupMappings[sourceId] === targetParentId
+                      );
+                      
+                      if (sourceParentId) {
+                        if (!actualChildCounts.has(sourceParentId)) {
+                          actualChildCounts.set(sourceParentId, new Map());
+                        }
+                        actualChildCounts.get(sourceParentId)!.set(queryConfig.stepName, count);
+                        
+                        console.log(`🔍 DEBUGGING: Found ${count} ${queryConfig.stepName} records for source parent ${sourceParentId} (target: ${targetParentId})`);
+                      }
+                    });
+                  } else {
+                    console.log(`🔍 DEBUGGING: No results for ${queryConfig.stepName} query`);
+                  }
+                } catch (error: any) {
+                  console.error(`Error querying ${queryConfig.stepName}:`, error);
+                  // Log the specific error message which might indicate field name issues
+                  if (error.message?.includes('No such column') || error.message?.includes('Invalid field')) {
+                    console.error('Field name issue detected. Query:', query);
+                    console.error('Error details:', error.message);
+                  }
+                }
+              }
+              
+              console.log('🔍 DEBUGGING: Complete child counts map:', Object.fromEntries(
+                Array.from(actualChildCounts.entries()).map(([sourceId, stepCounts]) => [
+                  sourceId, 
+                  Object.fromEntries(stepCounts.entries())
+                ])
+              ));
+            } catch (error) {
+              console.error('Error querying child record counts:', error);
+            }
+          }
+
+          // Calculate total child records for each selected parent
+          successfulParentIds.forEach(parentId => {
+            if (recordResults.has(parentId)) {
+              const record = recordResults.get(parentId)!;
+              const stepCounts = actualChildCounts.get(parentId);
+              if (stepCounts) {
+                record.totalChildRecords = Array.from(stepCounts.values()).reduce((sum, count) => sum + count, 0);
+              }
+            }
+          });
+
+          // Process each step result
+          for (const step of stepResults) {
+            // Update record results based on step outcomes
+            if (step.stepName === 'interpretationRuleMaster') {
+              // This is the parent record step
+              step.errors?.forEach((error: any) => {
+                const sourceId = error.sourceRecordId || error.recordId;
+                if (recordResults.has(sourceId)) {
+                  const record = recordResults.get(sourceId)!;
+                  record.status = 'failed';
+                  record.errors.push(error);
+                }
+              });
+
+              // Update successful parent records with target IDs and URLs
+              Object.entries(lookupMappings).forEach(([sourceId, targetId]) => {
+                if (recordResults.has(sourceId)) {
+                  const record = recordResults.get(sourceId)!;
+                  record.targetId = targetId;
+                  // Ensure we have a valid instance URL and construct the full Salesforce record URL
+                  const instanceUrl = targetOrg.instanceUrl || targetOrg.instance_url;
+                  if (instanceUrl) {
+                    record.targetUrl = `${instanceUrl}/${targetId}`;
+                  } else {
+                    console.warn('Target organisation instanceUrl is undefined:', targetOrg);
+                    record.targetUrl = undefined;
+                  }
+                }
+              });
+            } else {
+              // This is a child record step
+              if (successfulParentCount > 0 && step.totalRecords > 0) {
+                // Distribute step results based on actual child record counts for this specific step
+                successfulParentIds.forEach((parentId) => {
+                  if (recordResults.has(parentId)) {
+                    const record = recordResults.get(parentId)!;
+                    
+                    // Check if we already have details for this step
+                    const existingStepDetail = record.childRecordDetails.find(d => d.stepName === step.stepName);
+                    
+                    if (!existingStepDetail) {
+                      const stepCounts = actualChildCounts.get(parentId);
+                      const actualChildCountForStep = stepCounts?.get(step.stepName) || 0;
+                      
+                      // Calculate this parent's proportion of the step results
+                      const totalChildrenForStep = Array.from(actualChildCounts.values())
+                        .reduce((sum, stepMap) => sum + (stepMap.get(step.stepName) || 0), 0);
+                      
+                      const proportion = totalChildrenForStep > 0 ? actualChildCountForStep / totalChildrenForStep : 0;
+                      const thisParentSuccess = Math.round(step.successfulRecords * proportion);
+                      const thisParentFail = Math.round(step.failedRecords * proportion);
+                      
+                      // Add step details with proportional counts
+                      const stepDetail = {
+                        stepName: step.stepName,
+                        successCount: thisParentSuccess,
+                        failCount: thisParentFail,
+                        errors: step.errors?.filter((error: any) => 
+                          error.sourceRecordId === parentId || error.recordId === parentId
+                        ) || []
+                      };
+                      
+                      record.childRecordDetails.push(stepDetail);
+                      
+                      // Update totals for this specific parent
+                      record.successfulChildRecords += thisParentSuccess;
+                      record.failedChildRecords += thisParentFail;
+                    }
+                  }
+                });
+              }
+            }
+          }
+
+          return Array.from(recordResults.values());
+        };
+
+        // Helper function to get unique errors with improved pattern matching and parent record grouping
+        const getUniqueErrors = (stepResults: any[]) => {
+          const errorMap = new Map<string, { 
+            count: number; 
+            examples: string[]; 
+            originalMessage: string;
+            parentRecords: Set<string>;
+            interpretationRules: Set<string>;
+          }>();
+          
+          // Function to normalize error messages and extract parent record information
+          const normalizeErrorMessage = (message: string) => {
+            // Extract interpretation rule name from breakpoint error messages
+            const breakpointMatch = message.match(/please check Breakpoint: ([^:]+):/);
+            const interpretationRule = breakpointMatch ? breakpointMatch[1] : null;
+            
+            // Normalize the error message by replacing specific breakpoint names with placeholder
+            const normalized = message
+              .replace(/please check Breakpoint: [^:]+:/g, 'please check Breakpoint: [BREAKPOINT_NAME]:')
+              .replace(/Breakpoint: [^:]+:/g, 'Breakpoint: [BREAKPOINT_NAME]:');
+            
+            return { normalized, interpretationRule };
+          };
+          
+          stepResults.forEach(step => {
+            step.errors?.forEach((error: any) => {
+              const { normalized, interpretationRule } = normalizeErrorMessage(error.error);
+              
+              if (errorMap.has(normalized)) {
+                const existing = errorMap.get(normalized)!;
+                existing.count++;
+                if (existing.examples.length < 3) {
+                  existing.examples.push(error.recordId);
+                }
+                if (interpretationRule) {
+                  existing.interpretationRules.add(interpretationRule);
+                }
+              } else {
+                const interpretationRules = new Set<string>();
+                if (interpretationRule) {
+                  interpretationRules.add(interpretationRule);
+                }
+                
+                errorMap.set(normalized, {
+                  count: 1,
+                  examples: [error.recordId],
+                  originalMessage: error.error,
+                  parentRecords: new Set(),
+                  interpretationRules
+                });
+              }
+            });
+          });
+
+          return Array.from(errorMap.entries()).map(([normalizedMessage, data]) => {
+            // Create a more descriptive message that includes parent record context
+            let enhancedMessage = normalizedMessage;
+            
+            if (data.interpretationRules.size > 0) {
+              const ruleNames = Array.from(data.interpretationRules);
+              if (ruleNames.length === 1) {
+                enhancedMessage = enhancedMessage.replace(
+                  '[BREAKPOINT_NAME]', 
+                  ruleNames[0]
+                );
+              } else {
+                enhancedMessage = `${enhancedMessage} (Affects ${ruleNames.length} interpretation rules: ${ruleNames.slice(0, 3).join(', ')}${ruleNames.length > 3 ? '...' : ''})`;
+              }
+            }
+            
+            return {
+              message: enhancedMessage,
+              originalMessage: data.originalMessage,
+              count: data.count,
+              examples: data.examples,
+              interpretationRules: Array.from(data.interpretationRules)
+            };
+          });
+        };
+
+        // If the migration failed completely, return an error response
+        if (result.status === 'failed') {
+          const errorDetails = result.stepResults
+            .filter(step => step.errors.length > 0)
+            .map(step => ({
+              stepName: step.stepName,
+              errors: step.errors
+            }));
+
+          const detailedRecordResults = await getDetailedRecordResults(
+            result.stepResults, 
+            result.lookupMappings, 
+            selectedRecords, 
+            executionContext.targetOrg,
+            sourceClient,
+            template
+          );
+
+          return NextResponse.json({
+            success: false,
+            error: 'Migration execution failed. Any successfully inserted records have been automatically rolled back.',
+            details: errorDetails,
+            uniqueErrors: getUniqueErrors(result.stepResults),
+            recordResults: detailedRecordResults,
+            sessionId: session.id,
+            result: {
+              status: result.status,
+              totalRecords: result.totalRecords,
+              successfulRecords: result.successfulRecords,
+              failedRecords: result.failedRecords,
+              executionTimeMs: result.executionTimeMs,
+              stepResults: result.stepResults.map(step => ({
+                stepName: step.stepName,
+                status: step.status,
+                totalRecords: step.totalRecords,
+                successfulRecords: step.successfulRecords,
+                failedRecords: step.failedRecords,
+                executionTimeMs: step.executionTimeMs,
+                errorCount: step.errors?.length || 0,
+                errors: step.errors
+              })),
+              lookupMappings: result.lookupMappings
+            },
+            progressUpdates
+          }, { status: 400 });
+        }
+
+        // If the migration has any errors, treat as failure
+        const failureRate = result.totalRecords > 0 ? (result.failedRecords / result.totalRecords) : 0;
+        const hasSignificantErrors = result.failedRecords > 0;
+
+        const detailedRecordResults = await getDetailedRecordResults(
+          result.stepResults, 
+          result.lookupMappings, 
+          selectedRecords, 
+          executionContext.targetOrg,
+          sourceClient,
+          template
+        );
+
+        return NextResponse.json({
+          success: true,
+          warning: hasSignificantErrors ? `Migration completed with ${result.failedRecords} errors out of ${result.totalRecords} records` : undefined,
+          sessionId: session.id,
+          recordResults: detailedRecordResults,
+          result: {
+            status: result.status,
+            totalRecords: result.totalRecords,
+            successfulRecords: result.successfulRecords,
+            failedRecords: result.failedRecords,
+            executionTimeMs: result.executionTimeMs,
+            stepResults: result.stepResults.map(step => ({
+              stepName: step.stepName,
+              status: step.status,
+              totalRecords: step.totalRecords,
+              successfulRecords: step.successfulRecords,
+              failedRecords: step.failedRecords,
+              executionTimeMs: step.executionTimeMs,
+              errorCount: step.errors?.length || 0,
+              errors: hasSignificantErrors ? step.errors : undefined // Include errors only if significant
+            })),
+            lookupMappings: result.lookupMappings
+          },
+          uniqueErrors: hasSignificantErrors ? getUniqueErrors(result.stepResults) : undefined,
+          progressUpdates
+        });
+
+        // Log success metrics to Sentry
+        Sentry.setContext("migration_metrics", {
+          recordsProcessed: result.totalRecords,
+          successRate: result.totalRecords > 0 ? result.successfulRecords / result.totalRecords : 0,
+          executionTimeMs: result.executionTimeMs,
+          failedRecords: result.failedRecords
+        });
+
+      } catch (error) {
+        console.error('Migration execution error:', error);
+        
+        // Enhanced error context for Sentry
+        Sentry.setContext("migration_error", {
+          migrationId,
+          phase: "execution",
+          error: error instanceof Error ? error.message : String(error)
+        });
+        
+        Sentry.captureException(error);
+        
+        // Check if it's a token-related error
+        if (error instanceof Error && (
+          error.message.includes('invalid_grant') || 
+          error.message.includes('expired') ||
+          error.message.includes('INVALID_SESSION_ID') ||
+          error.message.includes('Authentication token has expired') ||
+          error.message.includes('not connected')
+        )) {
+          return NextResponse.json(
+            { 
+              error: 'Authentication token has expired. Please reconnect the organisation.',
+              code: 'TOKEN_EXPIRED',
+              reconnectUrl: '/orgs'
+            },
+            { status: 401 }
+          );
+        }
+        
+        return NextResponse.json(
+          { 
+            error: 'Failed to execute migration',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          },
+          { status: 500 }
+        );
+      }
     }
-
-    // If the migration has any errors, treat as failure
-    const failureRate = result.totalRecords > 0 ? (result.failedRecords / result.totalRecords) : 0;
-    const hasSignificantErrors = result.failedRecords > 0;
-
-    const detailedRecordResults = await getDetailedRecordResults(
-      result.stepResults, 
-      result.lookupMappings, 
-      selectedRecords, 
-      executionContext.targetOrg,
-      sourceClient,
-      template
-    );
-
-    return NextResponse.json({
-      success: true,
-      warning: hasSignificantErrors ? `Migration completed with ${result.failedRecords} errors out of ${result.totalRecords} records` : undefined,
-      sessionId: session.id,
-      recordResults: detailedRecordResults,
-      result: {
-        status: result.status,
-        totalRecords: result.totalRecords,
-        successfulRecords: result.successfulRecords,
-        failedRecords: result.failedRecords,
-        executionTimeMs: result.executionTimeMs,
-        stepResults: result.stepResults.map(step => ({
-          stepName: step.stepName,
-          status: step.status,
-          totalRecords: step.totalRecords,
-          successfulRecords: step.successfulRecords,
-          failedRecords: step.failedRecords,
-          executionTimeMs: step.executionTimeMs,
-          errorCount: step.errors?.length || 0,
-          errors: hasSignificantErrors ? step.errors : undefined // Include errors only if significant
-        })),
-        lookupMappings: result.lookupMappings
-      },
-      uniqueErrors: hasSignificantErrors ? getUniqueErrors(result.stepResults) : undefined,
-      progressUpdates
-    });
-
-  } catch (error) {
-    console.error('Migration execution error:', error);
-    
-    // Check if it's a token-related error
-    if (error instanceof Error && (
-      error.message.includes('invalid_grant') || 
-      error.message.includes('expired') ||
-      error.message.includes('INVALID_SESSION_ID') ||
-      error.message.includes('Authentication token has expired') ||
-      error.message.includes('not connected')
-    )) {
-      return NextResponse.json(
-        { 
-          error: 'Authentication token has expired. Please reconnect the organisation.',
-          code: 'TOKEN_EXPIRED',
-          reconnectUrl: '/orgs'
-        },
-        { status: 401 }
-      );
-    }
-    
-    return NextResponse.json(
-      { 
-        error: 'Failed to execute migration',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
+  );
 }
 
 export async function GET(

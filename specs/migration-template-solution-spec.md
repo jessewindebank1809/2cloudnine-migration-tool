@@ -539,8 +539,7 @@ export interface ValidationSummary {
 export const interpretationRulesTemplate: MigrationTemplate = {
     id: "payroll-interpretation-rules",
     name: "Interpretation Rules Migration",
-    description:
-        "Migrate interpretation rules with breakpoints following exact legacy ETL pattern",
+    description: "Migrate interpretation rules with breakpoints",
     category: "payroll",
     version: "1.0.0",
     etlSteps: [

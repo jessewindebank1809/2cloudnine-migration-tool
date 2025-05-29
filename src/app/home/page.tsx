@@ -22,6 +22,7 @@ interface MigrationProject {
   name: string;
   description?: string;
   status: 'DRAFT' | 'READY' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  templateId?: string;
   sourceOrg: {
     id: string;
     name: string;
@@ -45,9 +46,17 @@ interface MigrationProject {
   updatedAt: string;
 }
 
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
 interface HomeData {
   organisations: Organisation[];
   projects: MigrationProject[];
+  templates: Template[];
   isLoading: boolean;
   error: string | null;
 }
@@ -56,6 +65,7 @@ export default function HomePage() {
   const [data, setData] = useState<HomeData>({
     organisations: [],
     projects: [],
+    templates: [],
     isLoading: true,
     error: null
   });
@@ -65,14 +75,16 @@ export default function HomePage() {
       try {
         setData(prev => ({ ...prev, isLoading: true, error: null }));
 
-        // Fetch organisations and migrations in parallel
-        const [orgsResponse, migrationsResponse] = await Promise.all([
+        // Fetch organisations, migrations, and templates in parallel
+        const [orgsResponse, migrationsResponse, templatesResponse] = await Promise.all([
           fetch('/api/organisations'),
-          fetch('/api/migrations')
+          fetch('/api/migrations'),
+          fetch('/api/templates')
         ]);
 
         let organisations: Organisation[] = [];
         let projects: MigrationProject[] = [];
+        let templates: Template[] = [];
 
         // Handle organisations response
         if (orgsResponse.ok) {
@@ -90,9 +102,18 @@ export default function HomePage() {
           console.error('Failed to fetch migrations:', migrationsResponse.status);
         }
 
+        // Handle templates response
+        if (templatesResponse.ok) {
+          const templatesData = await templatesResponse.json();
+          templates = templatesData.templates || [];
+        } else {
+          console.error('Failed to fetch templates:', templatesResponse.status);
+        }
+
         setData({
           organisations,
           projects,
+          templates,
           isLoading: false,
           error: null
         });
@@ -108,6 +129,12 @@ export default function HomePage() {
 
     fetchData();
   }, []);
+
+  // Create a mapping from template ID to template name
+  const templateNameMap = data.templates.reduce((acc, template) => {
+    acc[template.id] = template.name;
+    return acc;
+  }, {} as Record<string, string>);
 
   // Calculate home statistics
   const stats = {
@@ -129,10 +156,13 @@ export default function HomePage() {
           return {
             id: project.id,
             name: project.name,
+            templateName: project.templateId ? templateNameMap[project.templateId] || project.templateId : undefined,
             status: latestSession.status.toUpperCase() as 'COMPLETED' | 'RUNNING' | 'FAILED',
             objectType: latestSession.objectType,
             processedRecords: latestSession.successfulRecords + latestSession.failedRecords,
             totalRecords: latestSession.totalRecords,
+            successfulRecords: latestSession.successfulRecords,
+            failedRecords: latestSession.failedRecords,
             completedAt: undefined, // completedAt is not available in the transformed structure
             startedAt: new Date(latestSession.createdAt)
           };
@@ -249,33 +279,47 @@ export default function HomePage() {
               <div className="space-y-4">
                 {stats.migrations.recent.length > 0 ? (
                   stats.migrations.recent.map((migration) => (
-                    <div key={migration.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <p className="font-medium">{migration.name}</p>
-                        <p className="text-sm text-muted-foreground">{migration.objectType}</p>
-                        {migration.status === 'RUNNING' && (
-                          <div className="space-y-2">
-                            <Progress value={(migration.processedRecords / migration.totalRecords) * 100} />
-                            <p className="text-xs text-muted-foreground">
-                              {migration.processedRecords} of {migration.totalRecords} records
-                            </p>
+                    <Link key={migration.id} href={`/migrations/${migration.id}`} className="block">
+                      <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                        <div className="space-y-1 flex-1">
+                          <p className="font-medium">{migration.name}</p>
+                          <p className="text-sm text-muted-foreground">{migration.templateName || migration.objectType}</p>
+                          {migration.status === 'RUNNING' && (
+                            <div className="space-y-2">
+                              <Progress value={(migration.processedRecords / migration.totalRecords) * 100} />
+                              <p className="text-xs text-muted-foreground">
+                                {migration.processedRecords} of {migration.totalRecords} records
+                              </p>
+                            </div>
+                          )}
+                          {(migration.status === 'COMPLETED' || migration.status === 'FAILED') && (
+                            <div className="flex gap-4 text-xs text-muted-foreground">
+                              <span className="text-c9-green-600">
+                                ✓ {migration.successfulRecords.toLocaleString()} successful
+                              </span>
+                              {migration.failedRecords > 0 && (
+                                <span className="text-red-600">
+                                  ✗ {migration.failedRecords.toLocaleString()} failed
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            migration.status === 'COMPLETED' 
+                              ? 'bg-c9-green-500/10 text-c9-green-600'
+                              : migration.status === 'RUNNING'
+                              ? 'bg-c9-blue-500/10 text-c9-blue-500'
+                              : migration.status === 'FAILED'
+                              ? 'bg-red-500/10 text-red-600'
+                              : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {migration.status.toLowerCase()}
                           </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          migration.status === 'COMPLETED' 
-                            ? 'bg-c9-green-500/10 text-c9-green-600'
-                            : migration.status === 'RUNNING'
-                            ? 'bg-c9-blue-500/10 text-c9-blue-500'
-                            : migration.status === 'FAILED'
-                            ? 'bg-red-500/10 text-red-600'
-                            : 'bg-muted text-muted-foreground'
-                        }`}>
-                          {migration.status.toLowerCase()}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">

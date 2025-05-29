@@ -1,0 +1,125 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+jobs:
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build application
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          JWT_SECRET: build-time-placeholder
+          ENCRYPTION_KEY: build-time-placeholder-key-for-testing
+          NEXT_PUBLIC_BASE_URL: https://tc9-migration-tool.fly.dev
+          NEXT_PUBLIC_APP_URL: https://tc9-migration-tool.fly.dev
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Set production secrets
+        run: |
+          flyctl secrets set \
+            DATABASE_URL="postgres://tc9_migration_tool:fEV6CJGnjocBXTW@tc9-migration-tool-db.flycast:5432/tc9_migration_tool?sslmode=disable" \
+            NODE_ENV="production" \
+            BETTER_AUTH_SECRET="${{ secrets.BETTER_AUTH_SECRET }}" \
+            BETTER_AUTH_URL="https://tc9-migration-tool.fly.dev" \
+            NEXT_PUBLIC_APP_URL="https://tc9-migration-tool.fly.dev" \
+            NEXT_PUBLIC_BASE_URL="https://tc9-migration-tool.fly.dev" \
+            SALESFORCE_PRODUCTION_CLIENT_ID="${{ secrets.SALESFORCE_PRODUCTION_CLIENT_ID }}" \
+            SALESFORCE_PRODUCTION_CLIENT_SECRET="${{ secrets.SALESFORCE_PRODUCTION_CLIENT_SECRET }}" \
+            SALESFORCE_SANDBOX_CLIENT_ID="${{ secrets.SALESFORCE_SANDBOX_CLIENT_ID }}" \
+            SALESFORCE_SANDBOX_CLIENT_SECRET="${{ secrets.SALESFORCE_SANDBOX_CLIENT_SECRET }}" \
+            ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}" \
+            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            SENTRY_DSN="${{ secrets.SENTRY_DSN }}" \
+            NEXT_PUBLIC_SENTRY_DSN="${{ secrets.SENTRY_DSN }}" \
+            --app tc9-migration-tool
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Verify production secrets
+        run: |
+          flyctl secrets list --app tc9-migration-tool
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Deploy to Fly.io Production
+        run: |
+          flyctl deploy --app tc9-migration-tool --strategy=rolling
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Run database migrations
+        run: |
+          flyctl ssh console --app tc9-migration-tool -C "npx prisma migrate deploy"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Health check
+        run: |
+          sleep 45
+          curl -f https://tc9-migration-tool.fly.dev/api/health || exit 1
+
+      - name: Smoke tests
+        run: |
+          # Test critical endpoints
+          curl -f https://tc9-migration-tool.fly.dev/ || exit 1
+          curl -f https://tc9-migration-tool.fly.dev/api/health || exit 1
+
+      - name: Create GitHub release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          body: |
+            Automated production deployment
+            
+            **Deployed at:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.event.head_commit.author.name }}
+            
+            **Changes:**
+            ${{ github.event.head_commit.message }}
+          draft: false
+          prerelease: false
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Production deployment successful: https://tc9-migration-tool.fly.dev"
+          echo "🏷️ Release: v${{ github.run_number }}"
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Production deployment failed"
+          echo "🔍 Check logs and rollback if necessary"
+          exit 1 
