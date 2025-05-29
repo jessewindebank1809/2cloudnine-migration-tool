@@ -44,7 +44,7 @@ jobs:
       - name: Set production secrets
         run: |
           flyctl secrets set \
-            DATABASE_URL="postgres://tc9_migration_tool:fEV6CJGnjocBXTW@tc9-migration-tool-db.flycast:5432/tc9_migration_tool?sslmode=disable" \
+            DATABASE_URL="postgres://postgres:${{ secrets.PRODUCTION_DB_PASSWORD }}@tc9-migration-tool-db.flycast:5432/tc9_migration_tool?sslmode=disable" \
             NODE_ENV="production" \
             BETTER_AUTH_SECRET="${{ secrets.BETTER_AUTH_SECRET }}" \
             BETTER_AUTH_URL="https://tc9-migration-tool.fly.dev" \

@@ -125,17 +125,32 @@ export async function GET(request: NextRequest) {
       ? new Date(parseInt(tokenData.issued_at) + (2 * 60 * 60 * 1000)) // issued_at + 2 hours
       : new Date(Date.now() + (2 * 60 * 60 * 1000)); // fallback: now + 2 hours
 
-    await prisma.organisations.update({
-      where: { id: orgId },
-      data: {
-        salesforce_org_id: userInfo.organization_id,
-        instance_url: tokenData.instance_url,
-        access_token_encrypted: encryptedAccessToken,
-        refresh_token_encrypted: encryptedRefreshToken,
-        token_expires_at: tokenExpiresAt,
-        updated_at: new Date(),
-      },
-    });
+    try {
+      await prisma.organisations.update({
+        where: { id: orgId },
+        data: {
+          salesforce_org_id: userInfo.organization_id,
+          instance_url: tokenData.instance_url,
+          access_token_encrypted: encryptedAccessToken,
+          refresh_token_encrypted: encryptedRefreshToken,
+          token_expires_at: tokenExpiresAt,
+          updated_at: new Date(),
+        },
+      });
+    } catch (dbError: any) {
+      // Handle database constraint violations (e.g., duplicate salesforce_org_id for same user)
+      if (dbError.code === 'P2002' && dbError.meta?.target?.includes('salesforce_org_id')) {
+        console.error('Database constraint violation - org already connected to this user:', userInfo.organization_id);
+        
+        // Clean up the organisation record that was created
+        await prisma.organisations.delete({
+          where: { id: orgId },
+        });
+        
+        return NextResponse.redirect(`${baseUrl}/orgs?error=org_already_connected`);
+      }
+      throw dbError; // Re-throw if it's not a constraint violation we can handle
+    }
 
     // Clear token cache to ensure fresh tokens are used
     const tokenManager = TokenManager.getInstance();

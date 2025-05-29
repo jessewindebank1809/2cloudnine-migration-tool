@@ -62,7 +62,7 @@ export default function OrganisationsPage() {
   const getErrorMessage = (error: string) => {
     switch (error) {
       case 'org_already_connected':
-        return 'This Salesforce organisation is already connected. You cannot connect the same org multiple times.';
+        return 'You have already connected this Salesforce organisation. Each organisation can only be connected once per user account.';
       case 'oauth_failed':
         return 'OAuth authentication failed. Please try again.';
       case 'token_exchange_failed':

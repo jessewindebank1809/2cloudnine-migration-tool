@@ -43,7 +43,6 @@ logs
 *.db
 
 # Prisma
-prisma/migrations/
 prisma/dev.db
 
 # Testing

@@ -132,7 +132,7 @@ model organisations {
   id                                                                 String               @id
   name                                                               String
   org_type                                                           org_type
-  salesforce_org_id                                                  String?              @unique
+  salesforce_org_id                                                  String?
   instance_url                                                       String
   access_token_encrypted                                             String?
   refresh_token_encrypted                                            String?
@@ -143,6 +143,8 @@ model organisations {
   migration_projects_migration_projects_source_org_idToorganisations migration_projects[] @relation("migration_projects_source_org_idToorganisations")
   migration_projects_migration_projects_target_org_idToorganisations migration_projects[] @relation("migration_projects_target_org_idToorganisations")
   User                                                               User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([salesforce_org_id, user_id])
 }
 
 model migration_templates {
