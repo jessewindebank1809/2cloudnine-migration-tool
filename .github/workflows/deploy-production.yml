@@ -77,27 +77,38 @@ jobs:
       - name: Ensure app is running
         run: |
           echo "🔄 Ensuring app is running before migrations..."
-          flyctl scale count 1 --app tc9-migration-tool || true
+          flyctl scale count 1 --yes --app tc9-migration-tool || true
+          
+          # Wait a bit for the scale command to take effect
+          sleep 10
           
           # Wait for app to be ready
-          max_attempts=10
+          max_attempts=15
           attempt=1
           
           while [ $attempt -le $max_attempts ]; do
             echo "⏳ Attempt $attempt/$max_attempts: Checking if app is ready..."
             
+            # Get detailed status
+            echo "📊 Current app status:"
+            flyctl status --app tc9-migration-tool || true
+            
             if flyctl status --app tc9-migration-tool | grep -q "started"; then
               echo "✅ App is running"
               break
             else
-              echo "⏳ App not ready yet, waiting 30 seconds..."
-              sleep 30
+              echo "⏳ App not ready yet, waiting 45 seconds..."
+              sleep 45
             fi
             
             attempt=$((attempt + 1))
             
             if [ $attempt -gt $max_attempts ]; then
               echo "❌ App failed to start after $max_attempts attempts"
+              echo "📊 Final app status:"
+              flyctl status --app tc9-migration-tool || true
+              echo "🔍 App logs:"
+              flyctl logs --app tc9-migration-tool || true
               exit 1
             fi
           done
