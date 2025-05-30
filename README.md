@@ -1,7 +1,8 @@
 # 2cloudnine Migration Tool
 
-A standalone Salesforce data migration platform built with Next.js, designed to
-facilitate seamless data migration between Salesforce organisations.
+A standalone web application built with Next.js, designed to facilitate seamless
+data migration between 2cloudnine product objects. Written in TypeScript. Works
+with prebuilt migration templates.
 
 ## 🚀 Features
 
