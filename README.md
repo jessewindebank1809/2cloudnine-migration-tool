@@ -16,7 +16,7 @@ with prebuilt migration templates.
 
 ## 🔧 Technology Stack
 
-- **Frontend**: Next.js 14, React, TypeScript
+- **Frontend**: Next.js 15, React 19, TypeScript
 - **Styling**: Tailwind CSS, shadcn/ui
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: Salesforce OAuth with Better Auth

@@ -16,6 +16,21 @@ const customJestConfig = {
   },
   modulePathIgnorePatterns: [
     "<rootDir>/.next/"
+  ],
+  // Configure specific test environments based on file patterns
+  testEnvironmentOptions: {
+    customExportConditions: [""],
+  },
+  transform: {
+    "^.+\\.(js|jsx|ts|tsx)$": ["babel-jest", { presets: ["next/babel"] }]
+  },
+  // Handle different environments for specific test types
+  testEnvironment: "jest-environment-jsdom",
+  collectCoverageFrom: [
+    "src/**/*.{js,jsx,ts,tsx}",
+    "!src/**/*.d.ts",
+    "!src/lib/database/migrations/**",
+    "!src/lib/salesforce/schema/**",
   ]
 };
 
