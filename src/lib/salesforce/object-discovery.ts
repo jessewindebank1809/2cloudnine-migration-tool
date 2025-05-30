@@ -186,7 +186,7 @@ export class ObjectDiscoveryEngine {
   /**
    * Get 2cloudnine specific objects
    */
-  async discover2CloudNineObjects(): Promise<SalesforceObject[]> {
+  async discover2cloudnineObjects(): Promise<SalesforceObject[]> {
     const tc9Patterns = [
       'tc9_',
       'interpretation_rule',

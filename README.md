@@ -1,68 +1,24 @@
-# 2CloudNine Migration Tool
+# 2cloudnine Migration Tool
 
 A standalone Salesforce data migration platform built with Next.js, designed to
-facilitate seamless data migration between Salesforce organizations.
+facilitate seamless data migration between Salesforce organisations.
 
 ## 🚀 Features
 
 - **Salesforce OAuth Integration**: Secure authentication with Salesforce
-  organizations
+  organisations
 - **Data Migration**: Migrate custom objects, records, and relationships
 - **Real-time Progress Tracking**: Monitor migration status with live updates
-- **Multi-org Support**: Connect and manage multiple Salesforce organizations
+- **Multi-org Support**: Connect and manage multiple Salesforce organisations
 - **Migration Templates**: Pre-built templates for common migration scenarios
 - **Audit Trail**: Complete logging and reporting of migration activities
-
-## 🏗️ Project Structure
-
-```
-tc9-migration-tool/
-├── src/
-│   ├── app/                    # Next.js app router pages
-│   │   ├── api/               # API routes
-│   │   ├── auth/              # Authentication pages
-│   │   ├── home/             # Home pages
-│   │   ├── migrations/        # Migration management
-│   │   └── orgs/              # Organization management
-│   ├── components/            # React components
-│   │   ├── ui/               # shadcn/ui components
-│   │   ├── forms/            # Form components
-│   │   ├── layout/           # Layout components
-│   │   └── features/         # Feature-specific components
-│   ├── lib/                  # Utility libraries
-│   │   ├── auth/             # Authentication utilities
-│   │   ├── database/         # Database utilities
-│   │   ├── migration/        # Migration logic
-│   │   ├── salesforce/       # Salesforce integration
-│   │   └── utils/            # General utilities
-│   ├── hooks/                # React hooks
-│   └── types/                # TypeScript definitions
-├── scripts/                  # Utility scripts
-│   ├── auth/                 # Authentication scripts
-│   ├── database/             # Database setup scripts
-│   └── deployment/           # Deployment scripts
-├── docs/                     # Documentation
-│   └── screenshots/          # Project screenshots
-├── prisma/                   # Database schema and migrations
-├── public/                   # Static assets
-└── specs/                    # Technical specifications
-```
-
-## 🎨 Design System
-
-The project implements the 2CloudNine design language with:
-
-- **Primary Colors**: 2clo blue (#2491EB)
-- **Typography**: Inter font family with custom sizing
-- **Components**: Built with Radix UI primitives and Tailwind CSS
-- **Spacing**: Consistent layout spacing (24px, 16px, 48px)
 
 ## 🔧 Technology Stack
 
 - **Frontend**: Next.js 14, React, TypeScript
 - **Styling**: Tailwind CSS, shadcn/ui
 - **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: Custom Salesforce OAuth implementation
+- **Authentication**: Salesforce OAuth with Better Auth
 - **API Integration**: Salesforce REST/Bulk APIs
 - **Deployment**: Docker, Fly.io
 
@@ -116,57 +72,27 @@ Create a `.env` file with the following variables:
 DATABASE_URL="postgresql://username:password@localhost:5432/migration_tool"
 
 # Salesforce OAuth
-SALESFORCE_CLIENT_ID="your_connected_app_client_id"
-SALESFORCE_CLIENT_SECRET="your_connected_app_client_secret"
-SALESFORCE_REDIRECT_URI="http://localhost:3000/api/auth/callback/salesforce"
+SALESFORCE_PRODUCTION_CLIENT_ID="your_connected_app_client_id"
+SALESFORCE_PRODUCTION_CLIENT_SECRET="your_connected_app_client_secret"
+SALESFORCE_SANDBOX_CLIENT_ID="your_sandbox_client_id"
+SALESFORCE_SANDBOX_CLIENT_SECRET="your_sandbox_client_secret"
 
-# NextAuth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your_nextauth_secret"
+# Better Auth
+BETTER_AUTH_SECRET="your_auth_secret"
+BETTER_AUTH_URL="http://localhost:3000"
 
 # Application
-NODE_ENV="development"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+ENCRYPTION_KEY="your_32_character_encryption_key"
 ```
-
-## 📊 Salesforce Integration
-
-### Supported Objects
-
-- Custom objects (tc9_interpretation_rule__c, tc9_breakpoint__c,
-  tc9_pay_code__c)
-- Standard objects (Account, Contact, etc.)
-- Custom relationships and lookups
-
-### API Features
-
-- **Bulk API**: For large data migrations (>200 records)
-- **REST API**: For smaller datasets and metadata operations
-- **Metadata API**: For schema discovery and validation
 
 ## 🔄 Migration Workflow
 
-1. **Connect Organizations**: Authenticate source and target Salesforce orgs
+1. **Connect Organisations**: Authenticate source and target Salesforce orgs
 2. **Discover Schema**: Automatically detect objects and relationships
 3. **Create Migration Plan**: Define what data to migrate
 4. **Execute Migration**: Run the migration with real-time monitoring
-5. **Review Results**: Analyze success/failure rates and logs
-
-## 📝 Scripts
-
-### Authentication Scripts (`scripts/auth/`)
-
-- `test-auth-flow.js` - Test OAuth authentication flow
-- `check-connected-app.js` - Verify connected app configuration
-- `extract-consumer-key.js` - Extract client credentials
-
-### Database Scripts (`scripts/database/`)
-
-- `dbsetup.js` - Initialize database schema
-
-### Deployment Scripts (`scripts/deployment/`)
-
-- `deploy.sh` - Deploy to production
-- `setup-env.js` - Environment configuration helper
+5. **Review Results**: Analyse success/failure rates and logs
 
 ## 🧪 Testing
 
@@ -177,8 +103,8 @@ npm test
 # Run with coverage
 npm run test:coverage
 
-# Run specific test suite
-npm run test:auth
+# Run E2E tests
+npm run test:e2e
 ```
 
 ## 🚢 Deployment
@@ -200,33 +126,24 @@ docker run -p 3000:3000 migration-tool
 fly deploy
 ```
 
-## 📚 Documentation
+## 📝 Scripts
 
-- [API Documentation](./docs/api.md)
-- [Migration Guide](./docs/migration-guide.md)
-- [Troubleshooting](./docs/troubleshooting.md)
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run db:migrate` - Run database migrations
+- `npm run db:studio` - Open Prisma Studio
 
-## 🤝 Contributing
+## 🏗️ Project Structure
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
-for details.
-
-## 🆘 Support
-
-For support and questions:
-
-- Create an issue in this repository
-- Contact the 2CloudNine team
-- Check the documentation in the `docs/` directory
+```
+src/
+├── app/              # Next.js app router
+├── components/       # React components
+├── lib/             # Utility libraries
+├── hooks/           # React hooks
+└── types/           # TypeScript definitions
+```
 
 ---
 
-Built with ❤️ by the 2CloudNine team
+Built with ❤️ by the 2cloudnine team
