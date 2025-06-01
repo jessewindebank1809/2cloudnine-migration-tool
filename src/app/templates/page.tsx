@@ -67,7 +67,7 @@ export default function TemplatesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch available templates
+  // Fetch available templates with optimised caching
   const { data: templatesData, isLoading, error } = useQuery({
     queryKey: ['templates', selectedCategory],
     queryFn: async () => {
@@ -79,6 +79,8 @@ export default function TemplatesPage() {
       if (!response.ok) throw new Error('Failed to fetch templates');
       return response.json();
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change frequently
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
   });
 
   const templates = templatesData?.templates || [];

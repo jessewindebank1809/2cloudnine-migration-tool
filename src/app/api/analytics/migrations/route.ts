@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { requireAuth } from '@/lib/auth/session-helper';
 
-// Force dynamic rendering
+// Force dynamic rendering with optimizations
 export const dynamic = 'force-dynamic';
+// Keep nodejs for Prisma compatibility, but with optimizations
+export const runtime = 'nodejs';
+export const maxDuration = 60; // Increase timeout for complex analytics
+export const revalidate = 300; // Cache for 5 minutes when possible
 
 export async function GET(request: NextRequest) {
   try {

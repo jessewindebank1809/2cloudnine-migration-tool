@@ -4,9 +4,9 @@ import { requireAuth } from '@/lib/auth/session-helper';
 import { migrationSessionManager } from '@/lib/migration/migration-session-manager';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -17,10 +17,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Require authentication and get current user
     const session = await requireAuth(request);
     
+    // Await params as required by Next.js 15
+    const { id } = await params;
+    
     // First verify the migration project belongs to current user
     const project = await prisma.migration_projects.findFirst({
       where: { 
-        id: params.id,
+        id: id,
         user_id: session.user.id // Ensure project belongs to current user
       }
     });
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Get active sessions for this project
     const sessions = await prisma.migration_sessions.findMany({
       where: {
-        project_id: params.id,
+        project_id: id,
         status: {
           in: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED']
         }
@@ -52,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     if (sessions.length === 0) {
       return NextResponse.json({
-        projectId: params.id,
+        projectId: id,
         status: 'IDLE',
         sessions: []
       });
@@ -116,7 +119,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     else overallStatus = 'PARTIAL_SUCCESS';
 
     return NextResponse.json({
-      projectId: params.id,
+      projectId: id,
       status: overallStatus,
       overall: {
         totalRecords,

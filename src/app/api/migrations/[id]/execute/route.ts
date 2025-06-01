@@ -12,9 +12,10 @@ import { migrationSessionManager } from '@/lib/migration/migration-session-manag
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const migrationId = params.id;
+  // Await params as required by Next.js 15
+  const { id: migrationId } = await params;
   
   // Set Sentry context for this migration
   Sentry.setTag("migration.id", migrationId);
@@ -846,13 +847,14 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Require authentication and get current user
     const authSession = await requireAuth(request);
     
-    const migrationId = params.id;
+    // Await params as required by Next.js 15
+    const { id: migrationId } = await params;
 
     // First verify the migration project belongs to current user
     const project = await prisma.migration_projects.findFirst({

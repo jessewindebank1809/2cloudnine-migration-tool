@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
 import { registerAllTemplates } from '@/lib/migration/templates/registry';
-import { prisma } from '@/lib/database/prisma';
 
-// Force dynamic rendering
+// Force dynamic rendering with caching optimization  
 export const dynamic = 'force-dynamic';
+// Use edge runtime for better performance since no database access needed
+export const runtime = 'edge';
+export const revalidate = 3600; // Cache templates for 1 hour as they don't change frequently
 
 export async function GET(request: NextRequest) {
   try {
-    // Ensure templates are registered
+    // Ensure templates are registered (registry now handles redundancy checking)
     registerAllTemplates();
     
     // Get all available templates from the registry

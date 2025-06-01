@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/database/prisma'
+import { sessionCache } from './session-cache'
 
 export interface AuthSession {
   user: {
@@ -20,13 +21,28 @@ export interface AuthSession {
  */
 export async function getAuthSession(request: NextRequest): Promise<AuthSession | null> {
   try {
-    // Use Better Auth session only
+    // Extract session token from headers/cookies
+    const sessionToken = request.headers.get('cookie')?.match(/better-auth\.session_token=([^;]+)/)?.[1];
+    
+    if (!sessionToken) {
+      return null;
+    }
+
+    // Check cache first
+    const cachedSession = sessionCache.get(sessionToken);
+    if (cachedSession) {
+      return {
+        user: cachedSession.user
+      };
+    }
+
+    // Use Better Auth session only if not in cache
     const betterAuthSession = await auth.api.getSession({
       headers: request.headers,
     })
 
     if (betterAuthSession?.user) {
-      return {
+      const authSession = {
         user: {
           id: betterAuthSession.user.id,
           email: betterAuthSession.user.email || '',
@@ -36,7 +52,16 @@ export async function getAuthSession(request: NextRequest): Promise<AuthSession 
           createdAt: betterAuthSession.user.createdAt,
           updatedAt: betterAuthSession.user.updatedAt,
         }
-      }
+      };
+
+      // Cache the session
+      sessionCache.set(sessionToken, {
+        user: authSession.user,
+        expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
+        cachedAt: Date.now(),
+      });
+
+      return authSession;
     }
 
     return null

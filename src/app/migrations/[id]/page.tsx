@@ -13,9 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 interface MigrationProject {
@@ -75,12 +75,15 @@ const statusLabels = {
 
 export default function MigrationProjectPage({ params }: PageProps) {
   const router = useRouter();
+  
+  // Unwrap the params promise
+  const { id } = React.use(params);
 
   // Fetch project details
   const { data: project, isLoading, error } = useQuery({
-    queryKey: ['migration-project', params.id],
+    queryKey: ['migration-project', id],
     queryFn: async () => {
-      const response = await fetch(`/api/migrations/${params.id}`);
+      const response = await fetch(`/api/migrations/${id}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Migration project not found');
@@ -188,7 +191,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
           </div>
           <div className="flex gap-2">
             {project.status === 'DRAFT' && (
-              <Link href={`/migrations/${project.id}/execute`}>
+              <Link href={`/migrations/${id}/execute`}>
                 <Button>
                   <Play className="mr-2 h-4 w-4" />
                   Execute Migration
@@ -251,7 +254,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
                   No migration sessions yet
                 </p>
                 {project.status === 'DRAFT' && (
-                  <Link href={`/migrations/${project.id}/execute`}>
+                  <Link href={`/migrations/${id}/execute`}>
                     <Button className="mt-4">
                       <Play className="mr-2 h-4 w-4" />
                       Start First Migration
@@ -303,7 +306,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
         <CardContent>
           <div className="flex gap-4">
             {project.status === 'DRAFT' && (
-              <Link href={`/migrations/${project.id}/execute`}>
+              <Link href={`/migrations/${id}/execute`}>
                 <Button>
                   <Play className="mr-2 h-4 w-4" />
                   Execute Migration

@@ -59,14 +59,25 @@ export function AppNavigation({ children }: AppNavigationProps) {
             router.replace('/auth/signin');
           },
           onError: (error) => {
-            console.error('Sign out error:', error);
+            // Ignore session deletion errors during development
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('Record to delete does not exist')) {
+              console.warn('Session already deleted (normal in development)');
+            } else {
+              console.error('Sign out error:', error);
+            }
             // Force redirect even if logout fails
             router.replace('/auth/signin');
           }
         }
       });
     } catch (error) {
-      console.error('Sign out error:', error);
+      // Ignore session deletion errors during development
+      if (error instanceof Error && error.message.includes('Record to delete does not exist')) {
+        console.warn('Session already deleted (normal in development)');
+      } else {
+        console.error('Sign out error:', error);
+      }
       // Force redirect even if logout fails
       router.replace('/auth/signin');
     }

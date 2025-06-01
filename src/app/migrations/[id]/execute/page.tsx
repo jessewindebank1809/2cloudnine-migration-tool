@@ -12,9 +12,9 @@ import { ObjectSelection } from '@/components/features/migrations/ObjectSelectio
 import { MigrationProgressHome } from '@/components/features/migrations/MigrationProgressHome';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function MigrationExecutePage({ params }: PageProps) {
@@ -22,11 +22,14 @@ export default function MigrationExecutePage({ params }: PageProps) {
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
 
+  // Unwrap the params promise
+  const { id } = React.use(params);
+
   // Fetch project details
   const { data: project, isLoading } = useQuery({
-    queryKey: ['migration-project', params.id],
+    queryKey: ['migration-project', id],
     queryFn: async () => {
-      const response = await fetch(`/api/migrations/${params.id}`);
+      const response = await fetch(`/api/migrations/${id}`);
       if (!response.ok) throw new Error('Failed to fetch project');
       return response.json();
     },
@@ -35,7 +38,7 @@ export default function MigrationExecutePage({ params }: PageProps) {
   // Execute migration mutation
   const executeMigration = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/migrations/${params.id}/execute`, {
+      const response = await fetch(`/api/migrations/${id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,7 +69,7 @@ export default function MigrationExecutePage({ params }: PageProps) {
   };
 
   const handleComplete = () => {
-    router.push(`/migrations/${params.id}`);
+    router.push(`/migrations/${id}`);
   };
 
   if (isLoading) {
@@ -96,7 +99,7 @@ export default function MigrationExecutePage({ params }: PageProps) {
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
-        <Link href={`/migrations/${params.id}`}>
+        <Link href={`/migrations/${id}`}>
           <Button variant="ghost" size="sm" className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Project
@@ -204,7 +207,7 @@ export default function MigrationExecutePage({ params }: PageProps) {
         </div>
       ) : (
                         <MigrationProgressHome
-          projectId={params.id}
+          projectId={id}
           onComplete={handleComplete}
         />
       )}

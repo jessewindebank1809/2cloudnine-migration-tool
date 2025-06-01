@@ -1,13 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
-import '@/lib/migration/templates/registry'; // Ensure templates are registered
+import { registerAllTemplates } from '@/lib/migration/templates/registry';
+
+// Force dynamic rendering with caching optimization  
+export const dynamic = 'force-dynamic';
+// Use edge runtime for better performance since no database access needed
+export const runtime = 'edge';
+export const revalidate = 3600; // Cache templates for 1 hour as they don't change frequently
+
+// Ensure templates are registered once
+let templatesRegistered = false;
+function ensureTemplatesRegistered() {
+  if (!templatesRegistered) {
+    registerAllTemplates();
+    templatesRegistered = true;
+  }
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
+
+    // Ensure templates are registered (only once)
+    ensureTemplatesRegistered();
 
     // Get template from registry
     const template = templateRegistry.getTemplate(id);

@@ -6,13 +6,13 @@ import { TemplateRegistry } from '@/lib/migration/templates/core/template-regist
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Require authentication and get current user
     const session = await requireAuth(request);
     
-    const { id: projectId } = params;
+    const { id: projectId } = await params;
     const body = await request.json();
     const { selectedRecords } = body;
 
@@ -109,13 +109,13 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Require authentication and get current user
     const session = await requireAuth(request);
     
-    const { id: projectId } = params;
+    const { id: projectId } = await params;
 
     // First verify the migration project belongs to current user
     const project = await prisma.migration_projects.findFirst({

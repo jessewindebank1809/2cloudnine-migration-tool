@@ -1,13 +1,22 @@
 import { templateRegistry } from "./core/template-registry";
 import { interpretationRulesTemplate } from "./definitions/payroll/interpretation-rules.template";
 
+// Track whether templates have been registered to avoid redundant calls
+let templatesAlreadyRegistered = false;
+
 /**
  * Register all available migration templates
  */
 export function registerAllTemplates(): void {
+    // Avoid redundant registration
+    if (templatesAlreadyRegistered) {
+        return;
+    }
+    
     // Register payroll templates
     templateRegistry.registerTemplate(interpretationRulesTemplate);
     
+    templatesAlreadyRegistered = true;
     console.log(`Registered ${templateRegistry.getTemplateCount()} migration templates`);
 }
 

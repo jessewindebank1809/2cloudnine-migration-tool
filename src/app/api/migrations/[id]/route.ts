@@ -17,9 +17,9 @@ const UpdateProjectSchema = z.object({
 });
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -30,9 +30,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Require authentication and get current user
     const session = await requireAuth(request);
     
+    // Await params as required by Next.js 15
+    const { id } = await params;
+    
     const project = await prisma.migration_projects.findFirst({
       where: { 
-        id: params.id,
+        id: id,
         user_id: session.user.id // Ensure project belongs to current user
       },
       include: {
@@ -107,6 +110,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Require authentication and get current user
     const session = await requireAuth(request);
     
+    // Await params as required by Next.js 15
+    const { id } = await params;
+    
     const body = await request.json();
     const validation = UpdateProjectSchema.safeParse(body);
 
@@ -120,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check if project exists and belongs to current user
     const existing = await prisma.migration_projects.findFirst({
       where: { 
-        id: params.id,
+        id: id,
         user_id: session.user.id // Ensure project belongs to current user
       },
     });
@@ -142,7 +148,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Update the project
     const updated = await prisma.migration_projects.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...validation.data,
         updated_at: new Date(),
@@ -202,10 +208,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Require authentication and get current user
     const session = await requireAuth(request);
     
+    // Await params as required by Next.js 15
+    const { id } = await params;
+    
     // Check if project exists and belongs to current user
     const existing = await prisma.migration_projects.findFirst({
       where: { 
-        id: params.id,
+        id: id,
         user_id: session.user.id // Ensure project belongs to current user
       },
     });
@@ -227,7 +236,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Delete the project (cascade will handle related records)
     await prisma.migration_projects.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ success: true });

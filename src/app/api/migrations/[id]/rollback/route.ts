@@ -7,13 +7,14 @@ import type { SalesforceOrg } from '@/types';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Require authentication and get current user
     const session = await requireAuth(request);
     
-    const migrationId = params.id;
+    // Await params as required by Next.js 15
+    const { id: migrationId } = await params;
 
     // Get migration project and ensure it belongs to current user
     const migration = await prisma.migration_projects.findFirst({

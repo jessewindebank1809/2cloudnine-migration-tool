@@ -4,12 +4,12 @@ import { requireAuth } from '@/lib/auth/session-helper';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
     const session = await requireAuth(request);
-    const { id } = params;
+    const { id } = await params;
 
     // Check if organisation exists and belongs to user
     const organisation = await prisma.organisations.findFirst({
@@ -68,12 +68,12 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
     const session = await requireAuth(request);
-    const { id } = params;
+    const { id } = await params;
     const { name } = await request.json();
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -127,12 +127,12 @@ export async function PATCH(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
     const session = await requireAuth(request);
-    const { id } = params;
+    const { id } = await params;
 
     const organisation = await prisma.organisations.findFirst({
       where: { 

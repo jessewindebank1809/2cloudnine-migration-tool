@@ -22,9 +22,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
 interface TemplateDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 interface TemplateMetadata {
@@ -68,9 +68,11 @@ const COMPLEXITY_COLORS = {
 
 export default function TemplateDetailPage({ params }: TemplateDetailPageProps) {
   const router = useRouter();
-  const { id } = params;
+  
+  // Unwrap the params promise
+  const { id } = React.use(params);
 
-  // Fetch template details
+  // Fetch template details with optimised caching
   const { data: templateData, isLoading, error } = useQuery({
     queryKey: ['template', id],
     queryFn: async () => {
@@ -78,6 +80,8 @@ export default function TemplateDetailPage({ params }: TemplateDetailPageProps) 
       if (!response.ok) throw new Error('Failed to fetch template');
       return response.json();
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change frequently
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
   });
 
   const template: MigrationTemplate = templateData?.template;

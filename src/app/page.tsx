@@ -25,16 +25,34 @@ export default function LandingPage() {
     // Check if user is already authenticated using Better Auth
     const checkAuth = async () => {
       try {
-        const { authClient } = await import('@/lib/auth/client');
-        const sessionData = await authClient.getSession();
-        setIsAuthenticated(!!sessionData?.data?.user);
+        // Quick check for existing session first
+        const existingSession = document.cookie.includes('better-auth.session_token');
+        if (!existingSession) {
+          setIsAuthenticated(false);
+          return;
+        }
+
+        // Use our fast auth check endpoint
+        const response = await fetch('/api/auth/check', {
+          credentials: 'include',
+          cache: 'no-cache'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setIsAuthenticated(data.authenticated && !!data.user);
+        } else {
+          setIsAuthenticated(false);
+        }
       } catch (error) {
         console.error('Auth check error:', error);
         setIsAuthenticated(false);
       }
     };
 
-    checkAuth();
+    // Add a small delay to prevent blocking rendering
+    const timeoutId = setTimeout(checkAuth, 0);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const features = [
@@ -69,8 +87,11 @@ export default function LandingPage() {
 
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600 text-sm">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -91,6 +112,8 @@ export default function LandingPage() {
                 src="/Cloudnine Reversed Standard 2.png" 
                 alt="2cloudnine Logo" 
                 className="h-10 w-auto"
+                loading="eager"
+                decoding="async"
               />
             </div>
             <span className="font-bold text-xl text-slate-800">Migration Tool</span>

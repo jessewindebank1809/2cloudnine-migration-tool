@@ -14,6 +14,20 @@ export const auth = betterAuth({
   }),
   baseURL: getBaseURL(),
   secret: process.env.BETTER_AUTH_SECRET || 'build-time-placeholder-secret-key-for-development',
+  // Performance optimizations
+  logger: {
+    level: process.env.NODE_ENV === 'development' ? 'warn' : 'error',
+    disabled: process.env.NODE_ENV === 'production',
+  },
+  // Optimize session handling
+  session: {
+    expiresIn: 7 * 24 * 60 * 60, // 7 days
+    updateAge: 24 * 60 * 60, // Only update session once per day
+    fields: {
+      token: "sessionToken", // Map Better Auth's 'token' field to our 'sessionToken' field
+      expiresAt: "expires", // Map Better Auth's 'expiresAt' field to our 'expires' field
+    },
+  },
   plugins: [
     genericOAuth({
       config: [
@@ -55,13 +69,6 @@ export const auth = betterAuth({
       ],
     }),
   ],
-  session: {
-    expiresIn: 7 * 24 * 60 * 60, // 7 days
-    fields: {
-      token: "sessionToken", // Map Better Auth's 'token' field to our 'sessionToken' field
-      expiresAt: "expires", // Map Better Auth's 'expiresAt' field to our 'expires' field
-    },
-  },
 })
 
 export type Session = typeof auth.$Infer.Session 
