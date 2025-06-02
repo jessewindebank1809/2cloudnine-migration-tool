@@ -153,17 +153,178 @@ export function testSoqlQueryBuilding(): {
 }
 
 /**
+ * Test cross-environment external ID handling for all scenarios
+ */
+export async function testCrossEnvironmentExternalIdHandling(): Promise<{
+    success: boolean;
+    errors: string[];
+}> {
+    const errors: string[] = [];
+
+    try {
+        console.log("Testing cross-environment external ID handling...");
+
+        // Test 1: Managed → Managed (same environment)
+        console.log("Testing Managed → Managed scenario...");
+        const managedSourceInfo = {
+            packageType: "managed" as const,
+            externalIdField: "tc9_edc__External_ID_Data_Creation__c",
+            detectedFields: ["tc9_edc__External_ID_Data_Creation__c"],
+            fallbackUsed: false,
+        };
+        const managedTargetInfo = {
+            packageType: "managed" as const,
+            externalIdField: "tc9_edc__External_ID_Data_Creation__c",
+            detectedFields: ["tc9_edc__External_ID_Data_Creation__c"],
+            fallbackUsed: false,
+        };
+        
+        const managedConfig = await ExternalIdUtils.detectCrossEnvironmentMapping(
+            managedSourceInfo,
+            managedTargetInfo
+        );
+        
+        if (managedConfig.strategy !== "auto-detect") {
+            errors.push("Managed → Managed should use auto-detect strategy");
+        }
+        if (managedConfig.sourceField !== "tc9_edc__External_ID_Data_Creation__c") {
+            errors.push("Managed → Managed source field incorrect");
+        }
+        if (managedConfig.targetField !== "tc9_edc__External_ID_Data_Creation__c") {
+            errors.push("Managed → Managed target field incorrect");
+        }
+
+        // Test 2: Unmanaged → Managed (cross-environment)
+        console.log("Testing Unmanaged → Managed scenario...");
+        const unmanagedSourceInfo = {
+            packageType: "unmanaged" as const,
+            externalIdField: "External_ID_Data_Creation__c",
+            detectedFields: ["External_ID_Data_Creation__c"],
+            fallbackUsed: false,
+        };
+        
+        const unmanagedToManagedConfig = await ExternalIdUtils.detectCrossEnvironmentMapping(
+            unmanagedSourceInfo,
+            managedTargetInfo
+        );
+        
+        if (unmanagedToManagedConfig.strategy !== "cross-environment") {
+            errors.push("Unmanaged → Managed should use cross-environment strategy");
+        }
+        if (unmanagedToManagedConfig.sourceField !== "External_ID_Data_Creation__c") {
+            errors.push("Unmanaged → Managed source field incorrect");
+        }
+        if (unmanagedToManagedConfig.targetField !== "tc9_edc__External_ID_Data_Creation__c") {
+            errors.push("Unmanaged → Managed target field incorrect");
+        }
+        if (!unmanagedToManagedConfig.crossEnvironmentMapping) {
+            errors.push("Unmanaged → Managed should have cross-environment mapping config");
+        }
+
+        // Test 3: Managed → Unmanaged (cross-environment)
+        console.log("Testing Managed → Unmanaged scenario...");
+        const unmanagedTargetInfo = {
+            packageType: "unmanaged" as const,
+            externalIdField: "External_ID_Data_Creation__c",
+            detectedFields: ["External_ID_Data_Creation__c"],
+            fallbackUsed: false,
+        };
+        
+        const managedToUnmanagedConfig = await ExternalIdUtils.detectCrossEnvironmentMapping(
+            managedSourceInfo,
+            unmanagedTargetInfo
+        );
+        
+        if (managedToUnmanagedConfig.strategy !== "cross-environment") {
+            errors.push("Managed → Unmanaged should use cross-environment strategy");
+        }
+        if (managedToUnmanagedConfig.sourceField !== "tc9_edc__External_ID_Data_Creation__c") {
+            errors.push("Managed → Unmanaged source field incorrect");
+        }
+        if (managedToUnmanagedConfig.targetField !== "External_ID_Data_Creation__c") {
+            errors.push("Managed → Unmanaged target field incorrect");
+        }
+        if (!managedToUnmanagedConfig.crossEnvironmentMapping) {
+            errors.push("Managed → Unmanaged should have cross-environment mapping config");
+        }
+
+        // Test 4: Cross-environment query building
+        console.log("Testing cross-environment query building...");
+        const baseQuery = "SELECT Id, Name, {externalIdField}, tc9_et__Pay_Code__r.{externalIdField} FROM tc9_et__Interpretation_Rule__c";
+        
+        const crossEnvQuery = ExternalIdUtils.buildCrossEnvironmentQuery(
+            baseQuery,
+            "External_ID_Data_Creation__c", // source field
+            "tc9_edc__External_ID_Data_Creation__c" // target field
+        );
+        
+        // Should replace {externalIdField} with source field
+        if (!crossEnvQuery.includes("External_ID_Data_Creation__c")) {
+            errors.push("Cross-environment query should include source external ID field");
+        }
+        
+        // Should include all possible external ID fields for relationships
+        if (!crossEnvQuery.includes("tc9_et__Pay_Code__r.tc9_edc__External_ID_Data_Creation__c")) {
+            errors.push("Cross-environment query should include managed external ID field for relationships");
+        }
+        if (!crossEnvQuery.includes("tc9_et__Pay_Code__r.External_ID_Data_Creation__c")) {
+            errors.push("Cross-environment query should include unmanaged external ID field for relationships");
+        }
+        if (!crossEnvQuery.includes("tc9_et__Pay_Code__r.External_Id__c")) {
+            errors.push("Cross-environment query should include fallback external ID field for relationships");
+        }
+
+        console.log("Cross-environment query:", crossEnvQuery);
+
+        // Test 5: Compatibility validation
+        console.log("Testing cross-environment compatibility validation...");
+        const validation = ExternalIdUtils.validateCrossEnvironmentCompatibility(
+            unmanagedSourceInfo,
+            managedTargetInfo
+        );
+        
+        if (!validation.crossEnvironmentDetected) {
+            errors.push("Cross-environment migration should be detected");
+        }
+        
+        if (validation.potentialIssues.length === 0) {
+            errors.push("Cross-environment migration should have potential issues reported");
+        }
+        
+        if (validation.recommendations.length === 0) {
+            errors.push("Cross-environment migration should have recommendations");
+        }
+
+        console.log("Cross-environment external ID handling tests completed");
+        
+        return {
+            success: errors.length === 0,
+            errors,
+        };
+
+    } catch (error) {
+        errors.push(`Cross-environment external ID test failed: ${error}`);
+        return {
+            success: false,
+            errors,
+        };
+    }
+}
+
+/**
  * Run all template tests
  */
-export function runTemplateTests(): void {
+export async function runTemplateTests(): Promise<void> {
     console.log("=== Running Interpretation Rules Template Tests ===");
     
     const structureTest = testInterpretationRulesTemplate();
     const queryTest = testSoqlQueryBuilding();
+    const crossEnvTest = await testCrossEnvironmentExternalIdHandling();
     
     console.log("\n=== Test Results ===");
     console.log(`Structure Test: ${structureTest.success ? "PASS" : "FAIL"}`);
     console.log(`Query Building Test: ${queryTest.success ? "PASS" : "FAIL"}`);
+    console.log(`Cross-Environment Test: ${crossEnvTest.success ? "PASS" : "FAIL"}`);
     
     if (structureTest.errors.length > 0) {
         console.log("\nStructure Errors:");
@@ -180,12 +341,25 @@ export function runTemplateTests(): void {
         queryTest.errors.forEach(error => console.log(`  - ${error}`));
     }
     
-    const allTestsPassed = structureTest.success && queryTest.success;
+    if (crossEnvTest.errors.length > 0) {
+        console.log("\nCross-Environment Errors:");
+        crossEnvTest.errors.forEach(error => console.log(`  - ${error}`));
+    }
+    
+    const allTestsPassed = structureTest.success && queryTest.success && crossEnvTest.success;
     console.log(`\n=== Overall Result: ${allTestsPassed ? "ALL TESTS PASSED" : "SOME TESTS FAILED"} ===`);
 }
 
 describe('Interpretation Rules', () => {
   it('should pass placeholder test', () => {
     expect(true).toBe(true);
+  });
+
+  it('should handle all cross-environment external ID scenarios', async () => {
+    const result = await testCrossEnvironmentExternalIdHandling();
+    if (!result.success) {
+      console.error('Cross-environment test errors:', result.errors);
+    }
+    expect(result.success).toBe(true);
   });
 }); 

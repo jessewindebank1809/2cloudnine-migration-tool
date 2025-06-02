@@ -399,9 +399,12 @@ export class ExecutionEngine {
     let fieldIndex = 1;
     
     // Show direct field mappings
+    const sourceExternalIdFieldForLogging = context.externalIdConfig?.sourceField || context.externalIdField;
+    const targetExternalIdFieldForLogging = context.externalIdConfig?.targetField || context.externalIdField;
+    
     step.transformConfig.fieldMappings.forEach((mapping) => {
-      const sourceField = ExternalIdUtils.replaceExternalIdPlaceholders(mapping.sourceField, context.externalIdField);
-      const targetField = ExternalIdUtils.replaceExternalIdPlaceholders(mapping.targetField, context.externalIdField);
+      const sourceField = ExternalIdUtils.replaceExternalIdPlaceholders(mapping.sourceField, sourceExternalIdFieldForLogging);
+      const targetField = ExternalIdUtils.replaceExternalIdPlaceholders(mapping.targetField, targetExternalIdFieldForLogging);
       const transformType = mapping.transformationType ? ` (${mapping.transformationType})` : '';
       console.log(`  ${fieldIndex}. ${sourceField} -> ${targetField}${transformType}`);
       fieldIndex++;
@@ -410,8 +413,9 @@ export class ExecutionEngine {
     // Show lookup mappings as field mappings
     if (step.transformConfig.lookupMappings && step.transformConfig.lookupMappings.length > 0) {
       step.transformConfig.lookupMappings.forEach((mapping) => {
-        const sourceField = mapping.sourceField.replace(/{externalIdField}/g, context.externalIdField);
-        console.log(`  ${fieldIndex}. ${sourceField} -> ${mapping.targetField} (via ${mapping.lookupObject}.${mapping.lookupKeyField})`);
+        const sourceField = mapping.sourceField.replace(/{externalIdField}/g, sourceExternalIdFieldForLogging);
+        const lookupKeyField = mapping.lookupKeyField.replace(/{externalIdField}/g, targetExternalIdFieldForLogging);
+        console.log(`  ${fieldIndex}. ${sourceField} -> ${mapping.targetField} (via ${mapping.lookupObject}.${lookupKeyField})`);
         fieldIndex++;
       });
     }
@@ -421,8 +425,12 @@ export class ExecutionEngine {
 
       // Apply field mappings
       for (const fieldMapping of step.transformConfig.fieldMappings) {
-        const targetField = ExternalIdUtils.replaceExternalIdPlaceholders(fieldMapping.targetField, context.externalIdField);
-        const sourceField = ExternalIdUtils.replaceExternalIdPlaceholders(fieldMapping.sourceField, context.externalIdField);
+        // Use appropriate external ID fields for source and target
+        const sourceExternalIdFieldForMapping = context.externalIdConfig?.sourceField || context.externalIdField;
+        const targetExternalIdFieldForMapping = context.externalIdConfig?.targetField || context.externalIdField;
+        
+        const targetField = ExternalIdUtils.replaceExternalIdPlaceholders(fieldMapping.targetField, targetExternalIdFieldForMapping);
+        const sourceField = ExternalIdUtils.replaceExternalIdPlaceholders(fieldMapping.sourceField, sourceExternalIdFieldForMapping);
 
         if (sourceField.startsWith('lookup:')) {
           // Handle lookup field
@@ -470,8 +478,11 @@ export class ExecutionEngine {
           console.log(`\n--- Sample Record Lookup Details ---`);
         }
         
+        // Use appropriate external ID fields for source and target
+        const sourceExternalIdFieldForLookup = context.externalIdConfig?.sourceField || context.externalIdField;
+        
         for (const lookupMapping of step.transformConfig.lookupMappings) {
-          const sourceField = lookupMapping.sourceField.replace(/{externalIdField}/g, context.externalIdField);
+          const sourceField = lookupMapping.sourceField.replace(/{externalIdField}/g, sourceExternalIdFieldForLookup);
           const sourceValue = this.getNestedValue(record, sourceField);
           
           // Only log details for the first record to avoid spam
@@ -532,10 +543,21 @@ export class ExecutionEngine {
         }
       }
 
+      // Handle external ID field mapping for cross-environment migrations
+      const sourceExternalIdField = context.externalIdConfig?.sourceField || context.externalIdField;
+      const targetExternalIdField = context.externalIdConfig?.targetField || context.externalIdField;
+      
       // Only set external ID field if it exists in the source record
       // This prevents trying to insert non-existent fields in the target org
-      if (record.hasOwnProperty(context.externalIdField)) {
-        transformedRecord[context.externalIdField] = record[context.externalIdField];
+      if (record.hasOwnProperty(sourceExternalIdField)) {
+        // For cross-environment migrations, map from source field to target field
+        if (context.externalIdConfig?.strategy === 'cross-environment' && sourceExternalIdField !== targetExternalIdField) {
+          transformedRecord[targetExternalIdField] = record[sourceExternalIdField];
+          console.log(`Cross-environment external ID mapping: ${sourceExternalIdField} -> ${targetExternalIdField}`);
+        } else {
+          // Same environment migration
+          transformedRecord[targetExternalIdField] = record[sourceExternalIdField];
+        }
       }
 
       transformed.push(transformedRecord);
@@ -583,9 +605,16 @@ export class ExecutionEngine {
     try {
       const operation = step.loadConfig.operation;
       const objectType = step.loadConfig.targetObject;
-      const externalIdField = ExternalIdUtils.replaceExternalIdPlaceholders(step.loadConfig.externalIdField, context.externalIdField);
+      
+      // Use target external ID field for cross-environment migrations
+      const targetExternalIdField = context.externalIdConfig?.targetField || context.externalIdField;
+      const externalIdField = ExternalIdUtils.replaceExternalIdPlaceholders(step.loadConfig.externalIdField, targetExternalIdField);
 
       console.log(`Performing ${operation} operation on ${objectType} with external ID field: ${externalIdField}`);
+      console.log(`Cross-environment mapping: ${context.externalIdConfig?.strategy === 'cross-environment' ? 'YES' : 'NO'}`);
+      if (context.externalIdConfig?.strategy === 'cross-environment') {
+        console.log(`Source field: ${context.externalIdConfig.sourceField} -> Target field: ${context.externalIdConfig.targetField}`);
+      }
 
       let result;
       if (operation === 'upsert') {
@@ -625,7 +654,7 @@ export class ExecutionEngine {
             // Add error for failed record
             const recordErrors = Array.isArray(recordResult.errors) ? recordResult.errors : [recordResult.errors];
             errors.push({
-              recordId: records[index] ? (records[index][context.externalIdField] || records[index].Id || `batch-${batchNumber}-${index}`) : `batch-${batchNumber}-${index}`,
+              recordId: records[index] ? (records[index][targetExternalIdField] || records[index].Id || `batch-${batchNumber}-${index}`) : `batch-${batchNumber}-${index}`,
               error: recordErrors.join('; ') || 'Unknown error',
               retryable: false
             });
@@ -638,7 +667,7 @@ export class ExecutionEngine {
         console.error(`Load operation failed: ${result.error}`);
         records.forEach((record, index) => {
           errors.push({
-            recordId: record[context.externalIdField] || record.Id || `batch-${batchNumber}-${index}`,
+            recordId: record[targetExternalIdField] || record.Id || `batch-${batchNumber}-${index}`,
             error: result.error || 'Unknown error',
             retryable: false
           });
@@ -648,9 +677,10 @@ export class ExecutionEngine {
     } catch (error) {
       failureCount = records.length;
       console.error(`Load operation threw error:`, error);
+      const targetExternalIdField = context.externalIdConfig?.targetField || context.externalIdField;
       records.forEach((record, index) => {
         errors.push({
-          recordId: record[context.externalIdField] || record.Id || `batch-${batchNumber}-${index}`,
+          recordId: record[targetExternalIdField] || record.Id || `batch-${batchNumber}-${index}`,
           error: error instanceof Error ? error.message : 'Unknown error',
           retryable: false
         });

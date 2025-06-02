@@ -331,10 +331,10 @@ export class ExternalIdUtils {
         sourceExternalIdField: string,
         targetExternalIdField?: string,
     ): string {
-        // Replace {externalIdField} with actual source field
-        let query = this.replaceExternalIdPlaceholders(baseQuery, sourceExternalIdField);
-
-        // For relationship fields, add all possible external ID fields to ensure we capture data
+        // First handle relationship fields that still have placeholders
+        let query = baseQuery;
+        
+        // For relationship fields with placeholders, add all possible external ID fields
         const relationshipPattern = /(\w+__r)\.{externalIdField}/g;
         query = query.replace(relationshipPattern, (match, relationshipName) => {
             const fields = [
@@ -344,6 +344,9 @@ export class ExternalIdUtils {
             ];
             return fields.join(', ');
         });
+        
+        // Then replace remaining {externalIdField} placeholders with actual source field
+        query = this.replaceExternalIdPlaceholders(query, sourceExternalIdField);
 
         return query;
     }
