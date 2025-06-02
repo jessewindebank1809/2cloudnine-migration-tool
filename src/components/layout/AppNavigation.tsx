@@ -20,6 +20,11 @@ export function AppNavigation({ children }: AppNavigationProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Detect if we're in staging environment
+  const isStaging = typeof window !== 'undefined' 
+    ? window.location.hostname.includes('staging')
+    : process.env.FLY_APP_NAME?.includes('staging');
+
   // Navigation items configuration
   const navItems = [
     { id: 'home', label: 'Home', href: '/home' },
@@ -126,7 +131,9 @@ export function AppNavigation({ children }: AppNavigationProps) {
                 className="h-10 w-auto"
               />
             </div>
-            <span className="font-bold text-xl text-white">Migration Tool</span>
+            <span className="font-bold text-xl text-white">
+              Migration Tool{isStaging && ' (Staging)'}
+            </span>
           </div>
           <nav className="flex items-center space-x-1">
             {navItems.map((nav) => (
