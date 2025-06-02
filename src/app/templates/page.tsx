@@ -10,7 +10,6 @@ import {
   Layers, 
   ArrowRight,
   Database,
-  Users,
   Zap
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

@@ -27,6 +27,10 @@ const nextConfig = {
     },
   },
   serverExternalPackages: ['@prisma/client', 'prisma'],
+  // Skip static generation for error pages to avoid Html import issues
+  trailingSlash: false,
+  skipMiddlewareUrlNormalize: true,
+  skipTrailingSlashRedirect: true,
   // Development performance optimizations  
   ...(process.env.NODE_ENV === 'development' && {
     onDemandEntries: {

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { encrypt } from '@/lib/utils/encryption';
 import { TokenManager } from '@/lib/salesforce/token-manager';
-import crypto from 'crypto';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -39,7 +38,7 @@ export async function GET(request: NextRequest) {
         orgType: stateData.orgType,
         timestamp: stateData.timestamp,
       });
-    } catch (_) {
+    } catch {
       console.error('💥 OAuth Callback - Invalid state parameter');
       return NextResponse.redirect(`${baseUrl}/orgs?error=invalid_state`);
     }

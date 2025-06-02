@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { auth } from '@/lib/auth';
 
 export default async function TestAuthPage() {
@@ -33,18 +34,18 @@ export default async function TestAuthPage() {
           <div>
             <h2 className="text-lg font-semibold">Test Auth Endpoints:</h2>
             <div className="space-x-2">
-              <a 
+              <Link 
                 href="/api/auth/sign-in" 
                 className="bg-blue-500 text-white px-4 py-2 rounded inline-block"
               >
                 Test Sign In Endpoint
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href="/api/auth/get-session" 
                 className="bg-green-500 text-white px-4 py-2 rounded inline-block"
               >
                 Test Get Session Endpoint
-              </a>
+              </Link>
             </div>
           </div>
         </div>
