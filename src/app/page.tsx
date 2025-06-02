@@ -11,13 +11,6 @@ export default function RootPage() {
     // Check if user is already authenticated using Better Auth
     const checkAuthAndRedirect = async () => {
       try {
-        // Quick check for existing session first
-        const existingSession = document.cookie.includes('better-auth.session_token');
-        if (!existingSession) {
-          router.replace('/auth/signin');
-          return;
-        }
-
         // Use our fast auth check endpoint
         const response = await fetch('/api/auth/check', {
           credentials: 'include',
