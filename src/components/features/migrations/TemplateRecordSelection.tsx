@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
@@ -62,7 +62,9 @@ export function TemplateRecordSelection({
   const [currentPage, setCurrentPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [primaryObjectType, setPrimaryObjectType] = useState<string>('');
-  const pageSize = 10;
+  const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
+  const isInitializedRef = useRef(false);
+  const pageSize = 50;
 
   // Sync selectedRecords prop with local state
   useEffect(() => {
@@ -73,10 +75,15 @@ export function TemplateRecordSelection({
     if (JSON.stringify(currentSelectedArray) !== JSON.stringify(newSelectedArray)) {
       setSelectedIds(new Set(selectedRecords));
     }
+    
+    // Mark as initialized after first effect run
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true;
+    }
   }, [selectedRecords]);
 
   // Fetch template data to get primary object type
-  const { data: templateData } = useQuery({
+  const { data: templateData, isLoading: isLoadingTemplate } = useQuery({
     queryKey: ['template', templateId],
     queryFn: async () => {
       const result = await apiCall<any>(() => fetch(`/api/templates/${templateId}`));
@@ -90,6 +97,39 @@ export function TemplateRecordSelection({
       setPrimaryObjectType(templateData.template.etlSteps[0].objectApiName);
     }
   }, [templateData]);
+
+  // First, get the total count of records
+  const { data: totalCountData, isLoading: isLoadingCount } = useQuery({
+    queryKey: ['template-records-count', sourceOrgId, primaryObjectType, searchTerm],
+    queryFn: async () => {
+      if (!primaryObjectType) return { totalCount: 0 };
+      
+      let countQuery = `SELECT COUNT() FROM ${primaryObjectType}`;
+      
+      // Add search filter if provided
+      if (searchTerm.trim()) {
+        countQuery += ` WHERE Name LIKE '%${searchTerm.trim()}%'`;
+      }
+
+      const result = await apiCall<any>(() => fetch('/api/salesforce/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orgId: sourceOrgId,
+          query: countQuery
+        }),
+      }));
+
+      if (!result || !result.success) {
+        throw new Error('Failed to fetch record count');
+      }
+      
+      return {
+        totalCount: result.totalSize || 0
+      };
+    },
+    enabled: !!sourceOrgId && !!primaryObjectType,
+  });
 
   // Fetch records for the primary object type
   const { data: recordsData, isLoading, error, refetch } = useQuery({
@@ -123,14 +163,14 @@ export function TemplateRecordSelection({
       return {
         records: result.records || [],
         pagination: {
-          total: result.totalSize || 0,
+          total: totalCountData?.totalCount || 0,
           limit: pageSize,
           offset: offset,
           hasMore: result.records?.length === pageSize
         }
       };
     },
-    enabled: !!sourceOrgId && !!primaryObjectType,
+    enabled: !!sourceOrgId && !!primaryObjectType && totalCountData !== undefined,
   });
 
   const records: SalesforceRecord[] = recordsData?.records || [];
@@ -158,8 +198,17 @@ export function TemplateRecordSelection({
         newSelectedIds.delete(recordId);
       }
       
-      // Call onSelectionChange with the new array
-      onSelectionChange(Array.from(newSelectedIds));
+      // Only call onSelectionChange after component is initialized
+      if (isInitializedRef.current) {
+        // Use setTimeout to ensure this runs after the current render cycle
+        setTimeout(() => {
+          try {
+            onSelectionChange(Array.from(newSelectedIds));
+          } catch (error) {
+            console.error('Error in onSelectionChange callback:', error);
+          }
+        }, 0);
+      }
       return newSelectedIds;
     });
   }, [onSelectionChange]);
@@ -176,8 +225,17 @@ export function TemplateRecordSelection({
         recordIds.forEach(id => newSelectedIds.delete(id));
       }
       
-      // Call onSelectionChange with the new array
-      onSelectionChange(Array.from(newSelectedIds));
+      // Only call onSelectionChange after component is initialized
+      if (isInitializedRef.current) {
+        // Use setTimeout to ensure this runs after the current render cycle
+        setTimeout(() => {
+          try {
+            onSelectionChange(Array.from(newSelectedIds));
+          } catch (error) {
+            console.error('Error in onSelectionChange callback:', error);
+          }
+        }, 0);
+      }
       return newSelectedIds;
     });
   }, [onSelectionChange, filteredRecords]);
@@ -185,6 +243,83 @@ export function TemplateRecordSelection({
   const allCurrentPageSelected = filteredRecords.length > 0 && 
     filteredRecords.every(record => selectedIds.has(record.Id));
   const someCurrentPageSelected = filteredRecords.some(record => selectedIds.has(record.Id));
+
+  // Function to load all records and select them
+  const handleSelectAllRecords = useCallback(async () => {
+    if (!primaryObjectType || isLoadingAllRecords) return;
+    
+    setIsLoadingAllRecords(true);
+    try {
+      const totalCount = totalCountData?.totalCount || 0;
+      if (totalCount === 0) return;
+
+      const allRecordIds = new Set<string>();
+      const chunkSize = 200; // Fetch in chunks for better performance
+      const totalChunks = Math.ceil(totalCount / chunkSize);
+
+      for (let chunk = 0; chunk < totalChunks; chunk++) {
+        const offset = chunk * chunkSize;
+        let query = `SELECT Id FROM ${primaryObjectType}`;
+        
+        // Add search filter if provided
+        if (searchTerm.trim()) {
+          query += ` WHERE Name LIKE '%${searchTerm.trim()}%'`;
+        }
+        
+        query += ` ORDER BY LastModifiedDate DESC LIMIT ${chunkSize} OFFSET ${offset}`;
+
+        const result = await apiCall<any>(() => fetch('/api/salesforce/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orgId: sourceOrgId,
+            query: query
+          }),
+        }));
+
+        if (result?.records) {
+          result.records.forEach((record: any) => allRecordIds.add(record.Id));
+        }
+
+        // If we got fewer records than expected, we've reached the end
+        if (!result?.records || result.records.length < chunkSize) {
+          break;
+        }
+      }
+
+      // Update selected records
+      setSelectedIds(allRecordIds);
+      
+      if (isInitializedRef.current) {
+        setTimeout(() => {
+          try {
+            onSelectionChange(Array.from(allRecordIds));
+          } catch (error) {
+            console.error('Error in onSelectionChange callback:', error);
+          }
+        }, 0);
+      }
+
+    } catch (error) {
+      console.error('Failed to load all records:', error);
+    } finally {
+      setIsLoadingAllRecords(false);
+    }
+  }, [primaryObjectType, sourceOrgId, searchTerm, totalCountData, apiCall, onSelectionChange, isLoadingAllRecords]);
+
+  // Function to deselect all records
+  const handleDeselectAllRecords = useCallback(() => {
+    setSelectedIds(new Set());
+    if (isInitializedRef.current) {
+      setTimeout(() => {
+        try {
+          onSelectionChange([]);
+        } catch (error) {
+          console.error('Error in onSelectionChange callback:', error);
+        }
+      }, 0);
+    }
+  }, [onSelectionChange]);
 
   if (!templateData && templateId) {
     return (
@@ -195,7 +330,7 @@ export function TemplateRecordSelection({
     );
   }
 
-  if (isLoading) {
+  if (isLoadingTemplate || isLoadingCount || isLoading) {
     return (
       <div className="space-y-4">
         <div className="flex gap-4">
@@ -291,7 +426,7 @@ export function TemplateRecordSelection({
       </div>
 
       {/* Bulk Actions */}
-      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+      <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-center gap-3">
           <Checkbox
             checked={allCurrentPageSelected}
@@ -341,9 +476,20 @@ export function TemplateRecordSelection({
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Page {currentPage + 1} of {totalPages}
+            Page {currentPage + 1} of {totalPages} 
+            <span className="ml-2">
+              (Showing {Math.min(pagination.offset + 1, pagination.total)}-{Math.min(pagination.offset + filteredRecords.length, pagination.total)} of {pagination.total} records)
+            </span>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(0)}
+              disabled={currentPage === 0}
+            >
+              First
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -359,6 +505,14 @@ export function TemplateRecordSelection({
               disabled={currentPage >= totalPages - 1}
             >
               Next
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(totalPages - 1)}
+              disabled={currentPage >= totalPages - 1}
+            >
+              Last
             </Button>
           </div>
         </div>

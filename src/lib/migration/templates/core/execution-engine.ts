@@ -222,15 +222,6 @@ export class ExecutionEngine {
         // Transform records
         const transformedRecords = await this.transformRecords(batch, step, context);
         
-        // Log complete transformed records with all field mappings and lookups
-        console.log(`\n=== FINAL TRANSFORMED RECORDS (${step.stepName} - Batch ${batchIndex + 1}) ===`);
-        console.log(`Records ready for loading to target org:`);
-        transformedRecords.forEach((record, index) => {
-          console.log(`\nRecord ${index + 1}:`);
-          console.log(JSON.stringify(record, null, 2));
-        });
-        console.log(`=== END TRANSFORMED RECORDS ===\n`);
-        
         // Load records to target
         const batchResult = await this.loadRecords(transformedRecords, step, context, batchIndex + 1);
         
@@ -393,46 +384,7 @@ export class ExecutionEngine {
     const targetExternalIdField = context.externalIdConfig?.targetField || context.externalIdField;
     const isBreakpointStep = step.stepName.includes('interpretationBreakpoint') || step.loadConfig.targetObject === 'tc9_et__Interpretation_Breakpoint__c';
     
-    // Log transformation overview
-    
-    console.log(`\n=== TRANSFORMATION OVERVIEW (${step.stepName}) ===`);
-    console.log(`Transforming ${records.length} records`);
-    console.log(`Target object: ${step.loadConfig.targetObject}`);
-    console.log(`Is interpretation breakpoint step: ${isBreakpointStep}`);
-    console.log(`External ID strategy: ${context.externalIdConfig?.strategy || 'legacy'}`);
-    console.log(`Source external ID field: ${sourceExternalIdField}`);
-    console.log(`Target external ID field: ${targetExternalIdField}`);
-    console.log(`Field mappings: ${step.transformConfig.fieldMappings.length}`);
-    console.log(`Lookup mappings: ${step.transformConfig.lookupMappings?.length || 0}`);
-    console.log(`Record type mapping: ${step.transformConfig.recordTypeMapping ? 'Yes' : 'No'}`);
-    
-    // Show all field mappings (direct + lookup) in a single list
-    console.log(`\nField Mappings:`);
-    let fieldIndex = 1;
-    
-    // Show direct field mappings
-    step.transformConfig.fieldMappings.forEach((mapping) => {
-      const sourceFieldResolved = ExternalIdUtils.replaceExternalIdPlaceholders(mapping.sourceField, sourceExternalIdField);
-      const targetFieldResolved = ExternalIdUtils.replaceExternalIdPlaceholders(mapping.targetField, targetExternalIdField);
-      const transformType = mapping.transformationType ? ` (${mapping.transformationType})` : '';
-      console.log(`  ${fieldIndex}. ${sourceFieldResolved} -> ${targetFieldResolved}${transformType}`);
-      fieldIndex++;
-    });
-    
-    // Show lookup mappings as field mappings
-    if (step.transformConfig.lookupMappings && step.transformConfig.lookupMappings.length > 0) {
-      step.transformConfig.lookupMappings.forEach((mapping) => {
-        const sourceFieldResolved = mapping.sourceField.replace(/{externalIdField}/g, sourceExternalIdField);
-        const lookupKeyFieldResolved = mapping.lookupKeyField.replace(/{externalIdField}/g, targetExternalIdField);
-        console.log(`  ${fieldIndex}. ${sourceFieldResolved} -> ${mapping.targetField} (via ${mapping.lookupObject}.${lookupKeyFieldResolved})`);
-        
-        // For interpretation breakpoint related lookups, highlight the external ID consistency
-        if (isBreakpointStep && (mapping.lookupObject === 'tc9_pr__Pay_Code__c' || mapping.lookupObject === 'tc9_pr__Leave_Rule__c')) {
-          console.log(`    ↳ Breakpoint lookup - using consistent external ID: ${sourceExternalIdField} -> ${targetExternalIdField}`);
-        }
-        fieldIndex++;
-      });
-    }
+
 
     for (const record of records) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -483,13 +435,6 @@ export class ExecutionEngine {
 
       // Apply lookup mappings
       if (step.transformConfig.lookupMappings) {
-        // Log lookup summary for first record only
-        if (records.indexOf(record) === 0) {
-          console.log(`\n=== LOOKUP TRANSFORMATIONS (${step.stepName}) ===`);
-          console.log(`Processing ${step.transformConfig.lookupMappings.length} lookup mappings for ${records.length} records`);
-          console.log(`\n--- Sample Record Lookup Details ---`);
-        }
-        
         // Use consistent external ID fields for lookups
         
         for (const lookupMapping of step.transformConfig.lookupMappings) {
@@ -518,35 +463,13 @@ export class ExecutionEngine {
             }
           }
           
-          // Only log details for the first record to avoid spam
-          const isFirstRecord = records.indexOf(record) === 0;
-          
-          if (isFirstRecord) {
-            console.log(`Lookup ${lookupMapping.targetField}: "${sourceValue}" (from ${sourceField})`);
-          }
-          
           if (sourceValue) {
             const targetValue = await this.resolveLookup(sourceValue, [lookupMapping], context);
             
             if (targetValue) {
               transformedRecord[lookupMapping.targetField] = targetValue;
-              if (isFirstRecord) {
-                console.log(`  ✓ Resolved to: "${targetValue}"`);
-              }
-            } else {
-              if (isFirstRecord) {
-                console.warn(`  ✗ Failed to resolve: "${sourceValue}" not found in target org`);
-              }
-            }
-          } else {
-            if (isFirstRecord) {
-              console.log(`  ✗ No source value found for field ${sourceField}`);
             }
           }
-        }
-        
-        if (records.indexOf(record) === 0) {
-          console.log(`--- End Sample Record ---\n`);
         }
       }
 
@@ -680,7 +603,6 @@ export class ExecutionEngine {
                 objectType,
                 stepName: step.stepName
               });
-              console.log(`Tracked record for rollback: ${targetRecordId} (${objectType})`);
             }
           } else {
             failureCount++;

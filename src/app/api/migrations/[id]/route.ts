@@ -57,7 +57,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         },
         migration_sessions: {
           orderBy: { created_at: 'desc' },
-          include: {
+          select: {
+            id: true,
+            object_type: true,
+            status: true,
+            total_records: true,
+            successful_records: true,
+            failed_records: true,
+            error_log: true,
+            created_at: true,
+            completed_at: true,
             _count: {
               select: {
                 migration_records: true

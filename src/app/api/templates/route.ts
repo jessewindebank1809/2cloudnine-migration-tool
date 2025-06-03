@@ -16,9 +16,31 @@ export async function GET(request: NextRequest) {
     // Get all available templates from the registry
     const templates = templateRegistry.getAllTemplates();
     
+    // If no templates are found after registration, this indicates a serious issue
+    let finalTemplates = templates;
+    if (finalTemplates.length === 0) {
+      console.error('No templates found after registration - this should not happen');
+      // Force a fresh registration attempt
+      templateRegistry.clear();
+      registerAllTemplates();
+      finalTemplates = templateRegistry.getAllTemplates();
+      
+      if (finalTemplates.length === 0) {
+        return NextResponse.json(
+          { 
+            error: 'Template registry is empty', 
+            details: 'No templates could be loaded. This may indicate a configuration issue.' 
+          },
+          { status: 500 }
+        );
+      }
+    }
+    
+    console.log(`Returning ${finalTemplates.length} templates`);
+    
     return NextResponse.json({
       success: true,
-      templates: templates.map(template => ({
+      templates: finalTemplates.map(template => ({
         id: template.id,
         name: template.name,
         description: template.description,

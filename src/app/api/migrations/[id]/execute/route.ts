@@ -321,6 +321,25 @@ export async function POST(
           });
         }
 
+        // Fetch parent record names for session metadata
+        const recordNames = new Map<string, string>();
+        if (selectedRecords.length > 0 && sourceClient && template) {
+          try {
+            const primaryObjectType = template.etlSteps[0]?.extractConfig?.objectApiName;
+            if (primaryObjectType) {
+              const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
+              const nameResult = await sourceClient.query(nameQuery);
+              if (nameResult.success && nameResult.data) {
+                nameResult.data.forEach((record: any) => {
+                  recordNames.set(record.Id, record.Name);
+                });
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to fetch record names for session:', error);
+          }
+        }
+
         // Create migration session record
         const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const session = await prisma.migration_sessions.create({
@@ -333,14 +352,34 @@ export async function POST(
             processed_records: result.successfulRecords + result.failedRecords,
             successful_records: result.successfulRecords,
             failed_records: result.failedRecords,
-            error_log: result.stepResults.flatMap(step => 
-              step.errors?.map((error: any) => ({
-                stepName: step.stepName,
-                recordId: error.recordId,
-                error: error.error,
-                retryable: error.retryable
-              })) || []
-            ),
+            error_log: [
+              // Store parent record names as metadata
+              {
+                type: 'metadata',
+                parentRecordNames: Object.fromEntries(recordNames),
+                successfulParentRecords: Object.entries(result.lookupMappings)
+                  .filter(([sourceId, targetId]) => recordNames.has(sourceId))
+                  .map(([sourceId, targetId]) => ({
+                    sourceId,
+                    targetId,
+                    name: recordNames.get(sourceId)
+                  })),
+                parentRecordStats: {
+                  attempted: selectedRecords.length,
+                  successful: Object.entries(result.lookupMappings)
+                    .filter(([sourceId, targetId]) => recordNames.has(sourceId)).length
+                }
+              },
+              // Include step errors
+              ...result.stepResults.flatMap(step => 
+                step.errors?.map((error: any) => ({
+                  stepName: step.stepName,
+                  recordId: error.recordId,
+                  error: error.error,
+                  retryable: error.retryable
+                })) || []
+              )
+            ],
             started_at: new Date(Date.now() - result.executionTimeMs),
             completed_at: new Date()
           }
@@ -378,7 +417,6 @@ export async function POST(
             id: targetOrg.id,
             name: targetOrg.name,
             instanceUrl: targetOrg.instanceUrl,
-            instance_url: targetOrg.instance_url,
             keys: Object.keys(targetOrg)
           });
           
@@ -445,17 +483,20 @@ export async function POST(
           // Get actual child record counts from target org for all migrated records
           const actualChildCounts = new Map<string, Map<string, number>>(); // sourceParentId -> stepName -> count
           
-          if (successfulParentIds.length > 0 && targetClient) {
+          if (successfulParentIds.length > 0 && targetClient && sourceClient) {
             try {
               // Get target IDs for selected parents from lookup mappings
               const selectedTargetIds = successfulParentIds.map(sourceId => lookupMappings[sourceId]).filter(Boolean);
               const selectedTargetIdsStr = selectedTargetIds.map(id => `'${id}'`).join(',');
+              const selectedSourceIdsStr = successfulParentIds.map(id => `'${id}'`).join(',');
               
-              console.log('🔍 DEBUGGING: Querying child records in TARGET org for selected parents:');
+              console.log('🔍 DEBUGGING: Querying child records in both SOURCE and TARGET orgs for selected parents:');
               console.log('Source IDs:', successfulParentIds);
               console.log('Target IDs:', selectedTargetIds);
               
-              // Query each child object type separately in the TARGET org
+              // Query each child object type separately in SOURCE org first for comparison
+              const sourceChildCounts = new Map<string, Map<string, number>>(); // sourceParentId -> stepName -> count
+              
               const childObjectQueries = [
                 {
                   stepName: 'interpretationBreakpointLeaveHeader',
@@ -477,6 +518,60 @@ export async function POST(
                 }
               ];
 
+              // First, query SOURCE org for baseline comparison
+              console.log('🔍 DEBUGGING: === QUERYING SOURCE ORG ===');
+              for (const queryConfig of childObjectQueries) {
+                const sourceQuery = `
+                  SELECT ${queryConfig.parentField}, COUNT(Id) 
+                  FROM ${queryConfig.objectType} 
+                  WHERE ${queryConfig.parentField} IN (${selectedSourceIdsStr}) 
+                  AND ${queryConfig.whereClause}
+                  GROUP BY ${queryConfig.parentField}
+                `;
+                
+                console.log(`🔍 DEBUGGING: SOURCE ${queryConfig.stepName}: ${sourceQuery}`);
+                
+                try {
+                  const result = await sourceClient.query(sourceQuery);
+                  
+                  if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+                    result.data.forEach((record: any) => {
+                      const sourceParentId = record[queryConfig.parentField];
+                      const count = record.expr0 || 0;
+                      
+                      if (!sourceParentId || count === undefined) {
+                        console.warn(`Unexpected record structure for SOURCE ${queryConfig.stepName}:`, record);
+                        return;
+                      }
+                      
+                      if (!sourceChildCounts.has(sourceParentId)) {
+                        sourceChildCounts.set(sourceParentId, new Map());
+                      }
+                      sourceChildCounts.get(sourceParentId)!.set(queryConfig.stepName, count);
+                      
+                      console.log(`🔍 DEBUGGING: SOURCE - Found ${count} ${queryConfig.stepName} records for parent ${sourceParentId}`);
+                    });
+                  } else {
+                    console.log(`🔍 DEBUGGING: SOURCE - No results for ${queryConfig.stepName} query`);
+                  }
+                } catch (error: any) {
+                  console.error(`Error querying SOURCE ${queryConfig.stepName}:`, error);
+                  if (error.message?.includes('No such column') || error.message?.includes('Invalid field')) {
+                    console.error('SOURCE field name issue detected. Query:', sourceQuery);
+                    console.error('SOURCE error details:', error.message);
+                  }
+                }
+              }
+              
+              console.log('🔍 DEBUGGING: SOURCE child counts map:', Object.fromEntries(
+                Array.from(sourceChildCounts.entries()).map(([sourceId, stepCounts]) => [
+                  sourceId, 
+                  Object.fromEntries(stepCounts.entries())
+                ])
+              ));
+
+              // Now query TARGET org and compare
+              console.log('🔍 DEBUGGING: === QUERYING TARGET ORG ===');
               for (const queryConfig of childObjectQueries) {
                 const query = `
                   SELECT ${queryConfig.parentField}, COUNT(Id) 
@@ -486,7 +581,7 @@ export async function POST(
                   GROUP BY ${queryConfig.parentField}
                 `;
                 
-                console.log(`🔍 DEBUGGING: Querying ${queryConfig.stepName}: ${query}`);
+                console.log(`🔍 DEBUGGING: TARGET ${queryConfig.stepName}: ${query}`);
                 
                 try {
                   const result = await targetClient.query(query);
@@ -513,28 +608,47 @@ export async function POST(
                         }
                         actualChildCounts.get(sourceParentId)!.set(queryConfig.stepName, count);
                         
-                        console.log(`🔍 DEBUGGING: Found ${count} ${queryConfig.stepName} records for source parent ${sourceParentId} (target: ${targetParentId})`);
+                        console.log(`🔍 DEBUGGING: TARGET - Found ${count} ${queryConfig.stepName} records for source parent ${sourceParentId} (target: ${targetParentId})`);
                       }
                     });
                   } else {
-                    console.log(`🔍 DEBUGGING: No results for ${queryConfig.stepName} query`);
+                    console.log(`🔍 DEBUGGING: TARGET - No results for ${queryConfig.stepName} query`);
                   }
                 } catch (error: any) {
-                  console.error(`Error querying ${queryConfig.stepName}:`, error);
+                  console.error(`Error querying TARGET ${queryConfig.stepName}:`, error);
                   // Log the specific error message which might indicate field name issues
                   if (error.message?.includes('No such column') || error.message?.includes('Invalid field')) {
-                    console.error('Field name issue detected. Query:', query);
-                    console.error('Error details:', error.message);
+                    console.error('TARGET field name issue detected. Query:', query);
+                    console.error('TARGET error details:', error.message);
                   }
                 }
               }
               
-              console.log('🔍 DEBUGGING: Complete child counts map:', Object.fromEntries(
+              console.log('🔍 DEBUGGING: TARGET child counts map:', Object.fromEntries(
                 Array.from(actualChildCounts.entries()).map(([sourceId, stepCounts]) => [
                   sourceId, 
                   Object.fromEntries(stepCounts.entries())
                 ])
               ));
+
+              // Compare SOURCE vs TARGET counts
+              console.log('🔍 DEBUGGING: === MIGRATION COMPARISON ===');
+              successfulParentIds.forEach(sourceParentId => {
+                const sourceStepCounts = sourceChildCounts.get(sourceParentId);
+                const targetStepCounts = actualChildCounts.get(sourceParentId);
+                
+                if (sourceStepCounts && targetStepCounts) {
+                  console.log(`🔍 DEBUGGING: Parent ${sourceParentId} comparison:`);
+                  childObjectQueries.forEach(queryConfig => {
+                    const sourceCount = sourceStepCounts.get(queryConfig.stepName) || 0;
+                    const targetCount = targetStepCounts.get(queryConfig.stepName) || 0;
+                    const match = sourceCount === targetCount ? '✅' : '❌';
+                    console.log(`🔍   ${queryConfig.stepName}: SOURCE=${sourceCount} → TARGET=${targetCount} ${match}`);
+                  });
+                } else {
+                  console.log(`🔍 DEBUGGING: Missing counts for parent ${sourceParentId} - SOURCE:${!!sourceStepCounts} TARGET:${!!targetStepCounts}`);
+                }
+              });
             } catch (error) {
               console.error('Error querying child record counts:', error);
             }
@@ -571,11 +685,16 @@ export async function POST(
                   const record = recordResults.get(sourceId)!;
                   record.targetId = targetId;
                   // Ensure we have a valid instance URL and construct the full Salesforce record URL
-                  const instanceUrl = targetOrg.instanceUrl || targetOrg.instance_url;
-                  if (instanceUrl) {
+                  // Prefer camelCase property (from ExecutionContext) over snake_case (from database)
+                  const instanceUrl = targetOrg.instanceUrl;
+                  if (instanceUrl && instanceUrl !== 'undefined') {
                     record.targetUrl = `${instanceUrl}/${targetId}`;
                   } else {
-                    console.warn('Target organisation instanceUrl is undefined:', targetOrg);
+                    console.warn('Target organisation instanceUrl is undefined or invalid:', {
+                      instanceUrl: targetOrg.instanceUrl,
+                      instance_url: targetOrg.instance_url,
+                      targetOrgKeys: Object.keys(targetOrg)
+                    });
                     record.targetUrl = undefined;
                   }
                 }

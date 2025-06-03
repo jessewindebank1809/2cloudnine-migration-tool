@@ -91,6 +91,8 @@ export default function OrganisationsPage() {
         return 'You are not authorised to perform this action. Please sign in again.';
       case 'oauth_init_failed':
         return 'Failed to initiate OAuth authentication. Please try again.';
+      case 'org_not_connected':
+        return 'This organisation is not properly connected to Salesforce. Please reconnect to fix this issue.';
       default:
         return 'An unknown error occurred during authentication.';
     }
@@ -108,11 +110,23 @@ export default function OrganisationsPage() {
   // Check for reconnect parameter to auto-trigger reconnection
   useEffect(() => {
     const reconnectOrgId = searchParams.get('reconnect');
+    const errorOrgId = searchParams.get('orgId');
+    const error = searchParams.get('error');
+    
     if (reconnectOrgId && data?.organisations) {
       const orgToReconnect = data.organisations.find((org: Organisation) => org.id === reconnectOrgId);
       if (orgToReconnect) {
         console.log(`Auto-reconnecting organisation: ${orgToReconnect.name}`);
         handleReconnect(orgToReconnect);
+      }
+    }
+    
+    // Handle org_not_connected error by auto-triggering reconnection
+    if (error === 'org_not_connected' && errorOrgId && data?.organisations) {
+      const orgToReconnect = data.organisations.find((org: Organisation) => org.id === errorOrgId);
+      if (orgToReconnect) {
+        console.log(`Organisation not connected, auto-reconnecting: ${orgToReconnect.name}`);
+        handleReconnectForDisconnectedOrg(orgToReconnect);
       }
     }
   }, [searchParams, data]);
@@ -155,6 +169,16 @@ export default function OrganisationsPage() {
   const handleReconnect = async (org: Organisation) => {
     // Trigger the OAuth flow for the selected organisation
     const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}`;
+    window.location.href = oauthUrl;
+  };
+
+  const handleReconnectForDisconnectedOrg = async (org: Organisation) => {
+    // For disconnected orgs, use default URLs based on org type since instance_url might be null
+    const defaultInstanceUrl = org.org_type === 'PRODUCTION' 
+      ? 'https://login.salesforce.com'
+      : 'https://test.salesforce.com';
+    
+    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(defaultInstanceUrl)}`;
     window.location.href = oauthUrl;
   };
 

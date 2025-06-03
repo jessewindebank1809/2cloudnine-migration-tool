@@ -231,7 +231,9 @@ export function MigrationProgressHome({ projectId, onComplete }: MigrationProgre
                           <p className="text-2xl font-semibold">
                             {data.overall.successfulRecords.toLocaleString()}
                           </p>
-                          <p className="text-xs text-muted-foreground">Successful</p>
+                          <p className="text-xs text-muted-foreground">
+                            {isFailed && data.overall.successfulRecords === 0 ? 'Remaining' : 'Successful'}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -265,6 +267,16 @@ export function MigrationProgressHome({ projectId, onComplete }: MigrationProgre
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Rollback Indicator for Failed Migrations */}
+                {isFailed && data.overall.successfulRecords === 0 && data.overall.failedRecords > 0 && (
+                  <Alert variant="destructive" className="mt-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Migration failed and any successfully created records have been automatically rolled back to maintain data integrity.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </>
             )}
           </div>
