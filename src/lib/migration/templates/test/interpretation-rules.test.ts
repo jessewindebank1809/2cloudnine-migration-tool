@@ -263,15 +263,14 @@ export async function testCrossEnvironmentExternalIdHandling(): Promise<{
             errors.push("Cross-environment query should include source external ID field");
         }
         
-        // Should include all possible external ID fields for relationships
-        if (!crossEnvQuery.includes("tc9_et__Pay_Code__r.tc9_edc__External_ID_Data_Creation__c")) {
-            errors.push("Cross-environment query should include managed external ID field for relationships");
-        }
+        // Should replace relationship field placeholders with source external ID field only
         if (!crossEnvQuery.includes("tc9_et__Pay_Code__r.External_ID_Data_Creation__c")) {
-            errors.push("Cross-environment query should include unmanaged external ID field for relationships");
+            errors.push("Cross-environment query should use source external ID field for relationships");
         }
-        if (!crossEnvQuery.includes("tc9_et__Pay_Code__r.External_Id__c")) {
-            errors.push("Cross-environment query should include fallback external ID field for relationships");
+        
+        // Should NOT include the multiple external ID field approach (this was the bug)
+        if (crossEnvQuery.includes("tc9_edc__External_ID_Data_Creation__c, tc9_et__Pay_Code__r.External_ID_Data_Creation__c, tc9_et__Pay_Code__r.External_Id__c")) {
+            errors.push("Cross-environment query should not include multiple external ID field variations (this was the bug)");
         }
 
         console.log("Cross-environment query:", crossEnvQuery);

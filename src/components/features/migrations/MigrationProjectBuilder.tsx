@@ -168,7 +168,7 @@ export function MigrationProjectBuilder() {
       // If validation passes completely, skip to migration
       if (validation.isValid && !validation.hasWarnings) {
         try {
-          setCurrentStep('view-results'); // Show migration progress
+          // Don't change step here - createProject will handle moving to view-results
           await handleCreate();
         } catch (error) {
           console.error('Auto-migration after validation failed:', error);
@@ -211,6 +211,8 @@ export function MigrationProjectBuilder() {
     },
     onSuccess: async (data) => {
       setCreatedMigrationId(data.id);
+      // Move to view-results to show migration progress
+      setCurrentStep('view-results');
       // Automatically execute the migration after project creation
       try {
         setCurrentOperation('migrating');
@@ -218,7 +220,6 @@ export function MigrationProjectBuilder() {
       } catch (error) {
         // Error will be handled by the executeMigration mutation's error handling
         console.error('Migration execution failed:', error);
-        setCurrentStep('view-results'); // Show error details on the results page
         setCurrentOperation('idle');
       }
     },

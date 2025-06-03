@@ -25,6 +25,11 @@ export function AppNavigation({ children }: AppNavigationProps) {
     ? window.location.hostname.includes('staging')
     : process.env.FLY_APP_NAME?.includes('staging');
 
+  // Detect if we're in local development environment
+  const isLocal = typeof window !== 'undefined'
+    ? window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    : process.env.NODE_ENV === 'development';
+
   // Navigation items configuration
   const navItems = [
     { id: 'home', label: 'Home', href: '/home' },
@@ -132,7 +137,7 @@ export function AppNavigation({ children }: AppNavigationProps) {
               />
             </div>
             <span className="font-bold text-xl text-white">
-              Migration Tool{isStaging && ' (Staging)'}
+              Migration Tool{isLocal && ' (Local)'}{isStaging && ' (Staging)'}
             </span>
           </div>
           <nav className="flex items-center space-x-1">

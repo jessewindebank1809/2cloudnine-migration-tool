@@ -324,31 +324,16 @@ export class ExternalIdUtils {
     }
 
     /**
-     * Build cross-environment SOQL query with all possible external ID fields
+     * Build cross-environment SOQL query with the specified external ID field
      */
     static buildCrossEnvironmentQuery(
         baseQuery: string,
         sourceExternalIdField: string,
         targetExternalIdField?: string,
     ): string {
-        // First handle relationship fields that still have placeholders
-        let query = baseQuery;
-        
-        // For relationship fields with placeholders, add all possible external ID fields
-        const relationshipPattern = /(\w+__r)\.{externalIdField}/g;
-        query = query.replace(relationshipPattern, (match, relationshipName) => {
-            const fields = [
-                `${relationshipName}.${this.MANAGED_FIELD}`,
-                `${relationshipName}.${this.UNMANAGED_FIELD}`,
-                `${relationshipName}.${this.FALLBACK_FIELD}`,
-            ];
-            return fields.join(', ');
-        });
-        
-        // Then replace remaining {externalIdField} placeholders with actual source field
-        query = this.replaceExternalIdPlaceholders(query, sourceExternalIdField);
-
-        return query;
+        // Simply replace all {externalIdField} placeholders with the source external ID field
+        // We don't need to add all possible external ID fields - we should use the detected one
+        return this.replaceExternalIdPlaceholders(baseQuery, sourceExternalIdField);
     }
 
     /**

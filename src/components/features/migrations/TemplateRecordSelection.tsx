@@ -73,7 +73,7 @@ export function TemplateRecordSelection({
     if (JSON.stringify(currentSelectedArray) !== JSON.stringify(newSelectedArray)) {
       setSelectedIds(new Set(selectedRecords));
     }
-  }, [selectedRecords, selectedIds]);
+  }, [selectedRecords]);
 
   // Fetch template data to get primary object type
   const { data: templateData } = useQuery({

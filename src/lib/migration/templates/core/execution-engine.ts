@@ -493,8 +493,30 @@ export class ExecutionEngine {
         // Use consistent external ID fields for lookups
         
         for (const lookupMapping of step.transformConfig.lookupMappings) {
-          const sourceField = lookupMapping.sourceField.replace(/{externalIdField}/g, sourceExternalIdField);
-          const sourceValue = this.getNestedValue(record, sourceField);
+          let sourceField = lookupMapping.sourceField.replace(/{externalIdField}/g, sourceExternalIdField);
+          let sourceValue = this.getNestedValue(record, sourceField);
+          
+          // For cross-environment scenarios with relationship fields, try all possible external ID fields
+          if (context.externalIdConfig?.strategy === 'cross-environment' && 
+              lookupMapping.sourceField.includes('__r.{externalIdField}')) {
+            
+            // Try to get the value using the resolved field first
+            const relationshipBaseName = lookupMapping.sourceField.replace('.{externalIdField}', '');
+            
+            // If the resolved field returned null, try other possible external ID fields
+            if (!sourceValue) {
+              const possibleFields = ExternalIdUtils.getAllPossibleExternalIdFields();
+              for (const possibleField of possibleFields) {
+                const testField = `${relationshipBaseName}.${possibleField}`;
+                const testValue = this.getNestedValue(record, testField);
+                if (testValue) {
+                  sourceField = testField;
+                  sourceValue = testValue;
+                  break;
+                }
+              }
+            }
+          }
           
           // Only log details for the first record to avoid spam
           const isFirstRecord = records.indexOf(record) === 0;
@@ -746,80 +768,110 @@ export class ExecutionEngine {
         console.log(`      Is interpretation breakpoint related: ${isBreakpointLookup}`);
         console.log(`      Cross-environment strategy: ${context.externalIdConfig?.strategy}`);
         
-        // First, get the external ID from the source record using the source ID
+        // Determine if sourceValue is already an external ID or needs to be resolved
+        // If sourceField contains relationship syntax like "tc9_et__Pay_Code__r.{externalIdField}",
+        // then sourceValue should already be the external ID value
+        const isDirectExternalId = mapping.sourceField.includes('__r.{externalIdField}') || 
+                                  mapping.sourceField.includes('__r.' + sourceExternalIdField) ||
+                                  mapping.sourceField.includes('__r.' + targetExternalIdField);
+        
         let externalId = sourceValue;
         
-        // For cross-environment scenarios, always try to get the external ID from source
-        if (context.externalIdConfig?.strategy === 'cross-environment' || isBreakpointLookup) {
-          console.log(`      Using cross-environment lookup resolution`);
-          
-          // For cross-environment migrations, we need to be smarter about which field to use
-          // Source org may use unmanaged field while target uses managed field
-          let sourceFieldToUse = sourceExternalIdField;
-          
-          // If we're in a cross-environment scenario, detect the actual field that exists
-          if (context.externalIdConfig?.crossEnvironmentMapping) {
-            const { sourcePackageType } = context.externalIdConfig.crossEnvironmentMapping;
+        console.log(`      Source field pattern: ${mapping.sourceField}`);
+        console.log(`      Is direct external ID: ${isDirectExternalId}`);
+        
+        if (!isDirectExternalId) {
+          // sourceValue is a record ID, need to get the external ID from source record
+          console.log(`      Need to resolve record ID to external ID`);
+        
+          // For cross-environment scenarios, always try to get the external ID from source
+          if (context.externalIdConfig?.strategy === 'cross-environment' || isBreakpointLookup) {
+            console.log(`      Using cross-environment lookup resolution`);
             
-            if (sourcePackageType === 'unmanaged') {
-              sourceFieldToUse = 'External_ID_Data_Creation__c';
-            } else if (sourcePackageType === 'managed') {
-              sourceFieldToUse = 'tc9_edc__External_ID_Data_Creation__c';
-            }
+            // For cross-environment migrations, we need to be smarter about which field to use
+            // Source org may use unmanaged field while target uses managed field
+            let sourceFieldToUse = sourceExternalIdField;
             
-            console.log(`      Adjusted source field for ${sourcePackageType} source: ${sourceFieldToUse}`);
-          }
-          
-          // Try to get external ID from source using detected field first, then fallback
-          const possibleFields = [
-            sourceFieldToUse,
-            ...ExternalIdUtils.getAllPossibleExternalIdFields().filter(field => field !== sourceFieldToUse)
-          ];
-
-          let sourceResult = null;
-          for (const field of possibleFields) {
-            try {
-              const sourceQuery = `SELECT ${field} FROM ${mapping.lookupObject} WHERE Id = '${sourceValue}' LIMIT 1`;
-              console.log(`      Trying source query: ${sourceQuery}`);
-              sourceResult = await this.sourceClient!.query(sourceQuery);
+            // If we're in a cross-environment scenario, detect the actual field that exists
+            if (context.externalIdConfig?.crossEnvironmentMapping) {
+              const { sourcePackageType } = context.externalIdConfig.crossEnvironmentMapping;
               
-              if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0 && sourceResult.data[0][field]) {
-                externalId = sourceResult.data[0][field];
-                console.log(`      ✓ Found external ID using field ${field}: ${externalId}`);
-                
-                // If using non-preferred field, log a warning for interpretation breakpoint related objects
-                if (field !== sourceFieldToUse && isBreakpointLookup) {
-                  console.warn(`      Using fallback external ID field ${field} instead of configured ${sourceFieldToUse} for ${mapping.lookupObject}`);
-                }
-                break;
-              } else {
-                console.log(`      ✗ No data found with field ${field}`);
+              if (sourcePackageType === 'unmanaged') {
+                sourceFieldToUse = 'External_ID_Data_Creation__c';
+              } else if (sourcePackageType === 'managed') {
+                sourceFieldToUse = 'tc9_edc__External_ID_Data_Creation__c';
               }
-            } catch (error) {
-              console.log(`      ✗ Query failed with field ${field}: ${error}`);
-              // Continue to next field if this one fails
-              continue;
+              
+              console.log(`      Adjusted source field for ${sourcePackageType} source: ${sourceFieldToUse}`);
             }
-          }
-          
-          // If no external ID found, use source ID directly but log warning for critical objects
-          if (!externalId || externalId === sourceValue) {
-            if (isBreakpointLookup) {
-              console.warn(`WARNING: No external ID found for ${mapping.lookupObject} record ${sourceValue}. This may cause issues in cross-environment migration.`);
+            
+            // Try to get external ID from source using detected field first, then fallback
+            const possibleFields = [
+              sourceFieldToUse,
+              ...ExternalIdUtils.getAllPossibleExternalIdFields().filter(field => field !== sourceFieldToUse)
+            ];
+
+            let sourceResult = null;
+            for (const field of possibleFields) {
+              try {
+                const sourceQuery = `SELECT ${field} FROM ${mapping.lookupObject} WHERE Id = '${sourceValue}' LIMIT 1`;
+                console.log(`      Trying source query: ${sourceQuery}`);
+                sourceResult = await this.sourceClient!.query(sourceQuery);
+                
+                if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0 && sourceResult.data[0][field]) {
+                  externalId = sourceResult.data[0][field];
+                  console.log(`      ✓ Found external ID using field ${field}: ${externalId}`);
+                  
+                  // If using non-preferred field, log a warning for interpretation breakpoint related objects
+                  if (field !== sourceFieldToUse && isBreakpointLookup) {
+                    console.warn(`      Using fallback external ID field ${field} instead of configured ${sourceFieldToUse} for ${mapping.lookupObject}`);
+                  }
+                  break;
+                } else {
+                  console.log(`      ✗ No data found with field ${field}`);
+                }
+              } catch (error) {
+                console.log(`      ✗ Query failed with field ${field}: ${error}`);
+                // Continue to next field if this one fails
+                continue;
+              }
             }
-            externalId = sourceValue;
+            
+            // Check if we found a valid external ID
+            if (!externalId) {
+              if (isBreakpointLookup) {
+                console.error(`CRITICAL: No external ID found for ${mapping.lookupObject} record ${sourceValue}. Cross-environment migration cannot proceed without external IDs.`);
+              } else {
+                console.warn(`WARNING: No external ID found for ${mapping.lookupObject} record ${sourceValue}. This may cause lookup failures in cross-environment migration.`);
+              }
+              
+              // For cross-environment scenarios, do not fallback to source ID as it will never match
+              if (context.externalIdConfig?.strategy === 'cross-environment') {
+                console.error(`Cross-environment migration detected but no external ID available for ${mapping.lookupObject} record ${sourceValue}. Lookup will fail.`);
+                return null;
+              }
+              
+              // Only use source ID for same-environment migrations
+              externalId = sourceValue;
+            } else if (externalId === sourceValue) {
+              // External ID field contains the source record ID - this is acceptable for cross-environment migration
+              console.log(`      External ID field contains source record ID - using for cross-environment lookup: ${externalId}`);
+            }
+          } else {
+            // Same environment - try configured external ID field first, then fallback
+            const sourceQuery = `SELECT ${sourceExternalIdField} FROM ${mapping.lookupObject} WHERE Id = '${sourceValue}' LIMIT 1`;
+            const sourceResult = await this.sourceClient!.query(sourceQuery);
+            
+            if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0) {
+              externalId = sourceResult.data[0][sourceExternalIdField] || sourceValue;
+            } else if (sourceResult.error?.includes('No such column') && sourceResult.error?.includes(sourceExternalIdField)) {
+              console.warn(`External ID field ${sourceExternalIdField} not found on ${mapping.lookupObject}, using source ID directly`);
+              externalId = sourceValue;
+            }
           }
         } else {
-          // Same environment - try configured external ID field first, then fallback
-          const sourceQuery = `SELECT ${sourceExternalIdField} FROM ${mapping.lookupObject} WHERE Id = '${sourceValue}' LIMIT 1`;
-          const sourceResult = await this.sourceClient!.query(sourceQuery);
-          
-          if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0) {
-            externalId = sourceResult.data[0][sourceExternalIdField] || sourceValue;
-          } else if (sourceResult.error?.includes('No such column') && sourceResult.error?.includes(sourceExternalIdField)) {
-            console.warn(`External ID field ${sourceExternalIdField} not found on ${mapping.lookupObject}, using source ID directly`);
-            externalId = sourceValue;
-          }
+          // sourceValue is already an external ID, use it directly
+          console.log(`      Using source value as direct external ID: ${externalId}`);
         }
         
         if (externalId) {
