@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Use edge runtime for maximum performance
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-export async function GET(_: NextRequest) {
+export async function GET() {
   // Simple health check without database connectivity  
   const health = {
     status: 'healthy',

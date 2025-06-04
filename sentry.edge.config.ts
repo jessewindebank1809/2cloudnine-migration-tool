@@ -5,15 +5,34 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+// Environment detection utility
+function getEnvironment(): 'local' | 'staging' | 'production' {
+  // For local development
+  if (process.env.NODE_ENV === 'development') {
+    return 'local';
+  }
+  
+  // For deployed environments, check Fly app name
+  const flyAppName = process.env.FLY_APP_NAME;
+  if (flyAppName?.includes('staging')) {
+    return 'staging';
+  }
+  
+  // Default to production for deployed environments
+  return 'production';
+}
+
+const environment = getEnvironment();
+
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1,
+  tracesSampleRate: environment === 'production' ? 0.1 : 1,
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: process.env.NODE_ENV === 'development',
+  debug: environment === 'local',
 
   // Environment-specific configuration
-  environment: process.env.NODE_ENV || 'development',
+  environment,
 });

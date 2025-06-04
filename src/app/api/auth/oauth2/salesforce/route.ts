@@ -51,18 +51,37 @@ export async function GET(request: NextRequest) {
       userId: organisation.user_id,
     });
 
+    // Determine org type and credentials first
+    const orgType = organisation.org_type;
+
+    console.log('🔵 OAuth Initiation - Instance URL resolution:', {
+      fromParameter: instanceUrl,
+      fromOrganisation: organisation.instance_url,
+    });
+
+    // If organisation's instance_url is null/undefined, force reconnection
+    if (!organisation.instance_url || organisation.instance_url === 'undefined') {
+      console.log('⚠️ OAuth Initiation - Organisation not properly connected, forcing reconnect');
+      if (background) {
+        return NextResponse.json({ 
+          error: 'Organisation not connected', 
+          requiresReconnect: true,
+          orgId: orgId 
+        }, { status: 400 });
+      }
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=org_not_connected&orgId=${encodeURIComponent(orgId)}`);
+    }
+
     // Use instanceUrl from parameter or fall back to organisation's instance URL
     const targetInstanceUrl = instanceUrl || organisation.instance_url;
 
     if (!targetInstanceUrl) {
+      console.log('❌ OAuth Initiation - No valid instance URL provided');
       if (background) {
         return NextResponse.json({ error: 'Instance URL not available' }, { status: 400 });
       }
       return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=missing_params`);
     }
-
-    // Determine org type and credentials
-    const orgType = organisation.org_type;
     const clientId = orgType === 'PRODUCTION' 
       ? process.env.SALESFORCE_PRODUCTION_CLIENT_ID!
       : process.env.SALESFORCE_SANDBOX_CLIENT_ID!;

@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
-import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,9 +25,9 @@ import { DetailedMigrationResults } from './DetailedMigrationResults';
 interface Organisation {
   id: string;
   name: string;
-  orgType: 'PRODUCTION' | 'SANDBOX' | 'SCRATCH';
-  instanceUrl: string;
-  salesforceOrgId: string | null;
+  org_type: 'PRODUCTION' | 'SANDBOX' | 'SCRATCH';
+  instance_url: string;
+  salesforce_org_id: string | null;
 }
 
 interface MigrationTemplate {
@@ -111,13 +111,31 @@ export function MigrationProjectBuilder() {
   });
 
   // Fetch available templates
-  const { data: templatesData, isLoading: templatesLoading } = useQuery({
+  const { data: templatesData, isLoading: templatesLoading, error: templatesError, refetch: refetchTemplates } = useQuery({
     queryKey: ['templates'],
-    queryFn: async () => {
-      const result = await apiCall<any>(() => fetch('/api/templates'));
+    queryFn: async (): Promise<{ templates: MigrationTemplate[] }> => {
+      const result = await apiCall<{ templates: MigrationTemplate[] }>(() => fetch('/api/templates'));
       if (!result) throw new Error('Failed to fetch templates');
+      
+      // Additional validation to ensure templates are actually loaded
+      if (!result.templates || result.templates.length === 0) {
+        console.warn('Templates API returned empty or no templates array, retrying...');
+        throw new Error('No templates available - registry may still be loading');
+      }
+      
       return result;
     },
+    retry: (failureCount, error) => {
+      // Retry up to 3 times for empty templates (likely due to timing issues)
+      if (failureCount < 3 && error.message.includes('registry may still be loading')) {
+        return true;
+      }
+      // Standard retry logic for other errors
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Exponential backoff: 1s, 2s, 3s
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Set default template to interpretation rules when templates load
@@ -160,27 +178,33 @@ export function MigrationProjectBuilder() {
       return response.json();
     },
     onSuccess: async (data) => {
-      if (!data) return; // Skip if we redirected
-      
-      const validation = data.validation as ValidationResult;
-      setValidationResult(validation);
-      
-      // If validation passes completely, skip to migration
-      if (validation.isValid && !validation.hasWarnings) {
-        try {
-          setCurrentStep('view-results'); // Show migration progress
-          await handleCreate();
-        } catch (error) {
-          console.error('Auto-migration after validation failed:', error);
+      try {
+        if (!data) return; // Skip if we redirected
+        
+        const validation = data.validation as ValidationResult;
+        setValidationResult(validation);
+        
+        // If validation passes completely, skip to migration
+        if (validation.isValid && !validation.hasWarnings) {
+          try {
+            // Don't change step here - createProject will handle moving to view-results
+            await handleCreate();
+          } catch (error) {
+            console.error('Auto-migration after validation failed:', error);
+            setCurrentOperation('idle');
+          }
+        } else {
+          // Show validation review step
+          setCurrentStep('validation-review');
           setCurrentOperation('idle');
         }
-      } else {
-        // Show validation review step
-        setCurrentStep('validation-review');
+      } catch (error) {
+        console.error('Error in validation success handler:', error);
         setCurrentOperation('idle');
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Validation error:', error);
       setCurrentOperation('idle');
     },
   });
@@ -210,19 +234,27 @@ export function MigrationProjectBuilder() {
       return response.json();
     },
     onSuccess: async (data) => {
-      setCreatedMigrationId(data.id);
-      // Automatically execute the migration after project creation
       try {
-        setCurrentOperation('migrating');
-        await executeMigration.mutateAsync(data.id);
+        setCreatedMigrationId(data.id);
+        // Move to view-results to show migration progress
+        setCurrentStep('view-results');
+        // Automatically execute the migration after project creation
+        try {
+          setCurrentOperation('migrating');
+          await executeMigration.mutateAsync(data.id);
+        } catch (error) {
+          // Error will be handled by the executeMigration mutation's error handling
+          console.error('Migration execution failed:', error);
+          setCurrentOperation('idle');
+        }
       } catch (error) {
-        // Error will be handled by the executeMigration mutation's error handling
-        console.error('Migration execution failed:', error);
+        console.error('Error in create project success handler:', error);
         setCurrentStep('view-results'); // Show error details on the results page
         setCurrentOperation('idle');
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Create project error:', error);
       setCurrentStep('view-results'); // Show error details on the results page
       setCurrentOperation('idle');
     },
@@ -264,12 +296,19 @@ export function MigrationProjectBuilder() {
       return responseData;
     },
     onSuccess: (data) => {
-      if (data) { // Only proceed if we didn't redirect
-        setCurrentStep('view-results');
+      try {
+        if (data) { // Only proceed if we didn't redirect
+          setCurrentStep('view-results');
+          setCurrentOperation('idle');
+        }
+      } catch (error) {
+        console.error('Error in execute migration success handler:', error);
+        setCurrentStep('view-results'); // Show error details on the results page
         setCurrentOperation('idle');
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Execute migration error:', error);
       setCurrentStep('view-results'); // Show error details on the results page
       setCurrentOperation('idle');
     },
@@ -323,7 +362,7 @@ export function MigrationProjectBuilder() {
   };
 
   const connectedOrgs = orgsData?.organisations?.filter(
-    (org: Organisation) => org.salesforceOrgId !== null
+    (org: Organisation) => org.salesforce_org_id !== null
   ) || [];
 
   const templates = templatesData?.templates || [];
@@ -333,6 +372,48 @@ export function MigrationProjectBuilder() {
   const handleRecordSelectionChange = useCallback((selectedRecords: string[]) => {
     setProjectData(prev => ({ ...prev, selectedRecords }));
   }, []);
+
+  // Helper function to check if there are connection-related errors
+  const hasConnectionErrors = (issues: ValidationIssue[]) => {
+    return issues.some(issue => 
+      issue.id === 'source-connectivity' || 
+      issue.id === 'target-connectivity' ||
+      issue.title.includes('Connection Failed')
+    );
+  };
+
+  // Get the failed organisation details for reconnection
+  const getFailedOrgDetails = (issues: ValidationIssue[]) => {
+    const sourceConnError = issues.find(issue => issue.id === 'source-connectivity');
+    const targetConnError = issues.find(issue => issue.id === 'target-connectivity');
+    
+    if (sourceConnError) {
+      const sourceOrg = connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId);
+      return sourceOrg;
+    }
+    
+    if (targetConnError) {
+      const targetOrg = connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId);
+      return targetOrg;
+    }
+    
+    return null;
+  };
+
+  // Handle reconnection - directly trigger OAuth flow
+  const handleReconnectOrgs = () => {
+    if (!validationResult) return;
+    
+    const failedOrg = getFailedOrgDetails(validationResult.issues);
+    if (!failedOrg) {
+      console.error('No failed organisation found for reconnection');
+      return;
+    }
+    
+    // Trigger the OAuth flow for the failed organisation
+    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}`;
+    window.location.href = oauthUrl;
+  };
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -404,10 +485,7 @@ export function MigrationProjectBuilder() {
                         <SelectContent>
                           {connectedOrgs.map((org: Organisation) => (
                             <SelectItem key={org.id} value={org.id}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{org.name}</span>
-                                <span className="text-xs text-muted-foreground">{org.instanceUrl}</span>
-                              </div>
+                              <span className="font-medium">{org.name}</span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -433,10 +511,7 @@ export function MigrationProjectBuilder() {
                             .filter((org: Organisation) => org.id !== projectData.sourceOrgId)
                             .map((org: Organisation) => (
                               <SelectItem key={org.id} value={org.id}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{org.name}</span>
-                                  <span className="text-xs text-muted-foreground">{org.instanceUrl}</span>
-                                </div>
+                                <span className="font-medium">{org.name}</span>
                               </SelectItem>
                             ))}
                         </SelectContent>
@@ -445,28 +520,60 @@ export function MigrationProjectBuilder() {
                   </div>
                   <div>
                     <Label htmlFor="template">Migration Template *</Label>
-                    <Select
-                      value={projectData.templateId}
-                      onValueChange={(value: string) =>
-                        setProjectData({ ...projectData, templateId: value })
-                      }
-                      required
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select a migration template" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {templatesLoading ? (
-                          <SelectItem value="loading" disabled>Loading ...</SelectItem>
-                        ) : (
-                          templates.map((template: MigrationTemplate) => (
-                            <SelectItem key={template.id} value={template.id}>
-                              {template.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select
+                        value={projectData.templateId}
+                        onValueChange={(value: string) =>
+                          setProjectData({ ...projectData, templateId: value })
+                        }
+                        required
+                        disabled={templatesLoading}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder={
+                            templatesLoading 
+                              ? "Loading templates..." 
+                              : templatesError 
+                              ? "Failed to load templates"
+                              : templates.length === 0
+                              ? "No templates available"
+                              : "Select a migration template"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {templatesLoading ? (
+                            <SelectItem value="loading" disabled>Loading ...</SelectItem>
+                          ) : templatesError ? (
+                            <SelectItem value="error" disabled>Failed to load templates</SelectItem>
+                          ) : templates.length === 0 ? (
+                            <SelectItem value="empty" disabled>No templates available</SelectItem>
+                          ) : (
+                            templates.map((template: MigrationTemplate) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {(templatesError || (templates.length === 0 && !templatesLoading)) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-1"
+                          onClick={() => refetchTemplates()}
+                          disabled={templatesLoading}
+                        >
+                          <RefreshCw className={`h-4 w-4 ${templatesLoading ? 'animate-spin' : ''}`} />
+                        </Button>
+                      )}
+                    </div>
+                    {templatesError && (
+                      <p className="text-sm text-destructive mt-1">
+                        Unable to load templates. Click the refresh button to try again.
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -659,7 +766,19 @@ export function MigrationProjectBuilder() {
                   {/* Issues List */}
                   {validationResult.issues.length > 0 && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Validation Issues</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">Validation Issues</h3>
+                        {hasConnectionErrors(validationResult.issues) && (
+                          <Button 
+                            variant="outline" 
+                            onClick={handleReconnectOrgs}
+                            className="flex items-center gap-2"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            Reconnect Failed Org
+                          </Button>
+                        )}
+                      </div>
                       {validationResult.issues.map((issue) => (
                         <Alert 
                           key={issue.id} 
@@ -1001,12 +1120,21 @@ export function MigrationProjectBuilder() {
             )}
             
             {currentStep === 'view-results' && (
-              <Button
-                onClick={() => router.push('/migrations')}
-                variant="outline"
-              >
-                View All Migrations
-              </Button>
+              <>
+
+                <Button
+                  onClick={() => router.push('/migrations')}
+                  variant="outline"
+                >
+                  View All Migrations
+                </Button>
+                <Button
+                  onClick={() => router.push('/migrations/new')}
+                  variant="default"
+                >
+                  New Migration
+                </Button>
+              </>
             )}
             
             {currentStep !== 'record-selection' && currentStep !== 'validation-review' && currentStep !== 'view-results' && (

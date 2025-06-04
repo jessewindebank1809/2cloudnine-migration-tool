@@ -4,6 +4,7 @@ export class ExternalIdUtils {
     private static readonly MANAGED_FIELD = "tc9_edc__External_ID_Data_Creation__c";
     private static readonly UNMANAGED_FIELD = "External_ID_Data_Creation__c";
     private static readonly FALLBACK_FIELD = "External_Id__c";
+    private static readonly PACKAGE_NAMESPACE = "tc9_edc";
 
     /**
      * Auto-detect the appropriate external ID field based on org configuration
@@ -144,11 +145,7 @@ export class ExternalIdUtils {
         orgConnection: any,
     ): Promise<boolean> {
         try {
-            return await this.fieldExists(
-                testObjectApiName,
-                this.MANAGED_FIELD,
-                orgConnection,
-            );
+            return await this.isManagedPackageInstalled(orgConnection);
         } catch (error) {
             console.warn("Failed to determine package type:", error);
             return false;
@@ -170,53 +167,94 @@ export class ExternalIdUtils {
     }
 
     /**
+     * Check if the tc9_edc managed package is installed in the org
+     */
+    static async isManagedPackageInstalled(
+        orgConnection: any,
+    ): Promise<boolean> {
+        try {
+            console.log(`🔍 Checking if managed package '${this.PACKAGE_NAMESPACE}' is installed...`);
+            
+            // Use ApexClass query to detect managed package
+            const packageQuery = `SELECT Id, NamespacePrefix FROM ApexClass WHERE NamespacePrefix = '${this.PACKAGE_NAMESPACE}' LIMIT 1`;
+            const result = await orgConnection.query(packageQuery);
+            
+            // Handle both legacy mock format and real Salesforce API response format
+            const records = result.records || result.data || [];
+            const isInstalled = Boolean(result.success !== false && records && records.length > 0);
+            console.log(`   Package '${this.PACKAGE_NAMESPACE}': ${isInstalled ? '✅ INSTALLED' : '❌ NOT INSTALLED'}`);
+            
+            return isInstalled;
+        } catch (error) {
+            console.log(`   Package detection failed: ${error}`);
+            return false;
+        }
+    }
+
+    /**
      * Detect external ID field information for a specific environment
      */
     static async detectEnvironmentExternalIdInfo(
         objectApiName: string,
         orgConnection: any,
     ): Promise<EnvironmentExternalIdInfo> {
-        const detectedFields: string[] = [];
-        let externalIdField = this.FALLBACK_FIELD;
-        let packageType: "managed" | "unmanaged" = "unmanaged";
-        let fallbackUsed = true;
-
         try {
-            // Check for managed field first
-            if (await this.fieldExists(objectApiName, this.MANAGED_FIELD, orgConnection)) {
-                detectedFields.push(this.MANAGED_FIELD);
-                externalIdField = this.MANAGED_FIELD;
-                packageType = "managed";
-                fallbackUsed = false;
+            console.log(`🔍 Detecting external ID fields for ${objectApiName}...`);
+            
+            // Step 1: Check if managed package is installed
+            const isManagedPackageInstalled = await this.isManagedPackageInstalled(orgConnection);
+            
+            if (isManagedPackageInstalled) {
+                // Package is installed, use managed field
+                console.log(`   📦 Managed package detected - using managed field: ${this.MANAGED_FIELD}`);
+                
+                return {
+                    packageType: "managed",
+                    externalIdField: this.MANAGED_FIELD,
+                    detectedFields: [this.MANAGED_FIELD],
+                    fallbackUsed: false,
+                };
             }
-
-            // Check for unmanaged field
-            if (await this.fieldExists(objectApiName, this.UNMANAGED_FIELD, orgConnection)) {
-                detectedFields.push(this.UNMANAGED_FIELD);
-                if (!detectedFields.includes(this.MANAGED_FIELD)) {
-                    externalIdField = this.UNMANAGED_FIELD;
-                    packageType = "unmanaged";
-                    fallbackUsed = false;
-                }
+            
+            // Step 2: Package not installed, check for unmanaged field
+            console.log(`   📦 No managed package - checking for unmanaged field: ${this.UNMANAGED_FIELD}`);
+            const unmanagedFieldExists = await this.fieldExists(objectApiName, this.UNMANAGED_FIELD, orgConnection);
+            console.log(`   Unmanaged field (${this.UNMANAGED_FIELD}): ${unmanagedFieldExists ? '✅ EXISTS' : '❌ NOT FOUND'}`);
+            
+            if (unmanagedFieldExists) {
+                return {
+                    packageType: "unmanaged",
+                    externalIdField: this.UNMANAGED_FIELD,
+                    detectedFields: [this.UNMANAGED_FIELD],
+                    fallbackUsed: false,
+                };
             }
-
-            // Check for fallback field
-            if (await this.fieldExists(objectApiName, this.FALLBACK_FIELD, orgConnection)) {
-                detectedFields.push(this.FALLBACK_FIELD);
-                if (detectedFields.length === 1) {
-                    externalIdField = this.FALLBACK_FIELD;
-                    fallbackUsed = true;
-                }
+            
+            // Step 3: Check for fallback field
+            console.log(`   📦 No unmanaged field - checking for fallback field: ${this.FALLBACK_FIELD}`);
+            const fallbackFieldExists = await this.fieldExists(objectApiName, this.FALLBACK_FIELD, orgConnection);
+            console.log(`   Fallback field (${this.FALLBACK_FIELD}): ${fallbackFieldExists ? '✅ EXISTS' : '❌ NOT FOUND'}`);
+            
+            if (fallbackFieldExists) {
+                return {
+                    packageType: "unmanaged", // Still unmanaged, just using fallback
+                    externalIdField: this.FALLBACK_FIELD,
+                    detectedFields: [this.FALLBACK_FIELD],
+                    fallbackUsed: true,
+                };
             }
-
+            
+            // Step 4: No fields found - this shouldn't happen but return managed as default
+            console.log(`   ⚠️  No external ID fields found - defaulting to managed`);
             return {
-                packageType,
-                externalIdField,
-                detectedFields,
-                fallbackUsed,
+                packageType: "managed",
+                externalIdField: this.MANAGED_FIELD,
+                detectedFields: [],
+                fallbackUsed: true,
             };
+            
         } catch (error) {
-            console.warn(`Failed to detect external ID info for ${objectApiName}:`, error);
+            console.warn(`💥 Failed to detect external ID info for ${objectApiName}:`, error);
             return {
                 packageType: "managed", // Default assumption
                 externalIdField: this.MANAGED_FIELD,
@@ -324,28 +362,16 @@ export class ExternalIdUtils {
     }
 
     /**
-     * Build cross-environment SOQL query with all possible external ID fields
+     * Build cross-environment SOQL query with the specified external ID field
      */
     static buildCrossEnvironmentQuery(
         baseQuery: string,
         sourceExternalIdField: string,
         targetExternalIdField?: string,
     ): string {
-        // Replace {externalIdField} with actual source field
-        let query = this.replaceExternalIdPlaceholders(baseQuery, sourceExternalIdField);
-
-        // For relationship fields, add all possible external ID fields to ensure we capture data
-        const relationshipPattern = /(\w+__r)\.{externalIdField}/g;
-        query = query.replace(relationshipPattern, (match, relationshipName) => {
-            const fields = [
-                `${relationshipName}.${this.MANAGED_FIELD}`,
-                `${relationshipName}.${this.UNMANAGED_FIELD}`,
-                `${relationshipName}.${this.FALLBACK_FIELD}`,
-            ];
-            return fields.join(', ');
-        });
-
-        return query;
+        // Simply replace all {externalIdField} placeholders with the source external ID field
+        // We don't need to add all possible external ID fields - we should use the detected one
+        return this.replaceExternalIdPlaceholders(baseQuery, sourceExternalIdField);
     }
 
     /**

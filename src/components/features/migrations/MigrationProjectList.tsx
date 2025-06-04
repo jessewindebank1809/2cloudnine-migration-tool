@@ -216,7 +216,9 @@ export function MigrationProjectList() {
               <TableRow key={project.id}>
                 <TableCell>
                   <div>
-                    <div className="font-medium">{project.name}</div>
+                    <Link href={`/migrations/${project.id}`} className="font-medium text-primary hover:underline">
+                      {project.name}
+                    </Link>
                     {project.description && (
                       <div className="text-sm text-muted-foreground line-clamp-1">
                         {project.description}

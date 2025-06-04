@@ -2,16 +2,19 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
 // Salesforce Logo Component
 const SalesforceCloudLogo = ({ className = "h-6 w-6" }: { className?: string }) => (
-  <img 
+  <Image 
     src="/Salesforce_Corporate_Logo_RGB.png" 
     alt="Salesforce" 
     className={className}
+    width={24}
+    height={24}
   />
 );
 
@@ -64,10 +67,12 @@ function SignInContent() {
         <Card className="shadow-2xl border border-gray-200 bg-white overflow-hidden">
           {/* Blue banner with logo */}
           <div className="bg-gradient-to-r from-c9-blue-500 to-c9-blue-600 px-6 py-4 flex items-center">
-            <img 
+            <Image 
               src="/Cloudnine Reversed Standard 2.png" 
               alt="2cloudnine Logo" 
               className="h-8 w-auto"
+              width={120}
+              height={32}
             />
             <span className="ml-3 text-white font-bold text-xl">Migration Tool</span>
           </div>

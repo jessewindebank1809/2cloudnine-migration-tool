@@ -8,7 +8,6 @@ import {
   ExecutionResult, 
   ExecutionProgress,
   LookupMapping,
-  RecordTypeMapping,
   ExternalIdConfig
 } from './interfaces';
 
@@ -47,6 +46,7 @@ export interface StepExecutionResult {
 
 export interface BatchResult {
   batchNumber: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   records: any[];
   successCount: number;
   failureCount: number;
@@ -222,15 +222,6 @@ export class ExecutionEngine {
         // Transform records
         const transformedRecords = await this.transformRecords(batch, step, context);
         
-        // Log complete transformed records with all field mappings and lookups
-        console.log(`\n=== FINAL TRANSFORMED RECORDS (${step.stepName} - Batch ${batchIndex + 1}) ===`);
-        console.log(`Records ready for loading to target org:`);
-        transformedRecords.forEach((record, index) => {
-          console.log(`\nRecord ${index + 1}:`);
-          console.log(JSON.stringify(record, null, 2));
-        });
-        console.log(`=== END TRANSFORMED RECORDS ===\n`);
-        
         // Load records to target
         const batchResult = await this.loadRecords(transformedRecords, step, context, batchIndex + 1);
         
@@ -281,6 +272,7 @@ export class ExecutionEngine {
   /**
    * Extract records for a step
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async extractRecords(step: ETLStep, context: ExecutionContext): Promise<any[]> {
     if (!this.sourceClient) {
       throw new Error('Source client not initialized');
@@ -383,46 +375,26 @@ export class ExecutionEngine {
   /**
    * Transform records according to step configuration
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async transformRecords(records: any[], step: ETLStep, context: ExecutionContext): Promise<any[]> {
     const transformed = [];
     
-    // Log transformation overview
-    const totalFieldMappings = step.transformConfig.fieldMappings.length + (step.transformConfig.lookupMappings?.length || 0);
-    console.log(`\n=== TRANSFORMATION OVERVIEW (${step.stepName}) ===`);
-    console.log(`Transforming ${records.length} records`);
-    console.log(`Field mappings: ${step.transformConfig.fieldMappings.length}`);
-    console.log(`Lookup mappings: ${step.transformConfig.lookupMappings?.length || 0}`);
-    console.log(`Record type mapping: ${step.transformConfig.recordTypeMapping ? 'Yes' : 'No'}`);
+    // Set up external ID fields for consistent use throughout transformation
+    const sourceExternalIdField = context.externalIdConfig?.sourceField || context.externalIdField;
+    const targetExternalIdField = context.externalIdConfig?.targetField || context.externalIdField;
+    const isBreakpointStep = step.stepName.includes('interpretationBreakpoint') || step.loadConfig.targetObject === 'tc9_et__Interpretation_Breakpoint__c';
     
-    // Show all field mappings (direct + lookup) in a single list
-    console.log(`\nField Mappings:`);
-    let fieldIndex = 1;
-    
-    // Show direct field mappings
-    step.transformConfig.fieldMappings.forEach((mapping) => {
-      const sourceField = ExternalIdUtils.replaceExternalIdPlaceholders(mapping.sourceField, context.externalIdField);
-      const targetField = ExternalIdUtils.replaceExternalIdPlaceholders(mapping.targetField, context.externalIdField);
-      const transformType = mapping.transformationType ? ` (${mapping.transformationType})` : '';
-      console.log(`  ${fieldIndex}. ${sourceField} -> ${targetField}${transformType}`);
-      fieldIndex++;
-    });
-    
-    // Show lookup mappings as field mappings
-    if (step.transformConfig.lookupMappings && step.transformConfig.lookupMappings.length > 0) {
-      step.transformConfig.lookupMappings.forEach((mapping) => {
-        const sourceField = mapping.sourceField.replace(/{externalIdField}/g, context.externalIdField);
-        console.log(`  ${fieldIndex}. ${sourceField} -> ${mapping.targetField} (via ${mapping.lookupObject}.${mapping.lookupKeyField})`);
-        fieldIndex++;
-      });
-    }
+
 
     for (const record of records) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const transformedRecord: any = {};
 
       // Apply field mappings
       for (const fieldMapping of step.transformConfig.fieldMappings) {
-        const targetField = ExternalIdUtils.replaceExternalIdPlaceholders(fieldMapping.targetField, context.externalIdField);
-        const sourceField = ExternalIdUtils.replaceExternalIdPlaceholders(fieldMapping.sourceField, context.externalIdField);
+        // Use consistent external ID fields throughout the transformation
+        const targetField = ExternalIdUtils.replaceExternalIdPlaceholders(fieldMapping.targetField, targetExternalIdField);
+        const sourceField = ExternalIdUtils.replaceExternalIdPlaceholders(fieldMapping.sourceField, sourceExternalIdField);
 
         if (sourceField.startsWith('lookup:')) {
           // Handle lookup field
@@ -463,22 +435,32 @@ export class ExecutionEngine {
 
       // Apply lookup mappings
       if (step.transformConfig.lookupMappings) {
-        // Log lookup summary for first record only
-        if (records.indexOf(record) === 0) {
-          console.log(`\n=== LOOKUP TRANSFORMATIONS (${step.stepName}) ===`);
-          console.log(`Processing ${step.transformConfig.lookupMappings.length} lookup mappings for ${records.length} records`);
-          console.log(`\n--- Sample Record Lookup Details ---`);
-        }
+        // Use consistent external ID fields for lookups
         
         for (const lookupMapping of step.transformConfig.lookupMappings) {
-          const sourceField = lookupMapping.sourceField.replace(/{externalIdField}/g, context.externalIdField);
-          const sourceValue = this.getNestedValue(record, sourceField);
+          let sourceField = lookupMapping.sourceField.replace(/{externalIdField}/g, sourceExternalIdField);
+          let sourceValue = this.getNestedValue(record, sourceField);
           
-          // Only log details for the first record to avoid spam
-          const isFirstRecord = records.indexOf(record) === 0;
-          
-          if (isFirstRecord) {
-            console.log(`Lookup ${lookupMapping.targetField}: "${sourceValue}" (from ${sourceField})`);
+          // For cross-environment scenarios with relationship fields, try all possible external ID fields
+          if (context.externalIdConfig?.strategy === 'cross-environment' && 
+              lookupMapping.sourceField.includes('__r.{externalIdField}')) {
+            
+            // Try to get the value using the resolved field first
+            const relationshipBaseName = lookupMapping.sourceField.replace('.{externalIdField}', '');
+            
+            // If the resolved field returned null, try other possible external ID fields
+            if (!sourceValue) {
+              const possibleFields = ExternalIdUtils.getAllPossibleExternalIdFields();
+              for (const possibleField of possibleFields) {
+                const testField = `${relationshipBaseName}.${possibleField}`;
+                const testValue = this.getNestedValue(record, testField);
+                if (testValue) {
+                  sourceField = testField;
+                  sourceValue = testValue;
+                  break;
+                }
+              }
+            }
           }
           
           if (sourceValue) {
@@ -486,23 +468,8 @@ export class ExecutionEngine {
             
             if (targetValue) {
               transformedRecord[lookupMapping.targetField] = targetValue;
-              if (isFirstRecord) {
-                console.log(`  ✓ Resolved to: "${targetValue}"`);
-              }
-            } else {
-              if (isFirstRecord) {
-                console.warn(`  ✗ Failed to resolve: "${sourceValue}" not found in target org`);
-              }
-            }
-          } else {
-            if (isFirstRecord) {
-              console.log(`  ✗ No source value found for field ${sourceField}`);
             }
           }
-        }
-        
-        if (records.indexOf(record) === 0) {
-          console.log(`--- End Sample Record ---\n`);
         }
       }
 
@@ -532,10 +499,18 @@ export class ExecutionEngine {
         }
       }
 
+      // Handle external ID field mapping for cross-environment migrations
       // Only set external ID field if it exists in the source record
       // This prevents trying to insert non-existent fields in the target org
-      if (record.hasOwnProperty(context.externalIdField)) {
-        transformedRecord[context.externalIdField] = record[context.externalIdField];
+      if (record.hasOwnProperty(sourceExternalIdField)) {
+        // For cross-environment migrations, map from source field to target field
+        if (context.externalIdConfig?.strategy === 'cross-environment' && sourceExternalIdField !== targetExternalIdField) {
+          transformedRecord[targetExternalIdField] = record[sourceExternalIdField];
+          console.log(`Cross-environment external ID mapping: ${sourceExternalIdField} -> ${targetExternalIdField}`);
+        } else {
+          // Same environment migration
+          transformedRecord[targetExternalIdField] = record[sourceExternalIdField];
+        }
       }
 
       transformed.push(transformedRecord);
@@ -555,6 +530,7 @@ export class ExecutionEngine {
   /**
    * Get nested value from object using dot notation
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private getNestedValue(obj: any, path: string): any {
     return path.split('.').reduce((current, key) => {
       return current && current[key] !== undefined ? current[key] : null;
@@ -565,6 +541,7 @@ export class ExecutionEngine {
    * Load records to target org
    */
   private async loadRecords(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     records: any[], 
     step: ETLStep, 
     context: ExecutionContext, 
@@ -583,9 +560,16 @@ export class ExecutionEngine {
     try {
       const operation = step.loadConfig.operation;
       const objectType = step.loadConfig.targetObject;
-      const externalIdField = ExternalIdUtils.replaceExternalIdPlaceholders(step.loadConfig.externalIdField, context.externalIdField);
+      
+      // Use target external ID field for cross-environment migrations
+      const targetExternalIdField = context.externalIdConfig?.targetField || context.externalIdField;
+      const externalIdField = ExternalIdUtils.replaceExternalIdPlaceholders(step.loadConfig.externalIdField, targetExternalIdField);
 
       console.log(`Performing ${operation} operation on ${objectType} with external ID field: ${externalIdField}`);
+      console.log(`Cross-environment mapping: ${context.externalIdConfig?.strategy === 'cross-environment' ? 'YES' : 'NO'}`);
+      if (context.externalIdConfig?.strategy === 'cross-environment') {
+        console.log(`Source field: ${context.externalIdConfig.sourceField} -> Target field: ${context.externalIdConfig.targetField}`);
+      }
 
       let result;
       if (operation === 'upsert') {
@@ -604,6 +588,7 @@ export class ExecutionEngine {
         // Check individual record results
         const bulkResults = Array.isArray(result.data) ? result.data : [result.data];
         
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         bulkResults.forEach((recordResult: any, index: number) => {
           if (recordResult.success) {
             successCount++;
@@ -618,14 +603,13 @@ export class ExecutionEngine {
                 objectType,
                 stepName: step.stepName
               });
-              console.log(`Tracked record for rollback: ${targetRecordId} (${objectType})`);
             }
           } else {
             failureCount++;
             // Add error for failed record
             const recordErrors = Array.isArray(recordResult.errors) ? recordResult.errors : [recordResult.errors];
             errors.push({
-              recordId: records[index] ? (records[index][context.externalIdField] || records[index].Id || `batch-${batchNumber}-${index}`) : `batch-${batchNumber}-${index}`,
+              recordId: records[index] ? (records[index][targetExternalIdField] || records[index].Id || `batch-${batchNumber}-${index}`) : `batch-${batchNumber}-${index}`,
               error: recordErrors.join('; ') || 'Unknown error',
               retryable: false
             });
@@ -638,7 +622,7 @@ export class ExecutionEngine {
         console.error(`Load operation failed: ${result.error}`);
         records.forEach((record, index) => {
           errors.push({
-            recordId: record[context.externalIdField] || record.Id || `batch-${batchNumber}-${index}`,
+            recordId: record[targetExternalIdField] || record.Id || `batch-${batchNumber}-${index}`,
             error: result.error || 'Unknown error',
             retryable: false
           });
@@ -648,9 +632,10 @@ export class ExecutionEngine {
     } catch (error) {
       failureCount = records.length;
       console.error(`Load operation threw error:`, error);
+      const targetExternalIdField = context.externalIdConfig?.targetField || context.externalIdField;
       records.forEach((record, index) => {
         errors.push({
-          recordId: record[context.externalIdField] || record.Id || `batch-${batchNumber}-${index}`,
+          recordId: record[targetExternalIdField] || record.Id || `batch-${batchNumber}-${index}`,
           error: error instanceof Error ? error.message : 'Unknown error',
           retryable: false
         });
@@ -672,6 +657,7 @@ export class ExecutionEngine {
    * Resolve lookup field value
    */
   private async resolveLookup(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sourceValue: any, 
     lookupMappings: LookupMapping[], 
     context: ExecutionContext
@@ -690,67 +676,128 @@ export class ExecutionEngine {
     // Query target org for lookup value
     for (const mapping of lookupMappings) {
       try {
-        // Determine source and target external ID fields
-        const sourceExternalIdField = mapping.sourceExternalIdField || 
-                                     context.externalIdConfig?.sourceField || 
-                                     context.externalIdField;
-        const targetExternalIdField = mapping.targetExternalIdField || 
-                                     context.externalIdConfig?.targetField || 
-                                     context.externalIdField;
+        // For consistent external ID handling, always use the configured external ID fields
+        const sourceExternalIdField = context.externalIdConfig?.sourceField || context.externalIdField;
+        const targetExternalIdField = context.externalIdConfig?.targetField || context.externalIdField;
+        const isBreakpointLookup = mapping.lookupObject === 'tc9_et__Interpretation_Breakpoint__c' || 
+                                  mapping.lookupObject === 'tc9_pr__Pay_Code__c' || 
+                                  mapping.lookupObject === 'tc9_pr__Leave_Rule__c';
 
         console.log(`    Resolving lookup for ${mapping.lookupObject}:`);
         console.log(`      Source value: ${sourceValue}`);
         console.log(`      Source external ID field: ${sourceExternalIdField}`);
         console.log(`      Target external ID field: ${targetExternalIdField}`);
+        console.log(`      Is interpretation breakpoint related: ${isBreakpointLookup}`);
+        console.log(`      Cross-environment strategy: ${context.externalIdConfig?.strategy}`);
         
-        // First, get the external ID from the source record using the source ID
+        // Determine if sourceValue is already an external ID or needs to be resolved
+        // If sourceField contains relationship syntax like "tc9_et__Pay_Code__r.{externalIdField}",
+        // then sourceValue should already be the external ID value
+        const isDirectExternalId = mapping.sourceField.includes('__r.{externalIdField}') || 
+                                  mapping.sourceField.includes('__r.' + sourceExternalIdField) ||
+                                  mapping.sourceField.includes('__r.' + targetExternalIdField);
+        
         let externalId = sourceValue;
         
-        // If this is a cross-environment scenario or we have a specific source field, query for it
-        if (mapping.crossEnvironmentMapping || context.externalIdConfig?.strategy === 'cross-environment') {
-          // Try to get external ID from source using all possible fields
-          const possibleFields = [
-            sourceExternalIdField,
-            ExternalIdUtils.getAllPossibleExternalIdFields()
-          ].flat().filter((field, index, arr) => arr.indexOf(field) === index); // Remove duplicates
-
-          let sourceResult = null;
-          for (const field of possibleFields) {
-            try {
-              const sourceQuery = `SELECT ${field} FROM ${mapping.lookupObject} WHERE Id = '${sourceValue}' LIMIT 1`;
-              sourceResult = await this.sourceClient!.query(sourceQuery);
+        console.log(`      Source field pattern: ${mapping.sourceField}`);
+        console.log(`      Is direct external ID: ${isDirectExternalId}`);
+        
+        if (!isDirectExternalId) {
+          // sourceValue is a record ID, need to get the external ID from source record
+          console.log(`      Need to resolve record ID to external ID`);
+        
+          // For cross-environment scenarios, always try to get the external ID from source
+          if (context.externalIdConfig?.strategy === 'cross-environment' || isBreakpointLookup) {
+            console.log(`      Using cross-environment lookup resolution`);
+            
+            // For cross-environment migrations, we need to be smarter about which field to use
+            // Source org may use unmanaged field while target uses managed field
+            let sourceFieldToUse = sourceExternalIdField;
+            
+            // If we're in a cross-environment scenario, detect the actual field that exists
+            if (context.externalIdConfig?.crossEnvironmentMapping) {
+              const { sourcePackageType } = context.externalIdConfig.crossEnvironmentMapping;
               
-              if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0 && sourceResult.data[0][field]) {
-                externalId = sourceResult.data[0][field];
-                console.log(`      Found external ID using field ${field}: ${externalId}`);
-                break;
+              if (sourcePackageType === 'unmanaged') {
+                sourceFieldToUse = 'External_ID_Data_Creation__c';
+              } else if (sourcePackageType === 'managed') {
+                sourceFieldToUse = 'tc9_edc__External_ID_Data_Creation__c';
               }
-            } catch (error) {
-              // Continue to next field if this one fails
-              continue;
+              
+              console.log(`      Adjusted source field for ${sourcePackageType} source: ${sourceFieldToUse}`);
+            }
+            
+            // Try to get external ID from source using detected field first, then fallback
+            const possibleFields = [
+              sourceFieldToUse,
+              ...ExternalIdUtils.getAllPossibleExternalIdFields().filter(field => field !== sourceFieldToUse)
+            ];
+
+            let sourceResult = null;
+            for (const field of possibleFields) {
+              try {
+                const sourceQuery = `SELECT ${field} FROM ${mapping.lookupObject} WHERE Id = '${sourceValue}' LIMIT 1`;
+                console.log(`      Trying source query: ${sourceQuery}`);
+                sourceResult = await this.sourceClient!.query(sourceQuery);
+                
+                if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0 && sourceResult.data[0][field]) {
+                  externalId = sourceResult.data[0][field];
+                  console.log(`      ✓ Found external ID using field ${field}: ${externalId}`);
+                  
+                  // If using non-preferred field, log a warning for interpretation breakpoint related objects
+                  if (field !== sourceFieldToUse && isBreakpointLookup) {
+                    console.warn(`      Using fallback external ID field ${field} instead of configured ${sourceFieldToUse} for ${mapping.lookupObject}`);
+                  }
+                  break;
+                } else {
+                  console.log(`      ✗ No data found with field ${field}`);
+                }
+              } catch (error) {
+                console.log(`      ✗ Query failed with field ${field}: ${error}`);
+                // Continue to next field if this one fails
+                continue;
+              }
+            }
+            
+            // Check if we found a valid external ID
+            if (!externalId) {
+              if (isBreakpointLookup) {
+                console.error(`CRITICAL: No external ID found for ${mapping.lookupObject} record ${sourceValue}. Cross-environment migration cannot proceed without external IDs.`);
+              } else {
+                console.warn(`WARNING: No external ID found for ${mapping.lookupObject} record ${sourceValue}. This may cause lookup failures in cross-environment migration.`);
+              }
+              
+              // For cross-environment scenarios, do not fallback to source ID as it will never match
+              if (context.externalIdConfig?.strategy === 'cross-environment') {
+                console.error(`Cross-environment migration detected but no external ID available for ${mapping.lookupObject} record ${sourceValue}. Lookup will fail.`);
+                return null;
+              }
+              
+              // Only use source ID for same-environment migrations
+              externalId = sourceValue;
+            } else if (externalId === sourceValue) {
+              // External ID field contains the source record ID - this is acceptable for cross-environment migration
+              console.log(`      External ID field contains source record ID - using for cross-environment lookup: ${externalId}`);
+            }
+          } else {
+            // Same environment - try configured external ID field first, then fallback
+            const sourceQuery = `SELECT ${sourceExternalIdField} FROM ${mapping.lookupObject} WHERE Id = '${sourceValue}' LIMIT 1`;
+            const sourceResult = await this.sourceClient!.query(sourceQuery);
+            
+            if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0) {
+              externalId = sourceResult.data[0][sourceExternalIdField] || sourceValue;
+            } else if (sourceResult.error?.includes('No such column') && sourceResult.error?.includes(sourceExternalIdField)) {
+              console.warn(`External ID field ${sourceExternalIdField} not found on ${mapping.lookupObject}, using source ID directly`);
+              externalId = sourceValue;
             }
           }
-          
-          // If no external ID found, use source ID directly
-          if (!externalId || externalId === sourceValue) {
-            console.warn(`No external ID found for ${mapping.lookupObject} record ${sourceValue}, using source ID directly`);
-            externalId = sourceValue;
-          }
         } else {
-          // Legacy behavior - try to get external ID from source
-          const sourceQuery = `SELECT ${sourceExternalIdField} FROM ${mapping.lookupObject} WHERE Id = '${sourceValue}' LIMIT 1`;
-          let sourceResult = await this.sourceClient!.query(sourceQuery);
-          
-          if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0) {
-            externalId = sourceResult.data[0][sourceExternalIdField] || sourceValue;
-          } else if (sourceResult.error?.includes('No such column') && sourceResult.error?.includes(sourceExternalIdField)) {
-            console.warn(`External ID field ${sourceExternalIdField} not found on ${mapping.lookupObject}, using source ID directly`);
-            externalId = sourceValue;
-          }
+          // sourceValue is already an external ID, use it directly
+          console.log(`      Using source value as direct external ID: ${externalId}`);
         }
         
         if (externalId) {
-          // Replace external ID field placeholder in lookup key field
+          // Replace external ID field placeholder in lookup key field  
           const lookupKeyField = ExternalIdUtils.replaceExternalIdPlaceholders(
             mapping.lookupKeyField, 
             targetExternalIdField
@@ -763,7 +810,7 @@ export class ExecutionEngine {
           
           if (targetResult.success && targetResult.data && targetResult.data.length > 0) {
             const targetId = targetResult.data[0].Id;
-            console.log(`      Found target ID: ${targetId}`);
+            console.log(`      ✓ Found target ID: ${targetId}`);
             
             if (targetId) {
               // Cache the result
@@ -775,7 +822,7 @@ export class ExecutionEngine {
               return targetId;
             }
           } else {
-            console.log(`      Target query failed or returned no results: ${targetResult.error || 'No data'}`);
+            console.log(`      ✗ Target query failed or returned no results: ${targetResult.error || 'No data'}`);
           }
         }
       } catch (error) {
@@ -792,6 +839,7 @@ export class ExecutionEngine {
   private async resolveRecordType(
     recordTypeName: string, 
     objectType: string, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     context: ExecutionContext
   ): Promise<string | null> {
     if (!this.targetClient) return null;
@@ -860,6 +908,7 @@ export class ExecutionEngine {
         
         if (result.success && result.data) {
           const cache = new Map<string, string>();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           result.data.forEach((rt: any) => {
             // Cache both Name and DeveloperName for flexibility
             cache.set(rt.Name, rt.Id);

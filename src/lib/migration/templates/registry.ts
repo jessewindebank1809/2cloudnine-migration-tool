@@ -1,5 +1,6 @@
 import { templateRegistry } from "./core/template-registry";
 import { interpretationRulesTemplate } from "./definitions/payroll/interpretation-rules.template";
+// import { interpretationRulesTestTemplate } from "./definitions/payroll/interpretation-rules-test.template";
 
 // Track whether templates have been registered to avoid redundant calls
 let templatesAlreadyRegistered = false;
@@ -8,16 +9,29 @@ let templatesAlreadyRegistered = false;
  * Register all available migration templates
  */
 export function registerAllTemplates(): void {
-    // Avoid redundant registration
-    if (templatesAlreadyRegistered) {
+    // Check if templates are already loaded, but allow re-registration if registry is empty
+    if (templatesAlreadyRegistered && templateRegistry.getTemplateCount() > 0) {
         return;
     }
     
-    // Register payroll templates
-    templateRegistry.registerTemplate(interpretationRulesTemplate);
-    
-    templatesAlreadyRegistered = true;
-    console.log(`Registered ${templateRegistry.getTemplateCount()} migration templates`);
+    try {
+        // Register payroll templates
+        templateRegistry.registerTemplate(interpretationRulesTemplate);
+        // templateRegistry.registerTemplate(interpretationRulesTestTemplate);
+        
+        templatesAlreadyRegistered = true;
+        console.log(`Registered ${templateRegistry.getTemplateCount()} migration templates`);
+        
+        // Verify registration was successful
+        if (templateRegistry.getTemplateCount() === 0) {
+            console.error('Template registration failed - no templates in registry after registration');
+            templatesAlreadyRegistered = false;
+        }
+    } catch (error) {
+        console.error('Error during template registration:', error);
+        templatesAlreadyRegistered = false;
+        throw error;
+    }
 }
 
 /**
