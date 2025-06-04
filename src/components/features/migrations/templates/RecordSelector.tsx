@@ -58,7 +58,7 @@ export function RecordSelector({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(selectedRecords));
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(10);
 
   // Fetch records for the object type
   const { data: recordsData, isLoading, error, refetch } = useQuery({

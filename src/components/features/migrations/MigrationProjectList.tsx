@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
 interface MigrationProject {
   id: string;
@@ -70,6 +71,7 @@ const statusLabels: Record<string, string> = {
 
 export function MigrationProjectList() {
   const queryClient = useQueryClient();
+  const { hasRunningMigration } = useRunningMigrations();
   
   const { data, isLoading, error } = useQuery({
     queryKey: ['migration-projects'],
@@ -185,12 +187,22 @@ export function MigrationProjectList() {
           <p className="text-sm text-muted-foreground">
             No migration projects yet
           </p>
-          <Link href="/migrations/new">
-            <Button>
+          {hasRunningMigration ? (
+            <Button 
+              disabled={true}
+              title="Cannot start new migration while another is in progress"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Create Migration Project
             </Button>
-          </Link>
+          ) : (
+            <Link href="/migrations/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Migration Project
+              </Button>
+            </Link>
+          )}
         </CardContent>
       </Card>
     );

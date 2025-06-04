@@ -64,7 +64,7 @@ export function TemplateRecordSelection({
   const [primaryObjectType, setPrimaryObjectType] = useState<string>('');
   const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
   const isInitializedRef = useRef(false);
-  const pageSize = 50;
+  const pageSize = 10;
 
   // Sync selectedRecords prop with local state
   useEffect(() => {

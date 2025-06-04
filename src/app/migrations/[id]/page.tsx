@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
+import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
 interface PageProps {
   params: Promise<{
@@ -76,6 +77,7 @@ const statusLabels = {
 
 export default function MigrationProjectPage({ params }: PageProps) {
   const router = useRouter();
+  const { hasRunningMigration } = useRunningMigrations();
   
   // Unwrap the params promise
   const { id } = React.use(params);
@@ -224,12 +226,22 @@ export default function MigrationProjectPage({ params }: PageProps) {
             </div>
           </div>
           <div className="flex gap-2">
-            <Link href="/migrations/new">
-              <Button>
+            {hasRunningMigration ? (
+              <Button 
+                disabled={true}
+                title="Cannot start new migration while another is in progress"
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 New Migration
               </Button>
-            </Link>
+            ) : (
+              <Link href="/migrations/new">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Migration
+                </Button>
+              </Link>
+            )}
             {project.status === 'DRAFT' && (
               <Link href={`/migrations/${id}/execute`}>
                 <Button>

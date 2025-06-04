@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 import {
   Select,
   SelectContent,
@@ -63,6 +64,7 @@ const CATEGORY_ICONS = {
 
 export default function TemplatesPage() {
   const router = useRouter();
+  const { hasRunningMigration } = useRunningMigrations();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -245,8 +247,10 @@ export default function TemplatesPage() {
                     </Button>
                     <Button 
                       size="sm" 
-                      onClick={() => handleCreateMigration(template.id)}
+                      onClick={hasRunningMigration ? undefined : () => handleCreateMigration(template.id)}
                       className="flex-1 bg-[#2491EB] hover:bg-[#2491EB]/90"
+                      disabled={hasRunningMigration}
+                      title={hasRunningMigration ? 'Cannot start new migration while another is in progress' : 'Use this template to create a new migration'}
                     >
                       Use Template
                       <ArrowRight className="ml-1 h-3 w-3" />
