@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
-import Link from 'next/link';
 
 export default async function TestAuthPage() {
   try {
