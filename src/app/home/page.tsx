@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Plus } from 'lucide-react';
 import Link from "next/link"
+import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
 interface Organisation {
   id: string;
@@ -62,6 +63,7 @@ interface HomeData {
 }
 
 export default function HomePage() {
+  const { hasRunningMigration } = useRunningMigrations();
   const [data, setData] = useState<HomeData>({
     organisations: [],
     projects: [],
@@ -201,12 +203,22 @@ export default function HomePage() {
               Monitor your 2cloudnine migrations and org connections
             </p>
           </div>
-          <Link href="/migrations/new">
-            <Button>
+          {hasRunningMigration ? (
+            <Button 
+              disabled={true}
+              title="Cannot start new migration while another is in progress"
+            >
               <Plus className="mr-2 h-4 w-4" />
               New Migration
             </Button>
-          </Link>
+          ) : (
+            <Link href="/migrations/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Migration
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Error State */}
@@ -355,14 +367,31 @@ export default function HomePage() {
                     Connect New Organisation
                   </Button>
                 </Link>
-                <Link href="/migrations/new" className="block">
-                  <Button className="w-full justify-start h-12 text-left" variant="outline">
+                {hasRunningMigration ? (
+                  <Button 
+                    className="w-full justify-start h-12 text-left" 
+                    variant="outline"
+                    disabled={true}
+                    title="Cannot start new migration while another is in progress"
+                  >
                     <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                     </svg>
                     Create Migration Project
                   </Button>
-                </Link>
+                ) : (
+                  <Link href="/migrations/new" className="block">
+                    <Button 
+                      className="w-full justify-start h-12 text-left" 
+                      variant="outline"
+                    >
+                      <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                      Create Migration Project
+                    </Button>
+                  </Link>
+                )}
                 <Link href="/templates" className="block">
                   <Button className="w-full justify-start h-12 text-left" variant="outline">
                     <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

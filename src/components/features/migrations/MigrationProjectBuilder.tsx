@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
+import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,6 +89,7 @@ interface ValidationResult {
 export function MigrationProjectBuilder() {
   const router = useRouter();
   const { apiCall } = useAutoReconnect();
+  const { hasRunningMigration } = useRunningMigrations();
   const [currentStep, setCurrentStep] = useState<Step>('project-setup');
   const [createdMigrationId, setCreatedMigrationId] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -1131,6 +1133,8 @@ export function MigrationProjectBuilder() {
                 <Button
                   onClick={() => router.push('/migrations/new')}
                   variant="default"
+                  disabled={hasRunningMigration}
+                  title={hasRunningMigration ? 'Cannot start new migration while another is in progress' : 'Create a new migration'}
                 >
                   New Migration
                 </Button>

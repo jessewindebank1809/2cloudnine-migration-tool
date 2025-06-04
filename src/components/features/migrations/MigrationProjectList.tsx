@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
 interface MigrationProject {
   id: string;
@@ -70,6 +71,7 @@ const statusLabels: Record<string, string> = {
 
 export function MigrationProjectList() {
   const queryClient = useQueryClient();
+  const { hasRunningMigration } = useRunningMigrations();
   
   const { data, isLoading, error } = useQuery({
     queryKey: ['migration-projects'],
@@ -80,7 +82,11 @@ export function MigrationProjectList() {
       }
       return response.json();
     },
-    refetchInterval: 5000, // Refetch every 5 seconds for running migrations
+    refetchInterval: (query) => {
+      // Only poll frequently if there's a running migration
+      const hasRunning = query.state.data?.projects?.some((p: any) => p.status === 'RUNNING');
+      return hasRunning ? 15000 : 60000; // 15s if running, 60s if not
+    },
   });
 
   const deleteMutation = useMutation({
@@ -185,12 +191,22 @@ export function MigrationProjectList() {
           <p className="text-sm text-muted-foreground">
             No migration projects yet
           </p>
-          <Link href="/migrations/new">
-            <Button>
+          {hasRunningMigration ? (
+            <Button 
+              disabled={true}
+              title="Cannot start new migration while another is in progress"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Create Migration Project
             </Button>
-          </Link>
+          ) : (
+            <Link href="/migrations/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Migration Project
+              </Button>
+            </Link>
+          )}
         </CardContent>
       </Card>
     );
