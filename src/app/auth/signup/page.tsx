@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { authClient } from '@/lib/auth/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
@@ -72,9 +73,11 @@ export default function SignUpPage() {
         {/* Header with Salesforce Branding */}
         <div className="text-center">
           <div className="mx-auto h-20 w-auto flex items-center justify-center mb-6">
-            <img 
+            <Image 
               src="/Cloudnine Reversed Standard 2.png" 
               alt="2cloudnine Logo" 
+              width={128}
+              height={64}
               className="h-16 w-auto"
             />
           </div>

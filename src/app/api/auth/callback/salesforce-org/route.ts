@@ -195,12 +195,15 @@ export async function GET(request: NextRequest) {
       });
       
       console.log('✅ OAuth Callback - Organisation updated successfully');
-    } catch (dbError: any) {
+    } catch (dbError: unknown) {
       // Handle database constraint violations (e.g., duplicate salesforce_org_id for same user)
-      if (dbError.code === 'P2002' && dbError.meta?.target?.includes('salesforce_org_id')) {
+      if (dbError && typeof dbError === 'object' && 'code' in dbError && dbError.code === 'P2002' && 
+          'meta' in dbError && dbError.meta && typeof dbError.meta === 'object' && 
+          'target' in dbError.meta && Array.isArray(dbError.meta.target) && 
+          dbError.meta.target.includes('salesforce_org_id')) {
         console.error('💥 Database constraint violation:', {
-          code: dbError.code,
-          constraint: dbError.meta?.target,
+          code: (dbError as any).code,
+          constraint: (dbError as any).meta?.target,
           salesforceOrgId: userInfo.organization_id,
           userId: userId,
         });
@@ -267,7 +270,7 @@ export async function GET(request: NextRequest) {
         const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
         isBackground = stateData.background;
       }
-    } catch (e) {
+    } catch (_e) {
       // Ignore state parsing errors in error handler
     }
     

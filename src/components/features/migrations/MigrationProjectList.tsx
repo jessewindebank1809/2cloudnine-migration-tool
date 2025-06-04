@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Play, Trash2, Edit, MoreVertical } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -52,7 +52,7 @@ interface MigrationProject {
   updatedAt: string;
 }
 
-const statusColors: Record<string, string> = {
+const statusColors: Record<string, 'draft' | 'info' | 'running' | 'completed' | 'failed'> = {
   DRAFT: 'draft',
   READY: 'info',
   RUNNING: 'running',
@@ -227,7 +227,7 @@ export function MigrationProjectList() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusColors[project.status] as any}>
+                  <Badge variant={statusColors[project.status]}>
                     {statusLabels[project.status]}
                   </Badge>
                 </TableCell>

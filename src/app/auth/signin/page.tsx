@@ -12,6 +12,8 @@ const SalesforceCloudLogo = ({ className = "h-6 w-6" }: { className?: string }) 
   <Image 
     src="/Salesforce_Corporate_Logo_RGB.png" 
     alt="Salesforce" 
+    width={24}
+    height={24}
     className={className}
     width={24}
     height={24}
@@ -70,6 +72,8 @@ function SignInContent() {
             <Image 
               src="/Cloudnine Reversed Standard 2.png" 
               alt="2cloudnine Logo" 
+              width={128}
+              height={32}
               className="h-8 w-auto"
               width={120}
               height={32}
