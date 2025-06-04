@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-export function useRunningMigrations() {
+export function useRunningMigrations(options?: { enabled?: boolean }) {
   const { data, isLoading } = useQuery({
     queryKey: ['running-migrations-check'],
     queryFn: async () => {
@@ -17,7 +17,12 @@ export function useRunningMigrations() {
       
       return { hasRunningMigration };
     },
-    refetchInterval: 2000, // Check every 2 seconds
+    refetchInterval: (query) => {
+      // Only poll frequently if there's actually a running migration
+      const hasRunning = query.state.data?.hasRunningMigration;
+      return hasRunning ? 10000 : 30000; // 10s if running, 30s if not
+    },
+    enabled: options?.enabled !== false,
   });
 
   return {

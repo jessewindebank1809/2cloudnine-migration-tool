@@ -82,7 +82,11 @@ export function MigrationProjectList() {
       }
       return response.json();
     },
-    refetchInterval: 5000, // Refetch every 5 seconds for running migrations
+    refetchInterval: (query) => {
+      // Only poll frequently if there's a running migration
+      const hasRunning = query.state.data?.projects?.some((p: any) => p.status === 'RUNNING');
+      return hasRunning ? 15000 : 60000; // 15s if running, 60s if not
+    },
   });
 
   const deleteMutation = useMutation({
