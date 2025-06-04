@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, User } from 'lucide-react';
 import Link from "next/link";
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth/client';
 import { motion } from 'framer-motion';
@@ -130,9 +131,11 @@ export function AppNavigation({ children }: AppNavigationProps) {
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="h-12 w-auto flex items-center justify-center">
-              <img 
+              <Image 
                 src="/Cloudnine Reversed Standard 2.png" 
                 alt="2cloudnine Logo" 
+                width={120}
+                height={40}
                 className="h-10 w-auto"
               />
             </div>

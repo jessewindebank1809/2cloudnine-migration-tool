@@ -129,7 +129,8 @@ fly deploy
 
 ## 📝 Scripts
 
-- `npm run dev` - Start development server
+- `npm run dev:fresh:env` - Start development server with fresh environment
+  variables
 - `npm run build` - Build for production
 - `npm run db:migrate` - Run database migrations
 - `npm run db:studio` - Open Prisma Studio
