@@ -78,7 +78,7 @@ docs/screenshots/
 screenshots/
 
 # GitHub workflows (if needed for private repos)
-.github/
+# .github/
 
 # Project-specific
 specs/
