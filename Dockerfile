@@ -1,6 +1,9 @@
 # Multi-stage build for production
 FROM node:20-alpine AS base
 
+# Update npm to latest version
+RUN npm install -g npm@11.4.1
+
 # Install dependencies only when needed
 FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl

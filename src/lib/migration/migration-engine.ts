@@ -4,6 +4,7 @@ import { DataExtractor } from './data-extractor';
 import { DataLoader } from './data-loader';
 import { sessionManager } from '@/lib/salesforce/session-manager';
 import { ObjectDiscoveryEngine } from '@/lib/salesforce/object-discovery';
+import { usageTracker } from '@/lib/usage-tracker';
 
 export interface MigrationOptions {
   objectTypes: string[];
@@ -43,6 +44,14 @@ export class MigrationEngine {
     this.abortController = new AbortController();
 
     try {
+      // Track migration start
+      await usageTracker.trackMigrationStart(
+        project.id,
+        'migration-session', // We'll update this with actual session ID later
+        project.user_id,
+        { source: project.source_org_id, target: project.target_org_id }
+      );
+
       // Validate project
       await this.validateProject(project);
 
@@ -73,9 +82,30 @@ export class MigrationEngine {
       }
 
       // Calculate overall result
-      return this.consolidateResults(results, Date.now() - startTime);
+      const finalResult = this.consolidateResults(results, Date.now() - startTime);
+
+      // Track migration completion
+      await usageTracker.trackMigrationComplete(
+        project.id,
+        finalResult.sessionId,
+        project.user_id,
+        {
+          success: finalResult.success,
+          recordsProcessed: finalResult.totalRecords,
+          duration: finalResult.duration,
+        }
+      );
+
+      return finalResult;
 
     } catch (error) {
+      // Track migration failure
+      await usageTracker.trackMigrationFailure(
+        project.id,
+        'migration-session',
+        project.user_id,
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       throw error;
     } finally {
       this.abortController = null;

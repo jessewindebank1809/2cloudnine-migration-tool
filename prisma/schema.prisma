@@ -45,6 +45,7 @@ model User {
   email                 String?              @unique
   emailVerified         Boolean?
   image                 String?
+  role                  UserRole             @default(USER)
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   salesforceOrgId       String?
@@ -53,6 +54,7 @@ model User {
   sessions              session[]
   migration_projects    migration_projects[]
   organisations         organisations[]
+  usage_events          usage_events[]
 }
 
 model verification {
@@ -84,6 +86,7 @@ model migration_projects {
   migration_template_usage                                      migration_template_usage[]
   migration_record_selections                                   migration_record_selections[]
   scheduled_migrations                                          scheduled_migrations[]
+  usage_events                                                  usage_events[]
 }
 
 model migration_records {
@@ -114,6 +117,7 @@ model migration_sessions {
   created_at         DateTime            @default(now())
   migration_records  migration_records[]
   migration_projects migration_projects  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  usage_events       usage_events[]
 }
 
 model object_definitions {
@@ -143,6 +147,7 @@ model organisations {
   migration_projects_migration_projects_source_org_idToorganisations migration_projects[] @relation("migration_projects_source_org_idToorganisations")
   migration_projects_migration_projects_target_org_idToorganisations migration_projects[] @relation("migration_projects_target_org_idToorganisations")
   User                                                               User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  usage_events                                                       usage_events[]
 
   @@unique([salesforce_org_id, user_id])
 }
@@ -251,4 +256,40 @@ enum scheduled_status {
   PAUSED
   DISABLED
   ERROR
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model usage_events {
+  id               String    @id @default(cuid())
+  event_type       String    @db.VarChar(50)
+  user_id          String?
+  organisation_id  String?
+  migration_id     String?
+  session_id       String?
+  metadata         Json      @default("{}")
+  created_at       DateTime  @default(now())
+  User             User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  organisations    organisations? @relation(fields: [organisation_id], references: [id], onDelete: SetNull)
+  migration_projects migration_projects? @relation(fields: [migration_id], references: [id], onDelete: SetNull)
+  migration_sessions migration_sessions? @relation(fields: [session_id], references: [id], onDelete: SetNull)
+
+  @@index([event_type])
+  @@index([user_id])
+  @@index([organisation_id])
+  @@index([created_at])
+}
+
+model usage_metrics {
+  id           String   @id @default(cuid())
+  metric_name  String   @db.VarChar(100)
+  metric_value Decimal  @db.Decimal(12,4)
+  tags         Json     @default("{}")
+  recorded_at  DateTime @default(now())
+
+  @@index([metric_name])
+  @@index([recorded_at])
 }

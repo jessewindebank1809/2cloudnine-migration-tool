@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth/client';
 import { motion } from 'framer-motion';
+import { useAdminStatus } from '@/hooks/useAdminStatus';
 
 
 interface AppNavigationProps {
@@ -20,6 +21,7 @@ export function AppNavigation({ children }: AppNavigationProps) {
   const [hoveredNavItem, setHoveredNavItem] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const { isAdmin } = useAdminStatus();
 
   // Detect if we're in staging environment
   const isStaging = typeof window !== 'undefined' 
@@ -32,12 +34,19 @@ export function AppNavigation({ children }: AppNavigationProps) {
     : process.env.NODE_ENV === 'development';
 
   // Navigation items configuration
-  const navItems = [
+  const baseNavItems = [
     { id: 'home', label: 'Home', href: '/home' },
     { id: 'orgs', label: 'Organisations', href: '/orgs' },
     { id: 'migrations', label: 'Migrations', href: '/migrations' },
     { id: 'templates', label: 'Templates', href: '/templates' },
+    { id: 'analytics', label: 'Analytics', href: '/analytics' },
   ];
+
+  const adminNavItems = [
+    { id: 'usage', label: 'Usage', href: '/usage' },
+  ];
+
+  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
 
   // Check authentication and get session
   useEffect(() => {

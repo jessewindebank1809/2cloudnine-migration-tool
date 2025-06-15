@@ -1,0 +1,241 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+jobs:
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Check prerequisites
+        run: |
+          echo "🔍 Checking prerequisites..."
+          
+          # Check if we're in the right directory
+          if [ ! -f "package.json" ] || [ ! -f "next.config.js" ]; then
+            echo "❌ Must be run from project root directory"
+            exit 1
+          fi
+          
+          # Check required tools
+          command -v node >/dev/null 2>&1 || { echo "❌ Node.js is required"; exit 1; }
+          command -v npm >/dev/null 2>&1 || { echo "❌ npm is required"; exit 1; }
+          
+          # Check branch for production (warning if not main)
+          if [ "${{ github.ref_name }}" != "main" ]; then
+            echo "⚠️ Warning: Deploying to production from branch '${{ github.ref_name }}' instead of 'main'"
+          fi
+          
+          echo "✅ Prerequisites check passed"
+
+      - name: Install dependencies
+        run: |
+          echo "🔄 Installing dependencies..."
+          npm ci
+          echo "✅ Dependencies installed"
+
+      - name: Generate Prisma client
+        run: |
+          echo "🔄 Generating Prisma client..."
+          npx prisma generate
+          echo "✅ Prisma client generated"
+
+      - name: Type checking
+        run: |
+          echo "🔄 Type checking..."
+          npm run type-check
+          echo "✅ Type checking completed"
+
+      - name: Linting
+        run: |
+          echo "🔄 Linting..."
+          npm run lint
+          echo "✅ Linting completed"
+
+      - name: Build application
+        run: |
+          echo "🔄 Building application..."
+          npm run build
+          echo "✅ Application built"
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          JWT_SECRET: build-time-placeholder
+          ENCRYPTION_KEY: build-time-placeholder-key-for-testing
+          NEXT_PUBLIC_BASE_URL: https://tc9-migration-tool.fly.dev
+          NEXT_PUBLIC_APP_URL: https://tc9-migration-tool.fly.dev
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Check Fly authentication
+        run: |
+          echo "🔄 Checking Fly authentication..."
+          if ! flyctl auth whoami >/dev/null 2>&1; then
+            echo "❌ Not authenticated with Fly.io"
+            exit 1
+          fi
+          echo "✅ Fly authentication verified"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Deploy to Fly.io Production
+        run: |
+          echo "🛫 Deploying to Fly.io production..."
+          flyctl deploy --app tc9-migration-tool --strategy=rolling
+          echo "✅ Deployment to Fly.io completed"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Wait for deployment to stabilise
+        run: |
+          echo "🔄 Waiting for deployment to stabilise..."
+          sleep 30
+          echo "✅ Stabilisation wait completed"
+
+      - name: Ensure app is running before migrations
+        run: |
+          echo "🔄 Ensuring production app is running before migrations..."
+          flyctl machine list --app tc9-migration-tool --json | jq -r '.[] | select(.state=="stopped") | .id' | xargs -I {} flyctl machine start {} --app tc9-migration-tool || true
+          
+          sleep 10
+          
+          # Wait for app to be ready with detailed status checking
+          max_attempts=15
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "⏳ Attempt $attempt/$max_attempts: Checking if app is ready..."
+            
+            if flyctl status --app tc9-migration-tool | grep -q "started"; then
+              echo "✅ App is running"
+              break
+            else
+              echo "⏳ App not ready yet, waiting 45 seconds..."
+              sleep 45
+            fi
+            
+            attempt=$((attempt + 1))
+            
+            if [ $attempt -gt $max_attempts ]; then
+              echo "❌ App failed to start after $max_attempts attempts"
+              flyctl status --app tc9-migration-tool || true
+              flyctl logs --app tc9-migration-tool || true
+              exit 1
+            fi
+          done
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Run database migrations
+        run: |
+          echo "🗄️ Running database migrations..."
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "📊 Migration attempt $attempt/$max_attempts..."
+            
+            if flyctl ssh console --app tc9-migration-tool -C "npx prisma migrate deploy"; then
+              echo "✅ Database migrations completed successfully"
+              break
+            else
+              echo "⚠️ Migration failed, retrying in 15 seconds..."
+              sleep 15
+              attempt=$((attempt + 1))
+              
+              if [ $attempt -gt $max_attempts ]; then
+                echo "❌ Migrations failed after $max_attempts attempts"
+                echo "🔧 You may need to run migrations manually:"
+                echo "flyctl ssh console --app tc9-migration-tool -C 'npx prisma migrate deploy'"
+                exit 1
+              fi
+            fi
+          done
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Health check
+        run: |
+          echo "🔄 Running health check at https://tc9-migration-tool.fly.dev/api/health..."
+          
+          for i in {1..5}; do
+            if curl -f --max-time 30 --silent "https://tc9-migration-tool.fly.dev/api/health" >/dev/null 2>&1; then
+              echo "✅ Health check passed"
+              break
+            else
+              echo "⏳ Health check attempt $i/5 failed, retrying in 15s..."
+              if [ $i -eq 5 ]; then
+                echo "❌ Health check failed after 5 attempts"
+                echo "⚠️ App may still be starting up. Check manually: https://tc9-migration-tool.fly.dev/api/health"
+              else
+                sleep 15
+              fi
+            fi
+          done
+
+      - name: Smoke tests
+        run: |
+          echo "🧪 Running smoke tests..."
+          # Test critical endpoints
+          curl -f https://tc9-migration-tool.fly.dev/ || exit 1
+          curl -f https://tc9-migration-tool.fly.dev/api/health || exit 1
+          echo "✅ Smoke tests passed"
+
+      - name: Create GitHub release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          body: |
+            Automated production deployment
+            
+            **Deployed at:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.event.head_commit.author.name }}
+            
+            **Changes:**
+            ${{ github.event.head_commit.message }}
+          draft: false
+          prerelease: false
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "🎉 Deployment Summary"
+          echo "====================="
+          echo "Environment: production"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Fly App: tc9-migration-tool"
+          echo "URL: https://tc9-migration-tool.fly.dev"
+          echo "Health Check: https://tc9-migration-tool.fly.dev/api/health"
+          echo "Release: v${{ github.run_number }}"
+          echo ""
+          echo "✅ Deployment to production completed successfully!"
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Production deployment failed"
+          echo "🔍 Check logs and app status"
+          echo "Manual check: flyctl status --app tc9-migration-tool"
+          echo "Consider rollback if needed: flyctl releases rollback --app tc9-migration-tool" 
