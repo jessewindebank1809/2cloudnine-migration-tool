@@ -15,8 +15,6 @@ const SalesforceCloudLogo = ({ className = "h-6 w-6" }: { className?: string }) 
     width={24}
     height={24}
     className={className}
-    width={24}
-    height={24}
   />
 );
 
@@ -75,8 +73,6 @@ function SignInContent() {
               width={128}
               height={32}
               className="h-8 w-auto"
-              width={120}
-              height={32}
             />
             <span className="ml-3 text-white font-bold text-xl">Migration Tool</span>
           </div>

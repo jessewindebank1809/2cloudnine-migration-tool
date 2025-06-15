@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth"
 import { genericOAuth } from "better-auth/plugins"
 import { prismaAdapter } from "better-auth/adapters/prisma"
 import { prisma } from "@/lib/database/prisma"
+import { autoPromoteAdmin } from "@/lib/auth/admin-check"
 
 // Use placeholder values during build time when secrets aren't available
 const getClientId = () => process.env.SALESFORCE_PRODUCTION_CLIENT_ID || 'build-time-placeholder-client-id';
@@ -26,6 +27,22 @@ export const auth = betterAuth({
     fields: {
       token: "sessionToken", // Map Better Auth's 'token' field to our 'sessionToken' field
       expiresAt: "expires", // Map Better Auth's 'expiresAt' field to our 'expires' field
+    },
+  },
+  callbacks: {
+    user: {
+      created: async ({ user }: { user: any }) => {
+        // Auto-promote admin users based on email
+        if (user.email) {
+          try {
+            // Extract the original email from the unique Salesforce email format
+            const originalEmail = user.email.split('+')[0];
+            await autoPromoteAdmin(originalEmail, user.id);
+          } catch (error) {
+            console.error('Error during auto-promotion:', error);
+          }
+        }
+      },
     },
   },
   plugins: [
