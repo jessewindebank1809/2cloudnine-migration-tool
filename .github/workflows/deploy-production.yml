@@ -24,27 +24,6 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Check prerequisites
-        run: |
-          echo "🔍 Checking prerequisites..."
-          
-          # Check if we're in the right directory
-          if [ ! -f "package.json" ] || [ ! -f "next.config.js" ]; then
-            echo "❌ Must be run from project root directory"
-            exit 1
-          fi
-          
-          # Check required tools
-          command -v node >/dev/null 2>&1 || { echo "❌ Node.js is required"; exit 1; }
-          command -v npm >/dev/null 2>&1 || { echo "❌ npm is required"; exit 1; }
-          
-          # Check branch for production (warning if not main)
-          if [ "${{ github.ref_name }}" != "main" ]; then
-            echo "⚠️ Warning: Deploying to production from branch '${{ github.ref_name }}' instead of 'main'"
-          fi
-          
-          echo "✅ Prerequisites check passed"
-
       - name: Install dependencies
         run: |
           echo "🔄 Installing dependencies..."
@@ -83,17 +62,6 @@ jobs:
 
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Check Fly authentication
-        run: |
-          echo "🔄 Checking Fly authentication..."
-          if ! flyctl auth whoami >/dev/null 2>&1; then
-            echo "❌ Not authenticated with Fly.io"
-            exit 1
-          fi
-          echo "✅ Fly authentication verified"
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Deploy to Fly.io Production
         run: |
