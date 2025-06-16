@@ -63,10 +63,16 @@ jobs:
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Create production fly.toml
+        run: |
+          echo "🔄 Creating production fly.toml..."
+          cp fly.toml fly.production.toml
+          echo "✅ Production config created"
+
       - name: Deploy to Fly.io Production
         run: |
           echo "🛫 Deploying to Fly.io production..."
-          flyctl deploy --app tc9-migration-tool --strategy=rolling
+          flyctl deploy --config fly.production.toml --app tc9-migration-tool --strategy=rolling
           echo "✅ Deployment to Fly.io completed"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -185,6 +191,13 @@ jobs:
             ${{ github.event.head_commit.message }}
           draft: false
           prerelease: false
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🔄 Cleaning up..."
+          rm -f fly.production.toml
+          echo "✅ Cleanup completed"
 
       - name: Deployment summary
         if: success()
