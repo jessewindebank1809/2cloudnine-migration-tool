@@ -1,5 +1,13 @@
 require("@testing-library/jest-dom");
 
+// Polyfill setImmediate for Node.js compatibility
+if (typeof setImmediate === "undefined") {
+  global.setImmediate = (callback, ...args) => {
+    return setTimeout(callback, 0, ...args);
+  };
+  global.clearImmediate = clearTimeout;
+}
+
 // Mock environment variables for tests
 process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://test:test@localhost:5432/test_migration_tool";
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "test-encryption-key-32-characters";
