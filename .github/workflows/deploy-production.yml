@@ -4,7 +4,6 @@ on:
   pull_request:
     branches: [main]
     types: [closed]
-  workflow_dispatch:
 
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -14,7 +13,7 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     environment: production
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    if: github.event.pull_request.merged == true
     permissions:
       contents: write
       deployments: write
