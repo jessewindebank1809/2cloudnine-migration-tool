@@ -13,6 +13,9 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: write
+      deployments: write
     
     steps:
       - name: Checkout code
