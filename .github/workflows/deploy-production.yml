@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: |
           echo "🔄 Installing dependencies..."
-          npm ci
+          npm ci --legacy-peer-deps
           echo "✅ Dependencies installed"
 
       - name: Generate Prisma client
