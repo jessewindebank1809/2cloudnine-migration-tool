@@ -11,6 +11,10 @@ const customJestConfig = {
     "**/__tests__/**/*.(js|jsx|ts|tsx)",
     "**/*.(test|spec).(js|jsx|ts|tsx)"
   ],
+  testPathIgnorePatterns: [
+    "<rootDir>/node_modules/",
+    ...(process.env.CI ? ["<rootDir>/tests/e2e/"] : [])
+  ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@prisma/client$": "<rootDir>/__mocks__/@prisma/client.js"

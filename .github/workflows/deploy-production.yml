@@ -4,7 +4,6 @@ on:
   pull_request:
     branches: [main]
     types: [closed]
-  workflow_dispatch:
 
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -32,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           echo "🔄 Installing dependencies..."
-          npm ci
+          npm ci --legacy-peer-deps
           echo "✅ Dependencies installed"
 
       - name: Generate Prisma client
@@ -179,7 +178,7 @@ jobs:
 
       - name: Create GitHub release
         if: success()
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
