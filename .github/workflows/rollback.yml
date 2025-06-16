@@ -1,0 +1,76 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      version:
+        description: 'Version to rollback to (e.g., v123)'
+        required: true
+        type: string
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+jobs:
+  rollback:
+    name: Rollback to Previous Version
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version }}
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Determine app name
+        id: app-name
+        run: |
+          if [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            echo "app_name=tc9-migration-tool-staging" >> $GITHUB_OUTPUT
+          else
+            echo "app_name=tc9-migration-tool" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Confirm rollback
+        run: |
+          echo "🔄 Rolling back ${{ steps.app-name.outputs.app_name }} to ${{ github.event.inputs.version }}"
+          echo "⚠️  This will deploy the code from tag ${{ github.event.inputs.version }}"
+
+      - name: Deploy rollback version
+        run: |
+          flyctl deploy --app ${{ steps.app-name.outputs.app_name }} --strategy=immediate
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Health check after rollback
+        run: |
+          sleep 30
+          if [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            curl -f https://tc9-migration-tool-staging.fly.dev/api/health || exit 1
+          else
+            curl -f https://tc9-migration-tool.fly.dev/api/health || exit 1
+          fi
+
+      - name: Notify rollback success
+        if: success()
+        run: |
+          echo "✅ Rollback successful to ${{ github.event.inputs.version }}"
+          echo "🌐 Environment: ${{ github.event.inputs.environment }}"
+
+      - name: Notify rollback failure
+        if: failure()
+        run: |
+          echo "❌ Rollback failed"
+          echo "🚨 Manual intervention required"
+          exit 1 
