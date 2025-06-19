@@ -1,5 +1,13 @@
 import { ExternalIdUtils } from "./external-id-utils";
 import { ExtractConfig } from "../core/interfaces";
+import { 
+    escapeSoqlString, 
+    sanitizeObjectName, 
+    sanitizeFieldName, 
+    sanitizeOrderBy,
+    buildSafeInClause,
+    buildSafeRecordTypeQuery 
+} from "../../../security/soql-sanitizer";
 
 export class SoqlQueryBuilder {
     /**
@@ -17,7 +25,7 @@ export class SoqlQueryBuilder {
 
         // Add record selection filter if provided
         if (selectedRecords && selectedRecords.length > 0) {
-            const recordFilter = `Id IN ('${selectedRecords.join("','")}')`;
+            const recordFilter = buildSafeInClause('Id', selectedRecords);
             query = this.addWhereClause(query, recordFilter);
         }
 
@@ -28,7 +36,12 @@ export class SoqlQueryBuilder {
 
         // Add order by clause if specified
         if (extractConfig.orderBy) {
-            query += ` ORDER BY ${extractConfig.orderBy}`;
+            try {
+                const sanitizedOrderBy = sanitizeOrderBy(extractConfig.orderBy);
+                query += ` ORDER BY ${sanitizedOrderBy}`;
+            } catch (e) {
+                throw new Error(`Invalid ORDER BY clause: ${e instanceof Error ? e.message : 'Unknown error'}`);
+            }
         }
 
         return query;
@@ -109,8 +122,10 @@ export class SoqlQueryBuilder {
         targetField: string,
         sourceValues: string[],
     ): string {
-        const quotedValues = sourceValues.map(value => `'${value.replace(/'/g, "\\'")}'`);
-        return `SELECT Id, ${targetField}, Name FROM ${targetObject} WHERE ${targetField} IN (${quotedValues.join(",")})`;
+        const sanitizedObject = sanitizeObjectName(targetObject);
+        const sanitizedField = sanitizeFieldName(targetField);
+        const whereClause = buildSafeInClause(sanitizedField, sourceValues);
+        return `SELECT Id, ${sanitizedField}, Name FROM ${sanitizedObject} WHERE ${whereClause}`;
     }
 
     /**
@@ -140,7 +155,7 @@ export class SoqlQueryBuilder {
      * Build query for record type mapping
      */
     static buildRecordTypeQuery(objectName: string): string {
-        return `SELECT Id, Name, DeveloperName FROM RecordType WHERE SObjectType = '${objectName}' AND IsActive = true`;
+        return buildSafeRecordTypeQuery(objectName);
     }
 
     /**
@@ -152,15 +167,20 @@ export class SoqlQueryBuilder {
         valueField: string,
         additionalFields: string[] = [],
     ): string {
-        const fields = [keyField, valueField, ...additionalFields].join(", ");
-        return `SELECT ${fields} FROM ${lookupObject} WHERE ${keyField} != null`;
+        const sanitizedObject = sanitizeObjectName(lookupObject);
+        const sanitizedKeyField = sanitizeFieldName(keyField);
+        const sanitizedValueField = sanitizeFieldName(valueField);
+        const sanitizedAdditionalFields = additionalFields.map(f => sanitizeFieldName(f));
+        
+        const fields = [sanitizedKeyField, sanitizedValueField, ...sanitizedAdditionalFields].join(", ");
+        return `SELECT ${fields} FROM ${sanitizedObject} WHERE ${sanitizedKeyField} != null`;
     }
 
     /**
      * Escape SOQL string values
      */
     static escapeString(value: string): string {
-        return value.replace(/'/g, "\\'").replace(/\\/g, "\\\\");
+        return escapeSoqlString(value);
     }
 
     /**
