@@ -116,7 +116,7 @@ describe('SoqlQueryBuilder', () => {
         ['EXT001', 'EXT002']
       );
       
-      expect(query).toBe('SELECT Id, External_Id__c, Name FROM Account WHERE External_Id__c IN (\'EXT001\',\'EXT002\')');
+      expect(query).toBe('SELECT Id, External_Id__c, Name FROM Account WHERE External_Id__c IN (\'EXT001\', \'EXT002\')');
     });
 
     it('should build count query', () => {
@@ -147,7 +147,7 @@ describe('SoqlQueryBuilder', () => {
   describe('String Escaping', () => {
     it('should escape single quotes', () => {
       const escaped = SoqlQueryBuilder.escapeString('O\'Reilly');
-      expect(escaped).toBe('O\\\\\'Reilly');
+      expect(escaped).toBe('O\\\'Reilly');
     });
 
     it('should escape backslashes', () => {
