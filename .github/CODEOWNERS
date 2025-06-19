@@ -1,0 +1,8 @@
+# Global code owners for all files
+* @jessewindebank1809
+
+# Require additional review for critical files
+/.github/ @jessewindebank1809
+/package.json @jessewindebank1809
+/package-lock.json @jessewindebank1809
+/prisma/ @jessewindebank1809 
