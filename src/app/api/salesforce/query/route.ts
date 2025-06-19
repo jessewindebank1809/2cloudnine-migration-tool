@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { SalesforceClient } from '@/lib/salesforce/client';
+import { validateSoqlQuery } from '@/lib/security/soql-sanitizer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +45,19 @@ export async function POST(request: NextRequest) {
           reconnectUrl: `/orgs?reconnect=${orgId}`
         },
         { status: 401 }
+      );
+    }
+
+    // Validate SOQL query for security
+    try {
+      validateSoqlQuery(query);
+    } catch (validationError) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid SOQL query', 
+          details: validationError instanceof Error ? validationError.message : 'Query validation failed'
+        },
+        { status: 400 }
       );
     }
 
