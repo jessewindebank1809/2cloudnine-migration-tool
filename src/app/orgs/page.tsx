@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { cn } from '@/lib/utils';
 
 interface Organisation {
   id: string;
@@ -388,7 +389,7 @@ export default function OrganisationsPage() {
               </TableHeader>
               <TableBody>
                 {organisations.map((org: Organisation) => (
-                  <TableRow key={org.id} className="group">
+                  <TableRow key={org.id} className={cn("group")}>
                     <TableCell>
                       {editingOrgId === org.id ? (
                         <div className="flex items-center gap-1">
