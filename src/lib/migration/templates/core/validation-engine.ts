@@ -484,24 +484,35 @@ export class ValidationEngine {
             try {
                 console.log(`Running picklist validation check: ${check.checkName}`);
                 
-                // Get picklist metadata from target org
-                const targetClient = await sessionManager.getClient(this.targetOrgId);
-                const picklistResult = await targetClient.getPicklistValues(check.objectName, check.fieldName);
+                let allowedValues: string[];
                 
-                if (!picklistResult.success) {
-                    results.errors.push({
-                        checkName: check.checkName,
-                        message: `Failed to get picklist metadata: ${picklistResult.error}`,
-                        severity: "error",
-                        recordId: null,
-                        recordName: null,
-                        suggestedAction: "Check that the field exists and is a picklist field"
-                    });
+                if (check.allowedValues) {
+                    // Use custom allowed values if provided
+                    allowedValues = check.allowedValues;
+                } else if (check.validateAgainstTarget) {
+                    // Get picklist metadata from target org
+                    const targetClient = await sessionManager.getClient(this.targetOrgId);
+                    const picklistResult = await targetClient.getPicklistValues(check.objectName, check.fieldName);
+                    
+                    if (!picklistResult.success) {
+                        results.errors.push({
+                            checkName: check.checkName,
+                            message: `Failed to get picklist metadata: ${picklistResult.error}`,
+                            severity: "error",
+                            recordId: null,
+                            recordName: null,
+                            suggestedAction: "Check that the field exists and is a picklist field"
+                        });
+                        continue;
+                    }
+
+                    const targetPicklistData: PicklistFieldMetadata = picklistResult.data;
+                    allowedValues = targetPicklistData.values.map(v => v.value);
+                } else {
+                    // Skip validation if no allowed values provided and not validating against target
+                    console.log(`Skipping picklist validation check ${check.checkName} - no allowed values and validateAgainstTarget is false`);
                     continue;
                 }
-
-                const targetPicklistData: PicklistFieldMetadata = picklistResult.data;
-                const allowedValues = check.allowedValues || targetPicklistData.values.map(v => v.value);
                 
                 // Validate each source record
                 for (const record of sourceData) {
