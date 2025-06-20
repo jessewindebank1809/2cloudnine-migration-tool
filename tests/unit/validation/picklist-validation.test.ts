@@ -45,7 +45,7 @@ describe('Picklist Validation', () => {
 
     describe('SalesforceClient.getPicklistValues', () => {
         it('should successfully fetch picklist values for valid field', async () => {
-            const mockPicklistData: PicklistFieldMetadata = {
+            const mockPicklistData = {
                 fieldName: 'tc9_et__Variation_Type__c',
                 values: [
                     { value: 'Standard', label: 'Standard', active: true },
@@ -68,8 +68,8 @@ describe('Picklist Validation', () => {
 
             expect(result.success).toBe(true);
             expect(result.data).toEqual(mockPicklistData);
-            expect(result.data.values).toHaveLength(3);
-            expect(result.data.restricted).toBe(true);
+            expect(result.data?.values).toHaveLength(3);
+            expect(result.data?.restricted).toBe(true);
         });
 
         it('should handle field not found error', async () => {
@@ -106,14 +106,15 @@ describe('Picklist Validation', () => {
     describe('ValidationEngine.runPicklistValidationChecks - PASS Cases', () => {
         it('should pass validation when all picklist values are valid', async () => {
             // Setup: Target org has valid picklist values
-            const mockPicklistData: PicklistFieldMetadata = {
+            const mockPicklistData = {
                 fieldName: 'tc9_et__Variation_Type__c',
                 values: [
                     { value: 'Standard', label: 'Standard', active: true },
                     { value: 'Premium', label: 'Premium', active: true },
                     { value: 'Basic', label: 'Basic', active: true }
                 ],
-                restricted: true
+                restricted: true,
+                defaultValue: undefined
             };
 
             mockTargetClient.getPicklistValues.mockResolvedValue({
@@ -152,12 +153,13 @@ describe('Picklist Validation', () => {
         });
 
         it('should pass validation when source records have null/empty picklist values', async () => {
-            const mockPicklistData: PicklistFieldMetadata = {
+            const mockPicklistData = {
                 fieldName: 'tc9_et__Variation_Type__c',
                 values: [
                     { value: 'Standard', label: 'Standard', active: true }
                 ],
-                restricted: true
+                restricted: true,
+                defaultValue: undefined
             };
 
             mockTargetClient.getPicklistValues.mockResolvedValue({
@@ -221,13 +223,14 @@ describe('Picklist Validation', () => {
     describe('ValidationEngine.runPicklistValidationChecks - FAIL Cases', () => {
         it('should fail validation when picklist values do not exist in target org', async () => {
             // Setup: Target org missing 'Oncall' value
-            const mockPicklistData: PicklistFieldMetadata = {
+            const mockPicklistData = {
                 fieldName: 'tc9_et__Variation_Type__c',
                 values: [
                     { value: 'Standard', label: 'Standard', active: true },
                     { value: 'Premium', label: 'Premium', active: true }
                 ],
-                restricted: true
+                restricted: true,
+                defaultValue: undefined
             };
 
             mockTargetClient.getPicklistValues.mockResolvedValue({
@@ -404,10 +407,11 @@ describe('Picklist Validation', () => {
                 .mockResolvedValue({ errors: [], warnings: [], info: [], isValid: true, summary: { totalChecks: 0, passedChecks: 0, failedChecks: 0, warningChecks: 0 } });
 
             // Setup picklist validation to fail
-            const mockPicklistData: PicklistFieldMetadata = {
+            const mockPicklistData = {
                 fieldName: 'tc9_et__Variation_Type__c',
                 values: [{ value: 'Standard', label: 'Standard', active: true }],
-                restricted: true
+                restricted: true,
+                defaultValue: undefined
             };
 
             mockTargetClient.getPicklistValues.mockResolvedValue({

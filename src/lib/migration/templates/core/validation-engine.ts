@@ -506,6 +506,18 @@ export class ValidationEngine {
                         continue;
                     }
 
+                    if (!picklistResult.data) {
+                        results.errors.push({
+                            checkName: check.checkName,
+                            message: 'Picklist metadata not available',
+                            severity: "error",
+                            recordId: null,
+                            recordName: null,
+                            suggestedAction: "Check that the field exists and is a picklist field"
+                        });
+                        continue;
+                    }
+
                     const targetPicklistData: PicklistFieldMetadata = picklistResult.data;
                     allowedValues = targetPicklistData.values.map(v => v.value);
                 } else {
