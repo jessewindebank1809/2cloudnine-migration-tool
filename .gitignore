@@ -89,3 +89,4 @@ scripts/
 .swc/
 .cache/
 .parcel-cache/
+__mocks__/
