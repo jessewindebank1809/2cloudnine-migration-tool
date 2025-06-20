@@ -388,7 +388,7 @@ export default function OrganisationsPage() {
               </TableHeader>
               <TableBody>
                 {organisations.map((org: Organisation) => (
-                  <TableRow key={org.id}>
+                  <TableRow key={org.id} className="group">
                     <TableCell>
                       {editingOrgId === org.id ? (
                         <div className="flex items-center gap-1">

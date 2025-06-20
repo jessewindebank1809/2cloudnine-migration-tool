@@ -380,6 +380,7 @@ export function MigrationProjectBuilder() {
     return issues.some(issue => 
       issue.id === 'source-connectivity' || 
       issue.id === 'target-connectivity' ||
+      issue.id === 'orgConnectivity' ||
       issue.title.includes('Connection Failed')
     );
   };
@@ -388,6 +389,7 @@ export function MigrationProjectBuilder() {
   const getFailedOrgDetails = (issues: ValidationIssue[]) => {
     const sourceConnError = issues.find(issue => issue.id === 'source-connectivity');
     const targetConnError = issues.find(issue => issue.id === 'target-connectivity');
+    const orgConnError = issues.find(issue => issue.id === 'orgConnectivity');
     
     if (sourceConnError) {
       const sourceOrg = connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId);
@@ -397,6 +399,11 @@ export function MigrationProjectBuilder() {
     if (targetConnError) {
       const targetOrg = connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId);
       return targetOrg;
+    }
+    
+    // For generic orgConnectivity errors, we don't know which org failed
+    if (orgConnError) {
+      return 'unknown';
     }
     
     return null;
@@ -412,7 +419,13 @@ export function MigrationProjectBuilder() {
       return;
     }
     
-    // Trigger the OAuth flow for the failed organisation
+    // If we don't know which org failed, redirect to orgs page
+    if (failedOrg === 'unknown') {
+      router.push('/orgs?error=connection_failed');
+      return;
+    }
+    
+    // Trigger the OAuth flow for the specific failed organisation
     const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}`;
     window.location.href = oauthUrl;
   };
@@ -794,7 +807,9 @@ export function MigrationProjectBuilder() {
                           {issue.severity === 'warning' && <AlertTriangle className="h-4 w-4 text-yellow-600" />}
                           {issue.severity === 'info' && <Info className="h-4 w-4 text-blue-600" />}
                           <div>
-                            <AlertTitle>{issue.title}</AlertTitle>
+                            <AlertTitle>
+                              {issue.id === 'orgConnectivity' ? 'Organisation Connection Error' : issue.title}
+                            </AlertTitle>
                             <AlertDescription className="mt-2">
                               {issue.description}
                               {issue.suggestion && (
