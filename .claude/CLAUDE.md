@@ -156,6 +156,7 @@ The system auto-detects external ID fields with fallback logic:
 
 ## Deployment Notes
 
+- Always let Github Actions deploy to Fly.io
 - Github actions invokes deployments to Fly.io when deployments are success to
   staging/main
 - Staging deployments triggered by pushes to `staging` branch
