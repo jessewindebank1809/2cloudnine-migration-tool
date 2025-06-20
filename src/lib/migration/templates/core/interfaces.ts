@@ -206,6 +206,7 @@ export interface ValidationIssue {
     severity: "error" | "warning" | "info";
     recordId: string | null;
     recordName: string | null;
+    field?: string;
     suggestedAction?: string;
 }
 
