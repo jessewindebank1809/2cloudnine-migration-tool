@@ -1,4 +1,4 @@
-import { MigrationTemplate, FieldMapping, LookupMapping, LoadConfig, ValidationConfig, DataIntegrityCheck } from "../../core/interfaces";
+import { MigrationTemplate, FieldMapping, LookupMapping, LoadConfig, ValidationConfig, DataIntegrityCheck, PicklistValidationCheck } from "../../core/interfaces";
 import { ExternalIdUtils } from "../../utils/external-id-utils";
 
 export const interpretationRulesTemplate: MigrationTemplate = {
@@ -775,6 +775,17 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             severity: "error" as const,
                         },
                     ] as DataIntegrityCheck[],
+                    picklistValidationChecks: [
+                        {
+                            checkName: "variationTypePicklistValidation",
+                            description: "Validate Variation Type picklist values exist in target org",
+                            fieldName: "tc9_et__Variation_Type__c",
+                            objectName: "tc9_et__Interpretation_Breakpoint__c",
+                            validateAgainstTarget: true,
+                            errorMessage: "Found invalid Variation Type picklist values that don't exist in target org",
+                            severity: "error" as const,
+                        },
+                    ] as PicklistValidationCheck[],
                 } as ValidationConfig,
             };
 

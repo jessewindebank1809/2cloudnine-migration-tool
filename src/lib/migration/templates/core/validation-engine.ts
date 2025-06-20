@@ -5,6 +5,8 @@ import {
     ValidationConfig,
     DependencyCheck,
     DataIntegrityCheck,
+    PicklistValidationCheck,
+    PicklistFieldMetadata,
     PreValidationQuery,
     ETLStep,
     ExtractConfig,
@@ -116,9 +118,16 @@ export class ValidationEngine {
                 config.dataIntegrityChecks,
             );
 
+            // 5. Run picklist validation checks
+            const picklistResults = await this.runPicklistValidationChecks(
+                config.picklistValidationChecks || [],
+                sourceData,
+            );
+
             return this.combineValidationResults([
                 dependencyResults,
                 integrityResults,
+                picklistResults,
             ]);
         } catch (error) {
             const results = this.createEmptyValidationResult();
@@ -463,6 +472,80 @@ export class ValidationEngine {
         // Extract object name from SOQL query (FROM clause)
         const fromMatch = query.match(/FROM\s+([a-zA-Z0-9_]+)/i);
         return fromMatch ? fromMatch[1] : "";
+    }
+
+    private async runPicklistValidationChecks(
+        checks: PicklistValidationCheck[],
+        sourceData: any[]
+    ): Promise<ValidationResult> {
+        const results = this.createEmptyValidationResult();
+        
+        for (const check of checks) {
+            try {
+                console.log(`Running picklist validation check: ${check.checkName}`);
+                
+                // Get picklist metadata from target org
+                const targetClient = await sessionManager.getClient(this.targetOrgId);
+                const picklistResult = await targetClient.getPicklistValues(check.objectName, check.fieldName);
+                
+                if (!picklistResult.success) {
+                    results.errors.push({
+                        checkName: check.checkName,
+                        message: `Failed to get picklist metadata: ${picklistResult.error}`,
+                        severity: "error",
+                        recordId: null,
+                        recordName: null,
+                        suggestedAction: "Check that the field exists and is a picklist field"
+                    });
+                    continue;
+                }
+
+                const targetPicklistData: PicklistFieldMetadata = picklistResult.data;
+                const allowedValues = check.allowedValues || targetPicklistData.values.map(v => v.value);
+                
+                // Validate each source record
+                for (const record of sourceData) {
+                    const fieldValue = this.getFieldValue(record, check.fieldName);
+                    
+                    if (fieldValue && !this.isValidPicklistValue(fieldValue, allowedValues)) {
+                        const recordName = record.Name || record.Id || "Unknown";
+                        const issue: ValidationIssue = {
+                            checkName: check.checkName,
+                            message: `Invalid picklist value '${fieldValue}' for field ${check.fieldName}. Allowed values: ${allowedValues.join(', ')}`,
+                            severity: check.severity,
+                            recordId: record.Id || null,
+                            recordName: recordName,
+                            suggestedAction: `Update the ${check.fieldName} field to use a valid picklist value before migration`
+                        };
+                        
+                        if (check.severity === "error") {
+                            results.errors.push(issue);
+                        } else if (check.severity === "warning") {
+                            results.warnings.push(issue);
+                        } else {
+                            results.info.push(issue);
+                        }
+                    }
+                }
+                
+                console.log(`Picklist validation check ${check.checkName} completed`);
+            } catch (error) {
+                results.errors.push({
+                    checkName: check.checkName,
+                    message: `Picklist validation check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                    severity: "error",
+                    recordId: null,
+                    recordName: null,
+                    suggestedAction: "Check validation configuration and org connectivity"
+                });
+            }
+        }
+        
+        return results;
+    }
+
+    private isValidPicklistValue(value: string, allowedValues: string[]): boolean {
+        return allowedValues.includes(value);
     }
 
     // Clear cache for testing or reset
