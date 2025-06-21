@@ -55,8 +55,8 @@ export async function DELETE(
   } catch (error) {
     console.error('Failed to delete organisation:', error);
     
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(
@@ -114,8 +114,8 @@ export async function PATCH(
   } catch (error) {
     console.error('Failed to update organisation:', error);
     
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(
@@ -160,8 +160,8 @@ export async function GET(
   } catch (error) {
     console.error('Failed to fetch organisation:', error);
     
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(

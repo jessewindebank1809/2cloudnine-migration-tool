@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const PuppeteerHelpers = require('../utils/puppeteer-helpers');
 
-describe('Complete OAuth Authorization Flow', () => {
+describe('Complete OAuth Authorisation Flow', () => {
   let browser;
   let page;
 
@@ -40,7 +40,7 @@ describe('Complete OAuth Authorization Flow', () => {
     }
   });
 
-  test('should complete full OAuth flow including authorization', async () => {
+  test('should complete full OAuth flow including authorisation', async () => {
     const baseUrl = process.env.TEST_APP_URL || 'http://localhost:3000';
     
     console.log('🔐 Starting COMPLETE OAuth flow test...');
@@ -102,12 +102,12 @@ describe('Complete OAuth Authorization Flow', () => {
         console.log(`🌐 After login: ${currentUrl}`);
       }
       
-      // Step 4: Handle OAuth authorization page
+      // Step 4: Handle OAuth authorisation page
       if (currentUrl.includes('RemoteAccessAuthorizationPage') || currentUrl.includes('setup/secur')) {
-        console.log('🔑 On OAuth authorization page!');
-        await PuppeteerHelpers.takeScreenshot(page, 'complete-oauth-authorization');
+        console.log('🔑 On OAuth authorisation page!');
+        await PuppeteerHelpers.takeScreenshot(page, 'complete-oauth-authorisation');
         
-        // Look for authorization buttons (Allow, Authorize, etc.)
+        // Look for authorisation buttons (Allow, Authorise, etc.)
         const authButtons = await page.evaluate(() => {
           const buttons = Array.from(document.querySelectorAll('input[type="submit"], button, input[type="button"]'));
           return buttons.map(btn => ({
@@ -119,20 +119,20 @@ describe('Complete OAuth Authorization Flow', () => {
           }));
         });
         
-        console.log('🔍 Available authorization buttons:', authButtons);
+        console.log('🔍 Available authorisation buttons:', authButtons);
         
-        // Look for "Allow" or "Authorize" button
+        // Look for "Allow" or "Authorise" button
         const allowButton = authButtons.find(btn => 
           btn.text.toLowerCase().includes('allow') || 
-          btn.text.toLowerCase().includes('authorize') ||
+          btn.text.toLowerCase().includes('authorise') ||
           btn.text.toLowerCase().includes('continue') ||
           btn.id.toLowerCase().includes('allow')
         );
         
         if (allowButton) {
-          console.log(`✅ Found authorization button: "${allowButton.text}"`);
+          console.log(`✅ Found authorisation button: "${allowButton.text}"`);
           
-          // Click the authorization button
+          // Click the authorisation button
           const clicked = await page.evaluate((buttonInfo) => {
             const buttons = document.querySelectorAll('input[type="submit"], button, input[type="button"]');
             for (const btn of buttons) {
@@ -146,7 +146,7 @@ describe('Complete OAuth Authorization Flow', () => {
           }, allowButton);
           
           if (clicked) {
-            console.log('🚀 Authorization button clicked!');
+            console.log('🚀 Authorisation button clicked!');
             
             // Wait for redirect back to app
             await new Promise(resolve => setTimeout(resolve, 10000));
@@ -179,10 +179,10 @@ describe('Complete OAuth Authorization Flow', () => {
               console.log('⚠️ Not redirected back to app yet');
             }
           } else {
-            console.log('❌ Could not click authorization button');
+            console.log('❌ Could not click authorisation button');
           }
         } else {
-          console.log('❌ No authorization button found');
+          console.log('❌ No authorisation button found');
           
           // Check page content for clues
           const pageContent = await page.evaluate(() => ({
@@ -192,7 +192,7 @@ describe('Complete OAuth Authorization Flow', () => {
           console.log('📄 Page content:', pageContent);
         }
       } else {
-        console.log('⚠️ Not on expected OAuth authorization page');
+        console.log('⚠️ Not on expected OAuth authorisation page');
         console.log(`🌐 Current URL: ${currentUrl}`);
       }
     } else {

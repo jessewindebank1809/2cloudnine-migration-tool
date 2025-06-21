@@ -97,7 +97,7 @@ The UI Element Detection Framework has been successfully created to systematical
 ### **Successfully Tested Pages**:
 - ✅ **Home Page**: Full UI element detection working
 - ✅ **Authentication Flow**: Complete OAuth integration
-- ⚠️ **Organizations Page**: Requires non-headless mode for authentication
+- ⚠️ **Organisations Page**: Requires non-headless mode for authentication
 - ⚠️ **Migrations Page**: Framework ready, needs authentication fix
 - ⚠️ **Templates Page**: Framework ready, needs authentication fix
 - ⚠️ **Analytics Page**: Framework ready, needs authentication fix

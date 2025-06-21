@@ -23,14 +23,14 @@
 #### **Application Routes** - ALL ACCESSIBLE ✅
 - **✅ `/home`**: Home dashboard loads with 1 button, accessible
 - **✅ `/migrations`**: Migrations page loads, accessible  
-- **✅ `/orgs`**: Organizations page loads, contains "salesforce, connect" content
+- **✅ `/orgs`**: Organisations page loads, contains "salesforce, connect" content
 - **✅ `/templates`**: Templates page loads, accessible
 - **✅ `/analytics`**: Analytics page accessible (minor frame timing issues)
 - **✅ `/auth/signin`**: Main auth page with proper title
 - **✅ `/auth/signup`**: Sign-up page accessible
 
 #### **Content Detection** ✅
-- **✅ Organization management**: Found "salesforce, connect" keywords on orgs page
+- **✅ Organisation management**: Found "salesforce, connect" keywords on orgs page
 - **✅ Authentication elements**: "Continue with Salesforce" button working
 - **✅ Page structure**: Consistent navigation elements across routes
 - **✅ Interactive elements**: Buttons, forms detected on relevant pages
@@ -78,7 +78,7 @@ npm run test:e2e:server                 # Start test server
 
 # Individual test suites - FRAMEWORK READY
 npm run test:e2e:auth                   # Authentication tests
-npm run test:e2e:orgs                   # Organization tests  
+npm run test:e2e:orgs                   # Organisation tests  
 npm run test:e2e:migrations             # Migration tests
 npm run test:e2e:templates              # Template tests
 npm run test:e2e:analytics              # Analytics tests

@@ -180,26 +180,26 @@ describe('SoqlQueryBuilder', () => {
     });
   });
 
-  describe('Query Optimization', () => {
+  describe('Query Optimisation', () => {
     it('should add LIMIT to query without existing LIMIT', () => {
       const query = 'SELECT Id, Name FROM Account';
-      const optimized = SoqlQueryBuilder.optimizeForBatch(query, 200);
+      const optimised = SoqlQueryBuilder.optimiseForBatch(query, 200);
       
-      expect(optimized).toBe('SELECT Id, Name FROM Account LIMIT 200');
+      expect(optimised).toBe('SELECT Id, Name FROM Account LIMIT 200');
     });
 
     it('should not modify query with existing LIMIT', () => {
       const query = 'SELECT Id, Name FROM Account LIMIT 100';
-      const optimized = SoqlQueryBuilder.optimizeForBatch(query, 200);
+      const optimised = SoqlQueryBuilder.optimiseForBatch(query, 200);
       
-      expect(optimized).toBe('SELECT Id, Name FROM Account LIMIT 100');
+      expect(optimised).toBe('SELECT Id, Name FROM Account LIMIT 100');
     });
 
     it('should not add LIMIT when batch size is 0', () => {
       const query = 'SELECT Id, Name FROM Account';
-      const optimized = SoqlQueryBuilder.optimizeForBatch(query, 0);
+      const optimised = SoqlQueryBuilder.optimiseForBatch(query, 0);
       
-      expect(optimized).toBe('SELECT Id, Name FROM Account');
+      expect(optimised).toBe('SELECT Id, Name FROM Account');
     });
   });
 }); 

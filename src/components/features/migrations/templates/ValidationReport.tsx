@@ -273,12 +273,31 @@ interface ValidationIssueCardProps {
 }
 
 function ValidationIssueCard({ issue }: ValidationIssueCardProps) {
+  const getPicklistErrorSuggestion = (issue: ValidationIssue) => {
+    if (issue.message.includes('Invalid picklist value')) {
+      return "This is a picklist validation error. Please check the field values in your source data against the target org's picklist configuration.";
+    }
+    if (issue.message.includes('INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST')) {
+      return "This is a picklist validation error. Please check the field values in your source data against the target org's picklist configuration.";
+    }
+    return issue.suggestedAction;
+  };
+
+  const isPicklistError = issue.message.includes('Invalid picklist value') || 
+                         issue.message.includes('INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST') ||
+                         issue.checkName.includes('picklistValidation');
+
   return (
     <div className="border rounded-lg p-3 space-y-2">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h4 className="font-medium text-sm">{issue.checkName}</h4>
           <p className="text-sm text-gray-600 mt-1">{issue.message}</p>
+          {isPicklistError && (
+            <div className="text-xs text-orange-600 mt-1 font-medium">
+              🎯 Picklist Validation Error
+            </div>
+          )}
         </div>
         <Badge 
           variant={
@@ -297,9 +316,9 @@ function ValidationIssueCard({ issue }: ValidationIssueCardProps) {
         </div>
       )}
       
-      {issue.suggestedAction && (
-        <div className="text-xs bg-blue-50 text-blue-700 p-2 rounded">
-          <strong>Suggested Action:</strong> {issue.suggestedAction}
+      {(issue.suggestedAction || isPicklistError) && (
+        <div className={`text-xs p-2 rounded ${isPicklistError ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>
+          <strong>Suggested Action:</strong> {getPicklistErrorSuggestion(issue)}
         </div>
       )}
     </div>

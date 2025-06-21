@@ -84,7 +84,7 @@ export function ObjectSelection({
       for (const objectName of Array.from(selectedObjects)) {
         try {
           const response = await fetch(
-            `/api/organizations/${sourceOrgId}/query`,
+            `/api/organisations/${sourceOrgId}/query`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

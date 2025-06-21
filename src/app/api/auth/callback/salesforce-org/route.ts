@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
     // Get user info to retrieve the org ID
     const userInfoResponse = await fetch(`${tokenData.instance_url}/services/oauth2/userinfo`, {
       headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Authorisation': `Bearer ${tokenData.access_token}`,
       },
     });
 
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
     const userInfo = await userInfoResponse.json();
 
     console.log('🟢 OAuth Callback - Retrieved Salesforce org info:', {
-      organizationId: userInfo.organization_id,
+      organisationId: userInfo.organization_id,
       userId: userInfo.user_id,
     });
 

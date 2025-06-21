@@ -103,7 +103,7 @@ Created multiple test files to validate the solution:
 
 ### **UI Testing Capabilities**:
 - ✅ **Home Page**: Full UI detection with bypass
-- ✅ **Organizations Page**: Protected route access
+- ✅ **Organisations Page**: Protected route access
 - ✅ **Migrations Page**: Navigation and elements tested
 - ✅ **Templates Page**: UI components validated
 - ✅ **Analytics Page**: Dashboard access confirmed

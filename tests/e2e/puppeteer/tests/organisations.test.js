@@ -3,7 +3,7 @@ const OrgsPage = require('../pages/orgs-page');
 const TestConfig = require('../utils/test-config');
 const TestData = require('../utils/test-data');
 
-describe('Organization Management Tests', () => {
+describe('Organisation Management Tests', () => {
   let authPage;
   let orgsPage;
 

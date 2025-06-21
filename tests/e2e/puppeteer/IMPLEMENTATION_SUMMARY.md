@@ -18,8 +18,8 @@ The comprehensive Puppeteer E2E testing suite for the 2cloudnine Migration Tool 
 - Session persistence across browser refreshes  
 - Sign-out and session cleanup verification
 
-✅ **Organization Management (ORG_001-002)**
-- Multi-organization connection workflows
+✅ **Organisation Management (ORG_001-002)**
+- Multi-organisation connection workflows
 - Schema discovery and validation processes
 - Error handling for connection failures
 
@@ -80,7 +80,7 @@ tests/e2e/puppeteer/
 │   ├── base-page.js                  # Base page object model
 │   ├── auth-page.js                  # Authentication flows
 │   ├── home-page.js                  # Dashboard navigation
-│   ├── orgs-page.js                  # Organization management
+│   ├── orgs-page.js                  # Organisation management
 │   ├── migrations-page.js            # Migration workflows
 │   ├── templates-page.js             # Template management
 │   └── analytics-page.js             # Analytics dashboard
@@ -88,7 +88,7 @@ tests/e2e/puppeteer/
 │   ├── basic-framework.test.js       # Framework validation tests
 │   ├── application-basic.test.js     # Basic application tests
 │   ├── auth.test.js                  # Authentication flow tests
-│   ├── organizations.test.js         # Organization management tests
+│   ├── organisations.test.js         # Organisation management tests
 │   ├── migrations.test.js            # Migration workflow tests
 │   ├── templates.test.js             # Template management tests
 │   ├── analytics.test.js             # Analytics dashboard tests
@@ -108,7 +108,7 @@ npm run test:e2e:server               # Start test development server
 
 # Individual test suites  
 npm run test:e2e:auth                 # Authentication tests
-npm run test:e2e:orgs                 # Organization tests
+npm run test:e2e:orgs                 # Organisation tests
 npm run test:e2e:migrations           # Migration workflow tests
 npm run test:e2e:templates            # Template management tests
 npm run test:e2e:analytics            # Analytics dashboard tests

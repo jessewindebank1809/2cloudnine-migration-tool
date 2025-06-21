@@ -1,10 +1,10 @@
-// Organization types
+// Organisation types
 export interface OrgConnection {
   id: string;
   name: string;
   type: "source" | "target";
   instanceUrl: string;
-  organizationId: string;
+  organisationId: string;
   isConnected: boolean;
   connectionStatus: "active" | "expired" | "error";
   lastSync: Date;
@@ -128,8 +128,8 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 // Salesforce types
 export interface SalesforceOrg {
   id: string;
-  organizationId: string;
-  organizationName: string;
+  organisationId: string;
+  organisationName: string;
   instanceUrl: string;
   accessToken?: string;
   refreshToken?: string;

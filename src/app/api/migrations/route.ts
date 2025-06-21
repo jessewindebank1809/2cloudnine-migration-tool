@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     const { name, description, sourceOrgId, targetOrgId, templateId, selectedRecords, config } = validation.data;
 
-    // Verify organizations exist and belong to the current user
+    // Verify organisations exist and belong to the current user
     const [sourceOrg, targetOrg] = await Promise.all([
       prisma.organisations.findFirst({ 
         where: { 
@@ -196,8 +196,8 @@ export async function POST(request: NextRequest) {
     console.error('Error creating migration project:', error);
     
     // Handle authentication errors
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(

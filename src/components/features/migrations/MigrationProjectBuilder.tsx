@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
@@ -101,6 +101,33 @@ export function MigrationProjectBuilder() {
     targetOrgId: '',
     selectedRecords: [] as string[],
   });
+  
+  // Check for resumed session after OAuth
+  useEffect(() => {
+    const savedData = sessionStorage.getItem('migrationProjectData');
+    const savedStep = sessionStorage.getItem('migrationProjectStep');
+    
+    if (savedData && savedStep) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        setProjectData(parsedData);
+        setCurrentStep(savedStep as Step);
+        
+        // Clear session storage
+        sessionStorage.removeItem('migrationProjectData');
+        sessionStorage.removeItem('migrationProjectStep');
+        
+        // If we're back at validation review, automatically re-validate
+        if (savedStep === 'validation-review') {
+          setTimeout(() => {
+            validateMigration.mutate(parsedData);
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Failed to restore migration session:', error);
+      }
+    }
+  }, []);
 
   // Fetch available organisations
   const { data: orgsData, isLoading: orgsLoading } = useQuery({
@@ -380,7 +407,9 @@ export function MigrationProjectBuilder() {
     return issues.some(issue => 
       issue.id === 'source-connectivity' || 
       issue.id === 'target-connectivity' ||
-      issue.title.includes('Connection Failed')
+      issue.id === 'orgConnectivity' ||
+      issue.title.includes('Connection Failed') ||
+      issue.description.toLowerCase().includes('not accessible')
     );
   };
 
@@ -388,6 +417,7 @@ export function MigrationProjectBuilder() {
   const getFailedOrgDetails = (issues: ValidationIssue[]) => {
     const sourceConnError = issues.find(issue => issue.id === 'source-connectivity');
     const targetConnError = issues.find(issue => issue.id === 'target-connectivity');
+    const orgConnError = issues.find(issue => issue.id === 'orgConnectivity');
     
     if (sourceConnError) {
       const sourceOrg = connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId);
@@ -399,21 +429,49 @@ export function MigrationProjectBuilder() {
       return targetOrg;
     }
     
+    // For generic orgConnectivity errors, we don't know which org failed
+    if (orgConnError) {
+      return 'unknown';
+    }
+    
     return null;
   };
 
-  // Handle reconnection - directly trigger OAuth flow
+  // Handle reconnection - trigger OAuth flow like orgs page
   const handleReconnectOrgs = () => {
     if (!validationResult) return;
     
-    const failedOrg = getFailedOrgDetails(validationResult.issues);
-    if (!failedOrg) {
-      console.error('No failed organisation found for reconnection');
+    // Determine which org needs reconnection
+    const connError = validationResult.issues.find(issue => 
+      issue.id === 'orgConnectivity' && issue.description.toLowerCase().includes('not accessible')
+    );
+    
+    let orgToReconnect = null;
+    
+    // For now, if both orgs failed or we can't determine which one, go to orgs page
+    if (!connError || connError.description.includes('Both source and target')) {
+      router.push('/orgs?error=connection_failed');
       return;
     }
     
-    // Trigger the OAuth flow for the failed organisation
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}`;
+    // Find the specific org that needs reconnection
+    if (connError.description.includes('Source')) {
+      orgToReconnect = connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId);
+    } else if (connError.description.includes('Target')) {
+      orgToReconnect = connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId);
+    }
+    
+    if (!orgToReconnect) {
+      router.push('/orgs?error=connection_failed');
+      return;
+    }
+    
+    // Store the current project state to resume after OAuth
+    sessionStorage.setItem('migrationProjectData', JSON.stringify(projectData));
+    sessionStorage.setItem('migrationProjectStep', 'validation-review');
+    
+    // Trigger OAuth flow for the specific org
+    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(orgToReconnect.id)}&instanceUrl=${encodeURIComponent(orgToReconnect.instance_url)}`;
     window.location.href = oauthUrl;
   };
 
@@ -777,7 +835,19 @@ export function MigrationProjectBuilder() {
                             className="flex items-center gap-2"
                           >
                             <RefreshCw className="h-4 w-4" />
-                            Reconnect Failed Org
+                            {(() => {
+                              const connError = validationResult.issues.find(issue => 
+                                issue.id === 'orgConnectivity' && issue.description.toLowerCase().includes('not accessible')
+                              );
+                              if (connError?.description.includes('Both source and target')) {
+                                return 'Reconnect Both Orgs';
+                              } else if (connError?.description.includes('Source')) {
+                                return 'Reconnect Source Org';
+                              } else if (connError?.description.includes('Target')) {
+                                return 'Reconnect Target Org';
+                              }
+                              return 'Reconnect Failed Org';
+                            })()}
                           </Button>
                         )}
                       </div>
@@ -794,7 +864,9 @@ export function MigrationProjectBuilder() {
                           {issue.severity === 'warning' && <AlertTriangle className="h-4 w-4 text-yellow-600" />}
                           {issue.severity === 'info' && <Info className="h-4 w-4 text-blue-600" />}
                           <div>
-                            <AlertTitle>{issue.title}</AlertTitle>
+                            <AlertTitle>
+                              {issue.id === 'orgConnectivity' ? 'Organisation Connection Error' : issue.title}
+                            </AlertTitle>
                             <AlertDescription className="mt-2">
                               {issue.description}
                               {issue.suggestion && (
@@ -810,15 +882,6 @@ export function MigrationProjectBuilder() {
                   )}
 
                   {/* Action Required */}
-                  {validationResult.hasErrors && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        You must resolve all errors before proceeding with the migration. Please address the issues above and try again.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
                   {!validationResult.hasErrors && validationResult.hasWarnings && (
                     <Alert className="border-yellow-500 bg-yellow-50">
                       <AlertTriangle className="h-4 w-4 text-yellow-600" />

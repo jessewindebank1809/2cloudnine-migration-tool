@@ -34,8 +34,8 @@ export class SalesforceClient {
 
       const salesforceOrg: SalesforceOrg = {
         id: org.id,
-        organizationId: org.salesforce_org_id || '',
-        organizationName: org.name,
+        organisationId: org.salesforce_org_id || '',
+        organisationName: org.name,
         instanceUrl: org.instance_url,
         accessToken: validTokens.accessToken,
         refreshToken: validTokens.refreshToken
@@ -248,6 +248,8 @@ export class SalesforceClient {
             isAutoNumber: field.autoNumber,
             length: field.length,
             referenceTo: field.referenceTo,
+            picklistValues: field.picklistValues || [],
+            restrictedPicklist: field.restrictedPicklist || false,
           })),
           relationships: describe.childRelationships.map((rel: any) => ({
             name: rel.field,
@@ -261,6 +263,46 @@ export class SalesforceClient {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get object metadata'
+      };
+    }
+  }
+
+  async getPicklistValues(objectName: string, fieldName: string) {
+    try {
+      const describe = await withTokenRefresh(
+        this,
+        async () => await this.connection.sobject(objectName).describe(),
+        `picklist values for ${objectName}.${fieldName}`
+      );
+      
+      const field = describe.fields.find((f: any) => f.name === fieldName);
+      if (!field) {
+        return {
+          success: false,
+          error: `Field ${fieldName} not found on object ${objectName}`
+        };
+      }
+
+      if (field.type !== 'picklist' && field.type !== 'multipicklist') {
+        return {
+          success: false,
+          error: `Field ${fieldName} is not a picklist field (type: ${field.type})`
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          fieldName,
+          values: field.picklistValues || [],
+          restricted: field.restrictedPicklist || false,
+          defaultValue: field.defaultValue || undefined
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get picklist values'
       };
     }
   }

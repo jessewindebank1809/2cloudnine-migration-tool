@@ -56,7 +56,7 @@ function SignInContent() {
       });
     } catch (error) {
       console.error('Salesforce sign in error:', error);
-      setError(`Salesforce sign in failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Don't set error here to avoid duplicate error sections
       setIsLoading(false);
     }
   };
@@ -102,7 +102,7 @@ function SignInContent() {
               <button
                 onClick={handleSalesforceSignIn}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center px-6 py-4 text-white font-semibold rounded-lg bg-c9-blue-500 hover:bg-c9-blue-600 focus:outline-none focus:ring-4 focus:ring-c9-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="flex items-center justify-center px-12 py-4 text-white font-semibold rounded-lg bg-c9-blue-500 hover:bg-c9-blue-600 focus:outline-none focus:ring-4 focus:ring-c9-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl mx-auto"
               >
                 <SalesforceCloudLogo className="mr-3 h-6 w-6 brightness-0 invert" />
                 <span>

@@ -15,12 +15,12 @@ export const auth = betterAuth({
   }),
   baseURL: getBaseURL(),
   secret: process.env.BETTER_AUTH_SECRET || 'build-time-placeholder-secret-key-for-development',
-  // Performance optimizations
+  // Performance optimisations
   logger: {
     level: process.env.NODE_ENV === 'development' ? 'warn' : 'error',
     disabled: process.env.NODE_ENV === 'production',
   },
-  // Optimize session handling
+  // Optimise session handling
   session: {
     expiresIn: 7 * 24 * 60 * 60, // 7 days
     updateAge: 24 * 60 * 60, // Only update session once per day
