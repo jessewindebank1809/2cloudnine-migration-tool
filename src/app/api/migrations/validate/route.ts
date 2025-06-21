@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { sessionManager } from '@/lib/salesforce/session-manager';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
+import { ValidationEngine } from '@/lib/migration/templates/core/validation-engine';
 import '@/lib/migration/templates/registry';
 
 interface ValidationIssue {
@@ -60,113 +61,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use the template's validation engine
+    const validationEngine = new ValidationEngine();
+    const engineValidationResult = await validationEngine.validateTemplate(
+      template,
+      sourceOrgId,
+      targetOrgId,
+      selectedRecords
+    );
+
+    // Convert engine validation results to API format
     const issues: ValidationIssue[] = [];
 
-    // Validation 1: Check source organisation connectivity
-    try {
-      const sourceClient = await sessionManager.getClient(sourceOrgId);
-      await sourceClient.query('SELECT Id FROM User LIMIT 1');
-    } catch (error) {
+    // Add errors
+    engineValidationResult.errors.forEach((error, index) => {
       issues.push({
-        id: 'source-connectivity',
+        id: `error-${index}`,
         severity: 'error',
-        title: 'Source Organisation Connection Failed',
-        description: 'Unable to connect to the source organisation. The authentication token may have expired.',
-        suggestion: 'Please reconnect the source organisation and try again.'
+        title: error.checkName,
+        description: error.message,
+        recordId: error.recordId || undefined,
+        field: error.checkName.includes('picklist') ? error.checkName.replace('picklistValidation_', '') : undefined,
+        suggestion: error.suggestedAction || undefined
       });
-    }
+    });
 
-    // Validation 2: Check target organisation connectivity
-    try {
-      const targetClient = await sessionManager.getClient(targetOrgId);
-      await targetClient.query('SELECT Id FROM User LIMIT 1');
-    } catch (error) {
+    // Add warnings
+    engineValidationResult.warnings.forEach((warning, index) => {
       issues.push({
-        id: 'target-connectivity',
-        severity: 'error',
-        title: 'Target Organisation Connection Failed',
-        description: 'Unable to connect to the target organisation. The authentication token may have expired.',
-        suggestion: 'Please reconnect the target organisation and try again.'
+        id: `warning-${index}`,
+        severity: 'warning',
+        title: warning.checkName,
+        description: warning.message,
+        recordId: warning.recordId || undefined,
+        suggestion: warning.suggestedAction || undefined
       });
-    }
+    });
 
-    // Validation 3: Check if selected records still exist
-    if (issues.length === 0) { // Only if connectivity is OK
-      try {
-        const sourceClient = await sessionManager.getClient(sourceOrgId);
-        const primaryObject = template.etlSteps[0]?.extractConfig?.objectApiName;
-        
-        if (primaryObject) {
-          const recordIds = selectedRecords.map((id: string) => `'${id}'`).join(',');
-          const query = `SELECT Id, Name FROM ${primaryObject} WHERE Id IN (${recordIds})`;
-          const result = await sourceClient.query(query);
-          
-          const foundIds = new Set(result.data?.map((record: any) => record.Id) || []);
-          const missingRecords = selectedRecords.filter((id: string) => !foundIds.has(id));
-          
-          if (missingRecords.length > 0) {
-            issues.push({
-              id: 'missing-records',
-              severity: 'error',
-              title: `${missingRecords.length} Selected Records Not Found`,
-              description: `Some of the selected records no longer exist in the source organisation.`,
-              suggestion: 'Please go back and reselect your records.'
-            });
-          }
-        }
-      } catch (error) {
-        issues.push({
-          id: 'record-validation',
-          severity: 'warning',
-          title: 'Unable to Validate Selected Records',
-          description: 'Could not verify that all selected records still exist.',
-          suggestion: 'Consider reselecting records to ensure they are current.'
-        });
-      }
-    }
+    // Add info messages
+    engineValidationResult.info.forEach((info, index) => {
+      issues.push({
+        id: `info-${index}`,
+        severity: 'info',
+        title: info.checkName,
+        description: info.message,
+        recordId: info.recordId || undefined,
+        suggestion: info.suggestedAction || undefined
+      });
+    });
 
-    // Validation 4: Check target organisation object permissions
-    if (issues.filter(i => i.severity === 'error').length === 0) {
-      try {
-        const targetClient = await sessionManager.getClient(targetOrgId);
-        const primaryObject = template.etlSteps[0]?.extractConfig?.objectApiName;
-        
-        if (primaryObject) {
-          // Try to get object metadata to check if it exists and we have access
-          const metadataResult = await targetClient.getObjectMetadata(primaryObject);
-          
-          if (!metadataResult.success) {
-            issues.push({
-              id: 'target-object-access',
-              severity: 'error',
-              title: `Cannot Access ${primaryObject} in Target Organisation`,
-              description: 'The target organisation does not have the required object or you lack permissions.',
-              suggestion: 'Ensure the target organisation has the required objects and permissions.'
-            });
-          } else {
-            // For now, we'll assume createable if we can access the object
-            // In a future enhancement, we could check specific field permissions
-            issues.push({
-              id: 'target-object-verified',
-              severity: 'info',
-              title: `${primaryObject} Object Verified`,
-              description: 'Successfully verified access to the target object.',
-              suggestion: ''
-            });
-          }
-        }
-      } catch (error) {
-        issues.push({
-          id: 'target-permissions',
-          severity: 'warning',
-          title: 'Unable to Verify Target Permissions',
-          description: 'Could not verify permissions in the target organisation.',
-          suggestion: 'Ensure you have the necessary permissions before proceeding.'
-        });
-      }
-    }
-
-    // Validation 5: Check for potential data issues
+    // Add large batch warning if needed
     if (selectedRecords.length > 200) {
       issues.push({
         id: 'large-batch-warning',
