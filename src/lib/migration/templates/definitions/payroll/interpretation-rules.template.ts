@@ -188,7 +188,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     {
                         checkName: "payCodeNotNull",
                         description: "Ensure pay code references are not null",
-                        validationQuery: "SELECT COUNT() FROM tc9_et__Interpretation_Rule__c WHERE tc9_et__Pay_Code__c IS NULL",
+                        validationQuery: "SELECT COUNT(Id) FROM tc9_et__Interpretation_Rule__c WHERE tc9_et__Pay_Code__c = null",
                         expectedResult: "empty",
                         errorMessage: "Found interpretation rules with null pay code references",
                         severity: "warning",
@@ -196,13 +196,13 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     {
                         checkName: "sourcePayCodeExternalIdValidation",
                         description: "Validate that all source pay codes referenced by interpretation rules have external ID values",
-                        validationQuery: `SELECT COUNT() FROM tc9_pr__Pay_Code__c 
+                        validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
                             WHERE Id IN (
                                 SELECT tc9_et__Pay_Code__c 
                                 FROM tc9_et__Interpretation_Rule__c 
-                                WHERE tc9_et__Pay_Code__c IS NOT NULL
+                                WHERE tc9_et__Pay_Code__c != null
                             )
-                            AND (External_ID_Data_Creation__c IS NULL AND tc9_edc__External_ID_Data_Creation__c IS NULL AND External_Id__c IS NULL)`,
+                            AND (External_ID_Data_Creation__c = null AND tc9_edc__External_ID_Data_Creation__c = null AND External_Id__c = null)`,
                         expectedResult: "empty",
                         errorMessage: "Migration cannot proceed: Found pay codes referenced by interpretation rules that are missing external ID values. All referenced pay codes must have external IDs for cross-environment migration",
                         severity: "error",
@@ -210,8 +210,8 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     {
                         checkName: "crossEnvironmentExternalIdValidation",
                         description: "Validate external ID fields exist for cross-environment migration",
-                        validationQuery: `SELECT COUNT() FROM tc9_pr__Pay_Code__c WHERE 
-                            (External_ID_Data_Creation__c IS NULL AND tc9_edc__External_ID_Data_Creation__c IS NULL AND External_Id__c IS NULL)`,
+                        validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c WHERE 
+                            (External_ID_Data_Creation__c = null AND tc9_edc__External_ID_Data_Creation__c = null AND External_Id__c = null)`,
                         expectedResult: "empty",
                         errorMessage: "Migration cannot proceed: Found pay codes without any external ID values. Cross-environment migration requires external IDs to be populated",
                         severity: "error",
@@ -226,14 +226,14 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             FROM tc9_et__Interpretation_Rule__c 
                             WHERE tc9_et__Status__c = 'Active' 
                             AND RecordType.DeveloperName != 'Daily_Rates'
-                            AND (tc9_et__Monday_Standard_Hours__c IS NULL 
-                                OR tc9_et__Tuesday_Standard_Hours__c IS NULL 
-                                OR tc9_et__Wednesday_Standard_Hours__c IS NULL
-                                OR tc9_et__Thursday_Standard_Hours__c IS NULL 
-                                OR tc9_et__Friday_Standard_Hours__c IS NULL 
-                                OR tc9_et__Saturday_Standard_Hours__c IS NULL
-                                OR tc9_et__Sunday_Standard_Hours__c IS NULL 
-                                OR tc9_et__Public_Holiday_Standard_Hours__c IS NULL)`,
+                            AND (tc9_et__Monday_Standard_Hours__c = null 
+                                OR tc9_et__Tuesday_Standard_Hours__c = null 
+                                OR tc9_et__Wednesday_Standard_Hours__c = null
+                                OR tc9_et__Thursday_Standard_Hours__c = null 
+                                OR tc9_et__Friday_Standard_Hours__c = null 
+                                OR tc9_et__Saturday_Standard_Hours__c = null
+                                OR tc9_et__Sunday_Standard_Hours__c = null 
+                                OR tc9_et__Public_Holiday_Standard_Hours__c = null)`,
                         expectedResult: "empty",
                         errorMessage: "Migration cannot proceed: Standard Hours must be populated for every day on Active Interpretation Rules (except Daily_Rates record type)",
                         severity: "error",
@@ -247,7 +247,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             AND ir.Id NOT IN (
                                 SELECT tc9_et__Interpretation_Rule__c 
                                 FROM tc9_et__Interpretation_Breakpoint__c 
-                                WHERE tc9_et__Interpretation_Rule__c IS NOT NULL
+                                WHERE tc9_et__Interpretation_Rule__c != null
                             )`,
                         expectedResult: "empty",
                         errorMessage: "Migration cannot proceed: Interpretation rules must have associated breakpoints. Found interpretation rules without any breakpoints",
@@ -712,13 +712,13 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourceLeaveRuleExternalIdValidation",
                             description: "Validate that all source leave rules referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT() FROM tc9_pr__Leave_Rule__c 
+                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Leave_Rule__c 
                                 WHERE Id IN (
                                     SELECT tc9_et__Leave_Rule__c 
                                     FROM tc9_et__Interpretation_Breakpoint__c 
-                                    WHERE tc9_et__Leave_Rule__c IS NOT NULL
+                                    WHERE tc9_et__Leave_Rule__c != null
                                 )
-                                AND (External_ID_Data_Creation__c IS NULL AND tc9_edc__External_ID_Data_Creation__c IS NULL AND External_Id__c IS NULL)`,
+                                AND (External_ID_Data_Creation__c = null AND tc9_edc__External_ID_Data_Creation__c = null AND External_Id__c = null)`,
                             expectedResult: "empty" as const,
                             errorMessage: "Migration cannot proceed: Found leave rules referenced by interpretation breakpoints that are missing external ID values. All referenced leave rules must have external IDs for cross-environment migration",
                             severity: "error" as const,
@@ -726,13 +726,13 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourceLeaveHeaderExternalIdValidation",
                             description: "Validate that all source leave headers referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT() FROM tc9_et__Leave_Header__c 
+                            validationQuery: `SELECT COUNT(Id) FROM tc9_et__Leave_Header__c 
                                 WHERE Id IN (
                                     SELECT tc9_et__Leave_Header__c 
                                     FROM tc9_et__Interpretation_Breakpoint__c 
-                                    WHERE tc9_et__Leave_Header__c IS NOT NULL
+                                    WHERE tc9_et__Leave_Header__c != null
                                 )
-                                AND (External_ID_Data_Creation__c IS NULL AND tc9_edc__External_ID_Data_Creation__c IS NULL AND External_Id__c IS NULL)`,
+                                AND (External_ID_Data_Creation__c = null AND tc9_edc__External_ID_Data_Creation__c = null AND External_Id__c = null)`,
                             expectedResult: "empty" as const,
                             errorMessage: "Migration cannot proceed: Found leave headers referenced by interpretation breakpoints that are missing external ID values. All referenced leave headers must have external IDs for cross-environment migration",
                             severity: "error" as const,
@@ -740,20 +740,20 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourcePayCodeExternalIdValidation",
                             description: "Validate that all source pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT() FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
                                 WHERE Id IN (
                                     SELECT DISTINCT pay_code_id FROM (
-                                        SELECT tc9_et__Pay_Code__c as pay_code_id FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Pay_Code__c IS NOT NULL
-                                        UNION SELECT tc9_et__Casual_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Casual_Loading_Pay_Code__c IS NOT NULL
-                                        UNION SELECT tc9_et__Leave_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Leave_Loading_Pay_Code__c IS NOT NULL
-                                        UNION SELECT tc9_et__Overtime_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Overtime_Pay_Code__c IS NOT NULL
-                                        UNION SELECT tc9_et__Penalty_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Penalty_Loading_Pay_Code__c IS NOT NULL
-                                        UNION SELECT tc9_et__Public_Holiday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Public_Holiday_Pay_Code__c IS NOT NULL
-                                        UNION SELECT tc9_et__Saturday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Saturday_Pay_Code__c IS NOT NULL
-                                        UNION SELECT tc9_et__Sunday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Sunday_Pay_Code__c IS NOT NULL
+                                        SELECT tc9_et__Pay_Code__c as pay_code_id FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Pay_Code__c != null
+                                        UNION SELECT tc9_et__Casual_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Casual_Loading_Pay_Code__c != null
+                                        UNION SELECT tc9_et__Leave_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Leave_Loading_Pay_Code__c != null
+                                        UNION SELECT tc9_et__Overtime_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Overtime_Pay_Code__c != null
+                                        UNION SELECT tc9_et__Penalty_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Penalty_Loading_Pay_Code__c != null
+                                        UNION SELECT tc9_et__Public_Holiday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Public_Holiday_Pay_Code__c != null
+                                        UNION SELECT tc9_et__Saturday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Saturday_Pay_Code__c != null
+                                        UNION SELECT tc9_et__Sunday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Sunday_Pay_Code__c != null
                                     )
                                 )
-                                AND (External_ID_Data_Creation__c IS NULL AND tc9_edc__External_ID_Data_Creation__c IS NULL AND External_Id__c IS NULL)`,
+                                AND (External_ID_Data_Creation__c = null AND tc9_edc__External_ID_Data_Creation__c = null AND External_Id__c = null)`,
                             expectedResult: "empty" as const,
                             errorMessage: "Migration cannot proceed: Found pay codes referenced by interpretation breakpoints that are missing external ID values. All referenced pay codes must have external IDs for cross-environment migration",
                             severity: "error" as const,
@@ -761,7 +761,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "payCodeCapIntegrity",
                             description: "Verify pay code cap breakpoints have required references",
-                            validationQuery: "SELECT COUNT() FROM tc9_et__Interpretation_Breakpoint__c WHERE RecordType.Name = 'Pay Code Cap' AND tc9_et__Pay_Code__c IS NULL",
+                            validationQuery: "SELECT COUNT(Id) FROM tc9_et__Interpretation_Breakpoint__c WHERE RecordType.Name = 'Pay Code Cap' AND tc9_et__Pay_Code__c = null",
                             expectedResult: "empty" as const,
                             errorMessage: "Found pay code cap breakpoints missing required pay code references",
                             severity: "warning" as const,
@@ -769,7 +769,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "leaveBreakpointIntegrity",
                             description: "Verify leave breakpoints have required leave references",
-                            validationQuery: "SELECT COUNT() FROM tc9_et__Interpretation_Breakpoint__c WHERE RecordType.Name = 'Leave Breakpoint' AND tc9_et__Breakpoint_Type__c = 'Leave Header' AND (tc9_et__Leave_Header__c IS NULL OR tc9_et__Leave_Rule__c IS NULL)",
+                            validationQuery: "SELECT COUNT(Id) FROM tc9_et__Interpretation_Breakpoint__c WHERE RecordType.Name = 'Leave Breakpoint' AND tc9_et__Breakpoint_Type__c = 'Leave Header' AND (tc9_et__Leave_Header__c = null OR tc9_et__Leave_Rule__c = null)",
                             expectedResult: "empty" as const,
                             errorMessage: "Migration cannot proceed: Found leave breakpoints missing required leave header or leave rule references",
                             severity: "error" as const,
@@ -802,7 +802,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE RecordType.Name = 'Leave Breakpoint' 
                             AND tc9_et__Breakpoint_Type__c = 'Leave Header'
-                            AND tc9_et__Interpretation_Rule__c IN (SELECT Id FROM tc9_et__Interpretation_Rule__c WHERE Id IN ({selectedRecordIds}))`,
+`,
                         objectApiName: "tc9_et__Interpretation_Breakpoint__c",
                         batchSize: 200,
                     },
@@ -845,7 +845,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE (RecordType.Name = 'Pay Code Cap' OR RecordType.Name = 'Leave Breakpoint') 
                             AND tc9_et__Breakpoint_Type__c != 'Leave Header'
-                            AND tc9_et__Interpretation_Rule__c IN (SELECT Id FROM tc9_et__Interpretation_Rule__c WHERE Id IN ({selectedRecordIds}))`,
+`,
                         objectApiName: "tc9_et__Interpretation_Breakpoint__c",
                         batchSize: 200,
                     },
@@ -888,7 +888,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE RecordType.Name != 'Pay Code Cap' AND RecordType.Name != 'Leave Breakpoint'
-                            AND tc9_et__Interpretation_Rule__c IN (SELECT Id FROM tc9_et__Interpretation_Rule__c WHERE Id IN ({selectedRecordIds}))`,
+`,
                         objectApiName: "tc9_et__Interpretation_Breakpoint__c",
                         batchSize: 200,
                     },
@@ -931,7 +931,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             {
                                 checkName: "payCodeExternalIdConsistency",
                                 description: "Check for pay codes with missing external IDs",
-                                validationQuery: "SELECT COUNT() FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Pay_Code__c IS NOT NULL AND tc9_et__Pay_Code__r.{externalIdField} IS NULL",
+                                validationQuery: "SELECT COUNT(Id) FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Pay_Code__c != null AND tc9_et__Pay_Code__r.{externalIdField} = null",
                                 expectedResult: "empty" as const,
                                 errorMessage: "Migration cannot proceed: Found breakpoints with pay codes that have null external IDs. All referenced pay codes must have external IDs for cross-environment migration",
                                 severity: "error" as const,
