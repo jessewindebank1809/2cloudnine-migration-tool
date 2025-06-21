@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Handle organisation connection
-    const { orgId, userId, orgType, targetInstanceUrl, codeVerifier, background, timestamp } = stateData;
+    const { orgId, userId, orgType, targetInstanceUrl, codeVerifier, background, returnUrl, timestamp } = stateData;
 
     // Basic timestamp validation (optional)
     if (timestamp && Date.now() - timestamp > 30 * 60 * 1000) { // 30 minutes max
@@ -253,7 +253,10 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // Traditional redirect for manual OAuth
-      return NextResponse.redirect(`${baseUrl}/orgs?success=connected`);
+      // If returnUrl is provided, redirect there, otherwise go to orgs page
+      const redirectUrl = returnUrl || `${baseUrl}/orgs`;
+      const separator = redirectUrl.includes('?') ? '&' : '?';
+      return NextResponse.redirect(`${redirectUrl}${separator}success=connected`);
     }
   } catch (error) {
     console.error('💥 OAuth callback error:', error);

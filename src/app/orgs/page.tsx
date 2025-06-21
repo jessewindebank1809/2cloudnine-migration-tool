@@ -168,7 +168,17 @@ export default function OrganisationsPage() {
 
   const handleReconnect = async (org: Organisation) => {
     // Trigger the OAuth flow for the selected organisation
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}`;
+    const returnUrl = searchParams.get('returnUrl');
+    const params = new URLSearchParams({
+      orgId: org.id,
+      instanceUrl: org.instance_url
+    });
+    
+    if (returnUrl) {
+      params.append('returnUrl', returnUrl);
+    }
+    
+    const oauthUrl = `/api/auth/oauth2/salesforce?${params.toString()}`;
     window.location.href = oauthUrl;
   };
 
@@ -178,7 +188,17 @@ export default function OrganisationsPage() {
       ? 'https://login.salesforce.com'
       : 'https://test.salesforce.com';
     
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(defaultInstanceUrl)}`;
+    const returnUrl = searchParams.get('returnUrl');
+    const params = new URLSearchParams({
+      orgId: org.id,
+      instanceUrl: defaultInstanceUrl
+    });
+    
+    if (returnUrl) {
+      params.append('returnUrl', returnUrl);
+    }
+    
+    const oauthUrl = `/api/auth/oauth2/salesforce?${params.toString()}`;
     window.location.href = oauthUrl;
   };
 

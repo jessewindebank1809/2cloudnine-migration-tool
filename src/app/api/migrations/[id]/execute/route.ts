@@ -155,7 +155,7 @@ export async function POST(
               { 
                 error: 'One or more organisations need to be reconnected. Please reconnect your Salesforce organisations.',
                 code: 'RECONNECT_REQUIRED',
-                reconnectUrl: `/orgs`
+                reconnectUrl: `/orgs?reconnect=${sourceOrg?.id || targetOrg?.id}&returnUrl=/migrations/${migrationId}/execute`
               },
               { status: 401 }
             );
@@ -946,7 +946,7 @@ export async function POST(
             { 
               error: 'Authentication token has expired. Please reconnect the organisation.',
               code: 'TOKEN_EXPIRED',
-              reconnectUrl: '/orgs'
+              reconnectUrl: `/orgs?returnUrl=/migrations/${migrationId}/execute`
             },
             { status: 401 }
           );
