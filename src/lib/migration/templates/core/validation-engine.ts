@@ -6,6 +6,7 @@ import {
     DependencyCheck,
     DataIntegrityCheck,
     PreValidationQuery,
+    PicklistValidationCheck,
     ETLStep,
     ExtractConfig,
     MigrationTemplate,
@@ -17,6 +18,7 @@ export class ValidationEngine {
     private validationCache: Map<string, any[]> = new Map();
     private sourceOrgId: string = "";
     private targetOrgId: string = "";
+    private currentTargetObject: string = "";
 
     async validateTemplate(
         template: MigrationTemplate,
@@ -94,6 +96,7 @@ export class ValidationEngine {
         selectedRecords?: string[],
     ): Promise<ValidationResult> {
         const config = step.validationConfig!;
+        this.currentTargetObject = step.loadConfig.targetObject;
 
         try {
             // 1. Execute pre-validation queries to cache target data
@@ -116,9 +119,32 @@ export class ValidationEngine {
                 config.dataIntegrityChecks,
             );
 
+            // 5. Run picklist validation checks if configuration exists
+            let picklistResults = this.createEmptyValidationResult();
+            if (!config.picklistValidationChecks) {
+                // Auto-detect picklist fields and create validation checks
+                const autoPicklistChecks = await this.autoDetectPicklistFields(
+                    step.transformConfig.fieldMappings,
+                    step.extractConfig.objectApiName,
+                    step.loadConfig.targetObject,
+                );
+                if (autoPicklistChecks.length > 0) {
+                    picklistResults = await this.runPicklistValidationChecks(
+                        autoPicklistChecks,
+                        sourceData,
+                    );
+                }
+            } else {
+                picklistResults = await this.runPicklistValidationChecks(
+                    config.picklistValidationChecks,
+                    sourceData,
+                );
+            }
+
             return this.combineValidationResults([
                 dependencyResults,
                 integrityResults,
+                picklistResults,
             ]);
         } catch (error) {
             const results = this.createEmptyValidationResult();
@@ -463,6 +489,154 @@ export class ValidationEngine {
         // Extract object name from SOQL query (FROM clause)
         const fromMatch = query.match(/FROM\s+([a-zA-Z0-9_]+)/i);
         return fromMatch ? fromMatch[1] : "";
+    }
+
+    private async autoDetectPicklistFields(
+        fieldMappings: any[],
+        sourceObject: string,
+        targetObject: string,
+    ): Promise<PicklistValidationCheck[]> {
+        const picklistChecks: PicklistValidationCheck[] = [];
+        
+        try {
+            // Get target object metadata to identify picklist fields
+            const targetClient = await sessionManager.getClient(this.targetOrgId);
+            const targetMetadata = await targetClient.getObjectMetadata(targetObject);
+            
+            if (!targetMetadata.success || !targetMetadata.data) {
+                console.error(`Failed to get metadata for target object ${targetObject}`);
+                return picklistChecks;
+            }
+            
+            // Create a map of field names to field metadata
+            const targetFieldMap = new Map<string, any>();
+            targetMetadata.data.fields.forEach((field: any) => {
+                targetFieldMap.set(field.name, field);
+            });
+            
+            // Check each field mapping for picklist fields
+            for (const mapping of fieldMappings) {
+                if (mapping.transformationType === 'direct') {
+                    const targetFieldMeta = targetFieldMap.get(mapping.targetField);
+                    
+                    if (targetFieldMeta && targetFieldMeta.type === 'picklist') {
+                        picklistChecks.push({
+                            checkName: `picklistValidation_${mapping.targetField}`,
+                            description: `Validate picklist values for ${mapping.targetField}`,
+                            sourceField: mapping.sourceField,
+                            targetField: mapping.targetField,
+                            isRequired: mapping.isRequired !== false,
+                            errorMessage: `Invalid picklist value '{sourceValue}' for field ${mapping.targetField} in record '{recordName}'. This value does not exist in the target org.`,
+                        });
+                        console.log(`Auto-detected picklist field for validation: ${mapping.targetField}`);
+                    }
+                }
+            }
+            
+            return picklistChecks;
+        } catch (error) {
+            console.error('Error auto-detecting picklist fields:', error);
+            return picklistChecks;
+        }
+    }
+
+    private async runPicklistValidationChecks(
+        checks: PicklistValidationCheck[],
+        sourceData: any[],
+    ): Promise<ValidationResult> {
+        const results: ValidationResult = this.createEmptyValidationResult();
+        
+        if (checks.length === 0) {
+            return results;
+        }
+        
+        try {
+            // Get target object from the first check's context
+            // In the actual implementation, the target object should be passed from the ETL config
+            const targetObject = this.currentTargetObject;
+                
+            if (!targetObject) {
+                console.error('Cannot determine target object for picklist validation');
+                return results;
+            }
+            
+            const targetClient = await sessionManager.getClient(this.targetOrgId);
+            const targetMetadata = await targetClient.getObjectMetadata(targetObject);
+            
+            if (!targetMetadata.success || !targetMetadata.data) {
+                results.errors.push({
+                    checkName: 'picklistValidation',
+                    message: `Failed to get metadata for target object ${targetObject}`,
+                    severity: 'error',
+                    recordId: null,
+                    recordName: null,
+                });
+                return results;
+            }
+            
+            // Create a map of field names to valid picklist values
+            const fieldPicklistValues = new Map<string, Set<string>>();
+            targetMetadata.data.fields.forEach((field: any) => {
+                if (field.type === 'picklist' && field.picklistValues) {
+                    const validValues = new Set<string>();
+                    field.picklistValues.forEach((pv: any) => {
+                        if (pv.active) {
+                            validValues.add(pv.value);
+                        }
+                    });
+                    fieldPicklistValues.set(field.name, validValues);
+                }
+            });
+            
+            // Validate each check
+            for (const check of checks) {
+                const validValues = fieldPicklistValues.get(check.targetField);
+                
+                if (!validValues) {
+                    console.warn(`No picklist values found for field ${check.targetField}`);
+                    continue;
+                }
+                
+                console.log(`Running picklist validation: ${check.checkName} for ${check.targetField}`);
+                console.log(`Valid values for ${check.targetField}: ${Array.from(validValues).join(', ')}`);
+                
+                let checkedRecords = 0;
+                let foundIssues = 0;
+                
+                // Check each source record
+                for (const record of sourceData) {
+                    checkedRecords++;
+                    const sourceValue = this.getFieldValue(record, check.sourceField);
+                    
+                    if (sourceValue && !validValues.has(sourceValue)) {
+                        foundIssues++;
+                        results.errors.push({
+                            checkName: check.checkName,
+                            message: check.errorMessage
+                                .replace('{sourceValue}', sourceValue)
+                                .replace('{recordName}', record.Name || record.Id),
+                            severity: 'error',
+                            recordId: record.Id,
+                            recordName: record.Name,
+                            suggestedAction: `Valid values are: ${Array.from(validValues).join(', ')}`,
+                        });
+                    }
+                }
+                
+                console.log(`✓ Picklist validation ${check.checkName}: checked ${checkedRecords} records, found ${foundIssues} issues`);
+            }
+            
+            return results;
+        } catch (error) {
+            results.errors.push({
+                checkName: 'picklistValidation',
+                message: `Failed to run picklist validation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                severity: 'error',
+                recordId: null,
+                recordName: null,
+            });
+            return results;
+        }
     }
 
     // Clear cache for testing or reset

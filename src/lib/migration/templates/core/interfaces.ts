@@ -130,6 +130,7 @@ export interface ValidationConfig {
     dependencyChecks: DependencyCheck[];
     dataIntegrityChecks: DataIntegrityCheck[];
     preValidationQueries: PreValidationQuery[];
+    picklistValidationChecks?: PicklistValidationCheck[];
 }
 
 // Dependency Check
@@ -152,6 +153,16 @@ export interface DataIntegrityCheck {
     expectedResult: "empty" | "non-empty" | "count-match";
     errorMessage: string;
     severity: "error" | "warning" | "info";
+}
+
+// Picklist Validation Check
+export interface PicklistValidationCheck {
+    checkName: string;
+    description: string;
+    sourceField: string;
+    targetField: string;
+    isRequired: boolean;
+    errorMessage: string;
 }
 
 // Pre-validation Query

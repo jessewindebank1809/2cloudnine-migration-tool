@@ -248,6 +248,12 @@ export class SalesforceClient {
             isAutoNumber: field.autoNumber,
             length: field.length,
             referenceTo: field.referenceTo,
+            picklistValues: field.picklistValues ? field.picklistValues.map((pv: any) => ({
+              value: pv.value,
+              label: pv.label,
+              active: pv.active,
+              defaultValue: pv.defaultValue
+            })) : undefined,
           })),
           relationships: describe.childRelationships.map((rel: any) => ({
             name: rel.field,
