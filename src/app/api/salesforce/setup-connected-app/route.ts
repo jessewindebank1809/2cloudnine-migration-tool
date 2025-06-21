@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save the org connection to database
-    const organization = await prisma.organisations.create({
+    const organisation = await prisma.organisations.create({
       data: {
         id: crypto.randomUUID(),
         name: `${username.split('@')[0]}'s Org`,
@@ -85,14 +85,14 @@ export async function POST(request: NextRequest) {
 
     // Store the Connected App credentials securely
     // In production, you might want to use a separate secure storage
-    await storeConnectedAppCredentials(organization.id, {
+    await storeConnectedAppCredentials(organisation.id, {
       consumerKey: result.consumerKey,
       consumerSecretEncrypted: encryptedSecret
     })
 
     return NextResponse.json({
       success: true,
-      organizationId: organization.id,
+      organisationId: organisation.id,
       consumerKey: result.consumerKey,
       message: 'Connected App created successfully. You can now use OAuth for secure access.',
       nextStep: 'oauth_flow'

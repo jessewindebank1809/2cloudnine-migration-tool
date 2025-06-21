@@ -14,26 +14,26 @@ export async function POST(request: NextRequest) {
 
     if (!orgId) {
       return NextResponse.json(
-        { error: 'Organization ID is required' },
+        { error: 'Organisation ID is required' },
         { status: 400 }
       );
     }
 
-    // Get organization from database
+    // Get organisation from database
     const org = await prisma.organisations.findUnique({
       where: { id: orgId },
     });
 
     if (!org) {
       return NextResponse.json(
-        { error: 'Organization not found' },
+        { error: 'Organisation not found' },
         { status: 404 }
       );
     }
 
     if (!org.access_token_encrypted) {
       return NextResponse.json(
-        { error: 'Organization not connected' },
+        { error: 'Organisation not connected' },
         { status: 401 }
       );
     }
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     } catch (decryptError) {
       console.error('Failed to decrypt access token for org:', org.id, decryptError);
       return NextResponse.json(
-        { error: 'Organization access token is invalid. Please reconnect the organization.' },
+        { error: 'Organisation access token is invalid. Please reconnect the organisation.' },
         { status: 401 }
       );
     }
@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
     // Create Salesforce client
     const client = new SalesforceClient({
       id: org.id,
-      organizationId: org.salesforce_org_id || '',
-      organizationName: org.name,
+      organisationId: org.salesforce_org_id || '',
+      organisationName: org.name,
       instanceUrl: org.instance_url,
       accessToken,
       refreshToken,

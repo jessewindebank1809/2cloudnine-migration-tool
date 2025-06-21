@@ -68,7 +68,7 @@ export function OrgConnectionWizard({ onComplete }: OrgConnectionWizardProps) {
 
   const saveOrgConnection = async (connectionData: any) => {
     // Save to database
-    await fetch('/api/organizations', {
+    await fetch('/api/organisations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(connectionData)
@@ -79,7 +79,7 @@ export function OrgConnectionWizard({ onComplete }: OrgConnectionWizardProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Connect Salesforce Organization</CardTitle>
+          <CardTitle>Connect Salesforce Organisation</CardTitle>
           <CardDescription>
             Choose how you&apos;d like to authenticate. We&apos;ll automatically set up everything needed for migrations.
           </CardDescription>
@@ -187,7 +187,7 @@ export function OrgConnectionWizard({ onComplete }: OrgConnectionWizardProps) {
           ) : authMethod === 'oauth' ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                You&apos;ll be redirected to Salesforce to authorize access. Make sure you have a Connected App already configured.
+                You&apos;ll be redirected to Salesforce to authorise access. Make sure you have a Connected App already configured.
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setAuthMethod(null)}>

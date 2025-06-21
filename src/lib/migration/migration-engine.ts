@@ -275,7 +275,7 @@ export class MigrationEngine {
     objectType: string,
     options: MigrationOptions
   ): Promise<MigrationResult> {
-    // First, extract all records to analyze relationships
+    // First, extract all records to analyse relationships
     const allRecords = await this.dataExtractor.extractAllRecords(
       project.source_org_id,
       objectType
@@ -364,7 +364,7 @@ export class MigrationEngine {
     ]);
 
     if (!healthyOrgs) {
-      throw new Error('One or more organizations are not healthy');
+      throw new Error('One or more organisations are not healthy');
     }
 
     // Check API limits

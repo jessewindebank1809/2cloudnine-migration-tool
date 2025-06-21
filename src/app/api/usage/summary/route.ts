@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching usage summary:', error);
     
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     if (error instanceof Error && error.message === 'Admin access required') {

@@ -85,7 +85,7 @@ describe('Analytics Dashboard Tests', () => {
       expect(chartsStillLoaded).toBe(true);
     });
 
-    test('should filter by organization correctly', async () => {
+    test('should filter by organisation correctly', async () => {
       await analyticsPage.navigateToAnalytics();
       
       await analyticsPage.waitForDataLoad();

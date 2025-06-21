@@ -242,8 +242,8 @@ export async function POST(
             instanceUrl: sourceOrg.instance_url,
             accessToken: sourceClient.accessToken || '',
             refreshToken: sourceClient.refreshToken || '',
-            organizationId: sourceOrg.salesforce_org_id || '',
-            organizationName: sourceOrg.name
+            organisationId: sourceOrg.salesforce_org_id || '',
+            organisationName: sourceOrg.name
           } as SalesforceOrg,
           targetOrg: {
             id: targetOrg.id,
@@ -251,8 +251,8 @@ export async function POST(
             instanceUrl: targetOrg.instance_url,
             accessToken: targetClient.accessToken || '',
             refreshToken: targetClient.refreshToken || '',
-            organizationId: targetOrg.salesforce_org_id || '',
-            organizationName: targetOrg.name
+            organisationId: targetOrg.salesforce_org_id || '',
+            organisationName: targetOrg.name
           } as SalesforceOrg,
           template,
           selectedRecords: formattedSelectedRecords,
@@ -1029,8 +1029,8 @@ export async function GET(
     console.error('Get execution status error:', error);
     
     // Handle authentication errors
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(

@@ -23,13 +23,13 @@ tests/e2e/puppeteer/
 │   ├── base-page.js        # Base page object model
 │   ├── auth-page.js        # Authentication page model
 │   ├── home-page.js        # Home dashboard page model
-│   ├── orgs-page.js        # Organizations page model
+│   ├── orgs-page.js        # Organisations page model
 │   ├── migrations-page.js  # Migrations page model
 │   ├── templates-page.js   # Templates page model
 │   └── analytics-page.js   # Analytics page model
 └── tests/
     ├── auth.test.js        # Authentication flow tests
-    ├── organizations.test.js # Organization management tests
+    ├── organisations.test.js # Organisation management tests
     ├── migrations.test.js   # Migration workflow tests
     ├── templates.test.js    # Template management tests
     ├── analytics.test.js    # Analytics dashboard tests
@@ -45,8 +45,8 @@ tests/e2e/puppeteer/
 - Session persistence across refreshes
 - Sign-out and session cleanup
 
-### Organization Management (ORG_001-002)
-- Multi-organization connections
+### Organisation Management (ORG_001-002)
+- Multi-organisation connections
 - Schema discovery and validation
 - Error handling for org connections
 
@@ -106,7 +106,7 @@ PUPPETEER_EXECUTABLE_PATH="/path/to/chrome"
 ### Prerequisites
 
 1. Node.js 18+ with npm
-2. Test Salesforce sandbox organizations (minimum 2)
+2. Test Salesforce sandbox organisations (minimum 2)
 3. PostgreSQL test database
 4. All environment variables configured
 
@@ -120,7 +120,7 @@ npm run test:e2e:puppeteer
 ### Individual Test Suites
 ```bash
 npm run test:e2e:auth           # Authentication tests
-npm run test:e2e:orgs           # Organization tests
+npm run test:e2e:orgs           # Organisation tests
 npm run test:e2e:migrations     # Migration workflow tests
 npm run test:e2e:templates      # Template management tests
 npm run test:e2e:analytics      # Analytics dashboard tests

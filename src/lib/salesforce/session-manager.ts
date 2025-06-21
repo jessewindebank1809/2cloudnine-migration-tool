@@ -27,7 +27,7 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Get or create a session for an organization
+   * Get or create a session for an organisation
    */
   async getSession(orgId: string): Promise<OrgSession> {
     // Check if session exists and is valid
@@ -42,7 +42,7 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Create a new session for an organization
+   * Create a new session for an organisation
    */
   private async createSession(orgId: string): Promise<OrgSession> {
     // Get org from database
@@ -51,7 +51,7 @@ export class MultiOrgSessionManager {
     });
 
     if (!org || !org.access_token_encrypted) {
-      throw new Error(`Organization ${orgId} not found or not connected`);
+      throw new Error(`Organisation ${orgId} not found or not connected`);
     }
 
     // Decrypt tokens
@@ -61,8 +61,8 @@ export class MultiOrgSessionManager {
     // Create Salesforce client
     const client = new SalesforceClient({
       id: org.id,
-      organizationId: org.salesforce_org_id || '',
-      organizationName: org.name,
+      organisationId: org.salesforce_org_id || '',
+      organisationName: org.name,
       instanceUrl: org.instance_url,
       accessToken,
       refreshToken,
@@ -98,21 +98,21 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Get client for an organization
+   * Get client for an organisation
    */
   async getClient(orgId: string): Promise<SalesforceClient> {
     // Try to get client with valid tokens
     const client = await SalesforceClient.createWithValidTokens(orgId);
     
     if (!client) {
-      throw new Error(`Organization ${orgId} not connected or tokens expired`);
+      throw new Error(`Organisation ${orgId} not connected or tokens expired`);
     }
     
     return client;
   }
 
   /**
-   * Get health monitor for an organization
+   * Get health monitor for an organisation
    */
   async getHealthMonitor(orgId: string): Promise<ConnectionHealthMonitor> {
     const session = await this.getSession(orgId);
@@ -120,7 +120,7 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Get capability detector for an organization
+   * Get capability detector for an organisation
    */
   async getCapabilityDetector(orgId: string): Promise<OrgCapabilityDetector> {
     const session = await this.getSession(orgId);
@@ -128,7 +128,7 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Get rate limiter for an organization
+   * Get rate limiter for an organisation
    */
   async getRateLimiter(orgId: string): Promise<SalesforceRateLimiter> {
     const session = await this.getSession(orgId);
@@ -147,7 +147,7 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Get health status for an organization
+   * Get health status for an organisation
    */
   async getHealthStatus(orgId: string): Promise<HealthCheckResult> {
     const session = await this.getSession(orgId);
@@ -164,7 +164,7 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Get capabilities for an organization
+   * Get capabilities for an organisation
    */
   async getCapabilities(orgId: string): Promise<OrgCapabilities> {
     const session = await this.getSession(orgId);
@@ -178,7 +178,7 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Check if all organizations are healthy
+   * Check if all organisations are healthy
    */
   async areAllOrgsHealthy(orgIds: string[]): Promise<boolean> {
     const healthChecks = await Promise.all(
@@ -189,7 +189,7 @@ export class MultiOrgSessionManager {
   }
 
   /**
-   * Get sessions for multiple organizations
+   * Get sessions for multiple organisations
    */
   async getSessions(orgIds: string[]): Promise<Map<string, OrgSession>> {
     const sessions = new Map<string, OrgSession>();

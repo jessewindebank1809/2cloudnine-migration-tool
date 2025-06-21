@@ -335,7 +335,7 @@ describe('UI Element Detection Framework', () => {
     console.log(`  📊 Tables: ${elements.tables.length}`);
     console.log(`  📄 Cards: ${elements.cards.length}`);
     
-    // Check for organization-specific elements
+    // Check for organisation-specific elements
     const hasConnectButton = elements.buttons.some(btn => 
       btn.text.toLowerCase().includes('connect') || 
       btn.text.toLowerCase().includes('add')

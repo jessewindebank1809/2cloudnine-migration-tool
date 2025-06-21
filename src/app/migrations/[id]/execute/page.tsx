@@ -121,11 +121,11 @@ export default function MigrationExecutePage({ params }: PageProps) {
             <CardContent>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
-                  <p className="text-sm font-medium">Source Organization</p>
+                  <p className="text-sm font-medium">Source Organisation</p>
                   <p className="text-sm text-muted-foreground">{project.sourceOrg.name}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Target Organization</p>
+                  <p className="text-sm font-medium">Target Organisation</p>
                   <p className="text-sm text-muted-foreground">{project.targetOrg.name}</p>
                 </div>
               </div>

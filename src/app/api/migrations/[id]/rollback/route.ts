@@ -97,8 +97,8 @@ export async function POST(
       instanceUrl: targetOrg.instance_url,
       accessToken: targetClient.accessToken || '',
       refreshToken: targetClient.refreshToken || '',
-      organizationId: targetOrg.salesforce_org_id || '',
-      organizationName: targetOrg.name
+      organisationId: targetOrg.salesforce_org_id || '',
+      organisationName: targetOrg.name
     } as SalesforceOrg);
 
     const rollbackResult = await rollbackService.rollbackRecords(rollbackRecords);
@@ -157,8 +157,8 @@ export async function POST(
     console.error('Rollback error:', error);
     
     // Handle authentication errors
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(

@@ -36,7 +36,7 @@
         "test:e2e:puppeteer:headless": "HEADLESS=true jest --config=tests/e2e/puppeteer/jest.config.js",
         "test:e2e:puppeteer:screenshots": "CAPTURE_SCREENSHOTS=true jest --config=tests/e2e/puppeteer/jest.config.js",
         "test:e2e:auth": "jest --config=tests/e2e/puppeteer/jest.config.js tests/e2e/puppeteer/tests/auth.test.js",
-        "test:e2e:orgs": "jest --config=tests/e2e/puppeteer/jest.config.js tests/e2e/puppeteer/tests/organizations.test.js",
+        "test:e2e:orgs": "jest --config=tests/e2e/puppeteer/jest.config.js tests/e2e/puppeteer/tests/organisations.test.js",
         "test:e2e:migrations": "jest --config=tests/e2e/puppeteer/jest.config.js tests/e2e/puppeteer/tests/migrations.test.js",
         "test:e2e:templates": "jest --config=tests/e2e/puppeteer/jest.config.js tests/e2e/puppeteer/tests/templates.test.js",
         "test:e2e:analytics": "jest --config=tests/e2e/puppeteer/jest.config.js tests/e2e/puppeteer/tests/analytics.test.js",
@@ -107,7 +107,6 @@
     },
     "devDependencies": {
         "@flydotio/dockerfile": "^0.7.10",
-        "@tailwindcss/postcss": "^4.1.10",
         "@testing-library/jest-dom": "^6.6.3",
         "@testing-library/react": "^16.3.0",
         "@types/bcryptjs": "^2.4.6",
@@ -132,7 +131,7 @@
         "postcss": "^8.4.47",
         "prisma": "^6.10.1",
         "puppeteer": "^24.10.1",
-        "tailwindcss": "^4.1.10",
+        "tailwindcss": "^3.4.17",
         "typescript": "^5.6.3",
         "wait-port": "^1.1.0"
     },
