@@ -316,7 +316,7 @@ export class ExecutionEngine {
     if (query.includes('{selectedRecordIds}')) {
       query = query.replace(/{selectedRecordIds}/g, `'${selectedIds.join("','")}'`);
     } else {
-      // Add WHERE clause for selected records (legacy behavior)
+      // Add WHERE clause for selected records (legacy behaviour)
       if (query.toLowerCase().includes('where')) {
         query += ` AND Id IN ('${selectedIds.join("','")}')`;
       } else {
@@ -344,7 +344,7 @@ export class ExecutionEngine {
       if (queryWithoutExternalId.includes('{selectedRecordIds}')) {
         queryWithoutExternalId = queryWithoutExternalId.replace(/{selectedRecordIds}/g, `'${selectedIds.join("','")}'`);
       } else {
-        // Add WHERE clause for selected records (legacy behavior)
+        // Add WHERE clause for selected records (legacy behaviour)
         if (queryWithoutExternalId.toLowerCase().includes('where')) {
           queryWithoutExternalId += ` AND Id IN ('${selectedIds.join("','")}')`;
         } else {

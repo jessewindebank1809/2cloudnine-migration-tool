@@ -14,7 +14,6 @@ migration scenarios. Hosted on fly.io
 ### Development
 
 ```bash
-npm run dev                # Start development server on port 3000
 npm run dev:fresh:env      # Dev server with clean environment
 npm run type-check         # TypeScript type checking
 npm run lint              # Run ESLint
@@ -47,6 +46,11 @@ npm run deploy:production # Deploy to production (runs tests first)
 npm run deploy:quick     # Deploy without running tests
 npm run logs:live        # Monitor live deployment logs
 ```
+
+### Files
+
+- Tailwind config:
+  /Users/jessewindebank/Documents/code/salesforce/tc9-migration-tool/tailwind.config.js
 
 ## Architecture Overview
 

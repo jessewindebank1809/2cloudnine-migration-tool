@@ -120,10 +120,10 @@ describe('Post-Authentication Application Flow', () => {
     }
   });
 
-  test('should test organization management functionality', async () => {
+  test('should test organisation management functionality', async () => {
     const baseUrl = process.env.TEST_APP_URL || 'http://localhost:3000';
     
-    console.log('🏢 Testing organization management...');
+    console.log('🏢 Testing organisation management...');
     
     await page.goto(`${baseUrl}/orgs`, { waitUntil: 'domcontentloaded', timeout: 15000 });
     
@@ -141,10 +141,10 @@ describe('Post-Authentication Application Flow', () => {
         '[data-testid*="org"]',
         '[data-testid*="connect"]',
         '.org-list',
-        '.organization'
+        '.organisation'
       ];
       
-      console.log('🔍 Looking for organization elements...');
+      console.log('🔍 Looking for organisation elements...');
       
       for (const selector of orgElements) {
         try {
@@ -166,7 +166,7 @@ describe('Post-Authentication Application Flow', () => {
       // Check page content for org-related text
       const pageContent = await PuppeteerHelpers.getText(page, 'body');
       if (pageContent) {
-        const orgKeywords = ['organization', 'salesforce', 'connect', 'source', 'target'];
+        const orgKeywords = ['organisation', 'salesforce', 'connect', 'source', 'target'];
         const foundKeywords = orgKeywords.filter(keyword => 
           pageContent.toLowerCase().includes(keyword)
         );

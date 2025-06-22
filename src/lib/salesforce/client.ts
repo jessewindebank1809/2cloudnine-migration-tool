@@ -34,8 +34,8 @@ export class SalesforceClient {
 
       const salesforceOrg: SalesforceOrg = {
         id: org.id,
-        organizationId: org.salesforce_org_id || '',
-        organizationName: org.name,
+        organisationId: org.salesforce_org_id || '',
+        organisationName: org.name,
         instanceUrl: org.instance_url,
         accessToken: validTokens.accessToken,
         refreshToken: validTokens.refreshToken

@@ -36,7 +36,7 @@ class TestDataManager {
       }
     });
 
-    const testOrg = await prisma.organization.upsert({
+    const testOrg = await prisma.organisations.upsert({
       where: { salesforceOrgId: 'test_org_001' },
       update: {},
       create: {
@@ -47,7 +47,7 @@ class TestDataManager {
       }
     });
 
-    const targetOrg = await prisma.organization.upsert({
+    const targetOrg = await prisma.organisations.upsert({
       where: { salesforceOrgId: 'test_org_002' },
       update: {},
       create: {
@@ -108,7 +108,7 @@ class TestDataManager {
       }
     });
 
-    await prisma.organization.deleteMany({
+    await prisma.organisations.deleteMany({
       where: {
         salesforceOrgId: {
           startsWith: 'test_'
@@ -179,7 +179,7 @@ class TestDataManager {
       }
     });
 
-    const performanceOrg = await prisma.organization.upsert({
+    const performanceOrg = await prisma.organisations.upsert({
       where: { salesforceOrgId: 'perf_org_001' },
       update: {},
       create: {
@@ -219,7 +219,7 @@ class TestDataManager {
       }
     });
 
-    const orgCount = await prisma.organization.count({
+    const orgCount = await prisma.organisations.count({
       where: {
         salesforceOrgId: {
           startsWith: 'test_'
@@ -237,7 +237,7 @@ class TestDataManager {
 
     return {
       users: userCount,
-      organizations: orgCount,
+      organisations: orgCount,
       migrations: migrationCount,
       isValid: userCount > 0 && orgCount > 0
     };

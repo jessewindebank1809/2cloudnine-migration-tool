@@ -27,7 +27,7 @@ export class ConnectionHealthMonitor {
   private healthCache = new Map<string, HealthCheckResult>();
 
   /**
-   * Check health of a single organization
+   * Check health of a single organisation
    */
   async checkOrgHealth(orgId: string): Promise<HealthCheckResult> {
     try {
@@ -37,7 +37,7 @@ export class ConnectionHealthMonitor {
       });
 
       if (!org || !org.access_token_encrypted) {
-        return this.createHealthResult(orgId, false, 'Organization not found or not connected');
+        return this.createHealthResult(orgId, false, 'Organisation not found or not connected');
       }
 
       // Decrypt tokens
@@ -47,8 +47,8 @@ export class ConnectionHealthMonitor {
       // Create client
       const client = new SalesforceClient({
         id: org.id,
-        organizationId: org.salesforce_org_id || '',
-        organizationName: org.name,
+        organisationId: org.salesforce_org_id || '',
+        organisationName: org.name,
         instanceUrl: org.instance_url,
         accessToken,
         refreshToken,
@@ -95,7 +95,7 @@ export class ConnectionHealthMonitor {
   }
 
   /**
-   * Check health of all connected organizations
+   * Check health of all connected organisations
    */
   async checkAllOrgsHealth(): Promise<HealthCheckResult[]> {
     const orgs = await prisma.organisations.findMany({
@@ -169,8 +169,8 @@ export class ConnectionHealthMonitor {
       // Create client and refresh token
       const client = new SalesforceClient({
         id: org.id,
-        organizationId: org.salesforce_org_id || '',
-        organizationName: org.name,
+        organisationId: org.salesforce_org_id || '',
+        organisationName: org.name,
         instanceUrl: org.instance_url,
         accessToken: decrypt(org.access_token_encrypted!),
         refreshToken,

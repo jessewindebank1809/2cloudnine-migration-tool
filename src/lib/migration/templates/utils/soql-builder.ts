@@ -138,17 +138,17 @@ export class SoqlQueryBuilder {
     }
 
     /**
-     * Optimize query for batch processing
+     * Optimise query for batch processing
      */
-    static optimizeForBatch(query: string, batchSize: number): string {
-        let optimizedQuery = query;
+    static optimiseForBatch(query: string, batchSize: number): string {
+        let optimisedQuery = query;
 
         // Add LIMIT if not present and batch size is specified
         if (batchSize > 0 && !query.toUpperCase().includes(" LIMIT ")) {
-            optimizedQuery += ` LIMIT ${batchSize}`;
+            optimisedQuery += ` LIMIT ${batchSize}`;
         }
 
-        return optimizedQuery;
+        return optimisedQuery;
     }
 
     /**

@@ -93,8 +93,8 @@ export async function POST(
     console.error('Validation error:', error);
     
     // Handle authentication errors
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(
@@ -164,8 +164,8 @@ export async function GET(
     console.error('Error retrieving validation results:', error);
     
     // Handle authentication errors
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(

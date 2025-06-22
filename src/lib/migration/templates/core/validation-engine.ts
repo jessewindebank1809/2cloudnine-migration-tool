@@ -32,16 +32,42 @@ export class ValidationEngine {
         const results: ValidationResult = this.createEmptyValidationResult();
 
         try {
-            // Verify org connections are healthy
-            const orgsHealthy = await sessionManager.areAllOrgsHealthy([sourceOrgId, targetOrgId]);
-            if (!orgsHealthy) {
+            // Verify org connections are healthy - check each org individually
+            const sourceHealth = await sessionManager.getHealthStatus(sourceOrgId);
+            const targetHealth = await sessionManager.getHealthStatus(targetOrgId);
+            
+            if (!sourceHealth.isHealthy && !targetHealth.isHealthy) {
                 results.errors.push({
                     checkName: "orgConnectivity",
-                    message: "One or more Salesforce organizations are not accessible",
+                    message: "Both source and target Salesforce organisations are not accessible",
                     severity: "error",
                     recordId: null,
                     recordName: null,
-                    suggestedAction: "Check organization connections and try again",
+                    suggestedAction: "Reconnect both organisations and try again",
+                });
+                results.isValid = false;
+                this.updateValidationSummary(results);
+                return results;
+            } else if (!sourceHealth.isHealthy) {
+                results.errors.push({
+                    checkName: "orgConnectivity",
+                    message: "Source Salesforce organisation is not accessible",
+                    severity: "error",
+                    recordId: null,
+                    recordName: null,
+                    suggestedAction: "Reconnect the source organisation and try again",
+                });
+                results.isValid = false;
+                this.updateValidationSummary(results);
+                return results;
+            } else if (!targetHealth.isHealthy) {
+                results.errors.push({
+                    checkName: "orgConnectivity",
+                    message: "Target Salesforce organisation is not accessible",
+                    severity: "error",
+                    recordId: null,
+                    recordName: null,
+                    suggestedAction: "Reconnect the target organisation and try again",
                 });
                 results.isValid = false;
                 this.updateValidationSummary(results);
@@ -185,8 +211,20 @@ export class ValidationEngine {
         );
         query = ExternalIdUtils.replaceExternalIdPlaceholders(query, externalIdField);
         
-        // Add record selection filter if provided
-        if (selectedRecords && selectedRecords.length > 0) {
+        // Replace {selectedRecordIds} placeholder if present
+        if (query.includes('{selectedRecordIds}')) {
+            if (selectedRecords && selectedRecords.length > 0) {
+                // Replace the placeholder with the actual record IDs
+                const recordIdList = selectedRecords.map(id => `'${id}'`).join(',');
+                query = query.replace(/{selectedRecordIds}/g, recordIdList);
+            } else {
+                // If no records selected, we need to handle this differently
+                // For validation, we'll just get a sample of records
+                query = query.replace(/WHERE Id IN \({selectedRecordIds}\)/g, '');
+                query = query.replace(/AND Id IN \({selectedRecordIds}\)/g, '');
+            }
+        } else if (selectedRecords && selectedRecords.length > 0) {
+            // Add record selection filter if provided and no placeholder exists
             const recordFilter = `Id IN ('${selectedRecords.join("','")}')`;
             query = query.includes("WHERE") 
                 ? `${query} AND ${recordFilter}`
@@ -239,6 +277,10 @@ export class ValidationEngine {
                 check.targetField,
                 externalIdField
             );
+            const resolvedSourceField = ExternalIdUtils.replaceExternalIdPlaceholders(
+                check.sourceField,
+                externalIdField
+            );
 
             // Check each source record
             let checkedRecords = 0;
@@ -246,7 +288,15 @@ export class ValidationEngine {
             
             for (const record of sourceData) {
                 checkedRecords++;
-                const sourceValue = this.getFieldValue(record, check.sourceField);
+                const sourceValue = this.getFieldValue(record, resolvedSourceField);
+                
+                if (checkedRecords === 1) {
+                    console.log(`Sample dependency check for ${check.checkName}:`);
+                    console.log(`  Source field: ${check.sourceField} -> ${resolvedSourceField}`);
+                    console.log(`  Target field: ${check.targetField} -> ${resolvedTargetField}`);
+                    console.log(`  Source value: ${sourceValue}`);
+                    console.log(`  Target cache sample: ${targetCache[0] ? JSON.stringify(targetCache[0]) : 'empty'}`);
+                }
                 
                 if (!sourceValue && check.isRequired) {
                     foundIssues++;
@@ -520,6 +570,7 @@ export class ValidationEngine {
 
                     const targetPicklistData: PicklistFieldMetadata = picklistResult.data;
                     allowedValues = targetPicklistData.values.map(v => v.value);
+                    console.log(`Picklist values for ${check.fieldName}: ${allowedValues.join(', ')}`);
                 } else {
                     // Skip validation if no allowed values provided and not validating against target
                     console.log(`Skipping picklist validation check ${check.checkName} - no allowed values and validateAgainstTarget is false`);
@@ -527,10 +578,12 @@ export class ValidationEngine {
                 }
                 
                 // Validate each source record
+                let picklistIssuesFound = 0;
                 for (const record of sourceData) {
                     const fieldValue = this.getFieldValue(record, check.fieldName);
                     
                     if (fieldValue && !this.isValidPicklistValue(fieldValue, allowedValues)) {
+                        picklistIssuesFound++;
                         const recordName = record.Name || record.Id || "Unknown";
                         const issue: ValidationIssue = {
                             checkName: check.checkName,
@@ -551,7 +604,7 @@ export class ValidationEngine {
                     }
                 }
                 
-                console.log(`Picklist validation check ${check.checkName} completed`);
+                console.log(`Picklist validation check ${check.checkName} completed: found ${picklistIssuesFound} issues`);
             } catch (error) {
                 results.errors.push({
                     checkName: check.checkName,

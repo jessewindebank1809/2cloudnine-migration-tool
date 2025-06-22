@@ -245,15 +245,15 @@ describe('Authentication Bypass Strategies', () => {
     await PuppeteerHelpers.takeScreenshot(page, 'auth-bypass-strategy-4');
   });
 
-  test('should analyze authentication flow and create bypass recommendations', async () => {
-    console.log('🔍 Analyzing authentication flow for bypass opportunities...');
+  test('should analyse authentication flow and create bypass recommendations', async () => {
+    console.log('🔍 Analysing authentication flow for bypass opportunities...');
     
     const baseUrl = process.env.TEST_APP_URL || 'http://localhost:3000';
     
-    // Go to auth page and analyze the authentication check
+    // Go to auth page and analyse the authentication check
     await page.goto(`${baseUrl}/auth/signin`, { waitUntil: 'networkidle2', timeout: 15000 });
     
-    // Analyze the auth flow
+    // Analyse the auth flow
     const authAnalysis = await page.evaluate((baseUrl) => {
       const analysis = {
         currentUrl: window.location.href,

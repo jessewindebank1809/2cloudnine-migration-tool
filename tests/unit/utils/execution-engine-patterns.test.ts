@@ -63,7 +63,7 @@ describe('External ID Pattern Logic Validation', () => {
       const externalId = 'a12GC00000j3p0wYAA'; // Same as source record ID
       
       // This logic was the bug - it should NOT reject when externalId === sourceValue
-      // for master records (Pattern 1), this is expected behavior
+      // for master records (Pattern 1), this is expected behaviour
       const isValidExternalId = (extId: string, sourceVal: string) => {
         return extId && extId.length > 0; // Simply check for non-empty
       };
