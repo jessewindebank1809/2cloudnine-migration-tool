@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const orgId = searchParams.get('orgId');
     const instanceUrl = searchParams.get('instanceUrl');
     const background = searchParams.get('background') === 'true';
+    const returnUrl = searchParams.get('returnUrl');
 
     if (!orgId) {
       if (background) {
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
       targetInstanceUrl,
       codeVerifier,
       background,
+      returnUrl,
       timestamp: Date.now(), // Add timestamp for debugging
     };
     

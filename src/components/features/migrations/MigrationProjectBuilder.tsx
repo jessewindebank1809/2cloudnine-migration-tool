@@ -186,20 +186,10 @@ export function MigrationProjectBuilder() {
         const validation = data.validation as ValidationResult;
         setValidationResult(validation);
         
-        // If validation passes completely, skip to migration
-        if (validation.isValid && !validation.hasWarnings) {
-          try {
-            // Don't change step here - createProject will handle moving to view-results
-            await handleCreate();
-          } catch (error) {
-            console.error('Auto-migration after validation failed:', error);
-            setCurrentOperation('idle');
-          }
-        } else {
-          // Show validation review step
-          setCurrentStep('validation-review');
-          setCurrentOperation('idle');
-        }
+        // Always show validation review step, even if validation passes
+        // This ensures users can review what will be migrated before proceeding
+        setCurrentStep('validation-review');
+        setCurrentOperation('idle');
       } catch (error) {
         console.error('Error in validation success handler:', error);
         setCurrentOperation('idle');
@@ -1114,7 +1104,7 @@ export function MigrationProjectBuilder() {
                     Migrating...
                   </>
                 ) : (
-                  'Validate & Migrate'
+                  'Validate Selection'
                 )}
               </Button>
             )}
