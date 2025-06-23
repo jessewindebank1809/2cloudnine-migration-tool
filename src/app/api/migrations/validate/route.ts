@@ -5,6 +5,29 @@ import { templateRegistry } from '@/lib/migration/templates/core/template-regist
 import { ValidationEngine } from '@/lib/migration/templates/core/validation-engine';
 import '@/lib/migration/templates/registry';
 
+interface ValidationIssue {
+  id: string;
+  severity: 'error' | 'warning' | 'info';
+  title: string;
+  description: string;
+  recordId?: string;
+  recordLink?: string;
+  field?: string;
+  suggestion?: string;
+}
+
+interface ValidationResult {
+  isValid: boolean;
+  hasErrors: boolean;
+  hasWarnings: boolean;
+  issues: ValidationIssue[];
+  summary: {
+    errors: number;
+    warnings: number;
+    info: number;
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -39,62 +62,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the ValidationEngine to run all validations including picklist validation
+    // Use the template's validation engine
     const validationEngine = new ValidationEngine();
-    const validationResult = await validationEngine.validateTemplate(
+    const engineValidationResult = await validationEngine.validateTemplate(
       template,
       sourceOrgId,
       targetOrgId,
-      selectedRecords
+      selectedRecords,
+      sourceOrg.instance_url
     );
 
-    // Transform the ValidationResult to match the expected format for the UI
-    // The UI expects a different structure with issues array
-    const issues = [
-      ...validationResult.errors.map(error => ({
-        id: error.checkName,
-        severity: 'error' as const,
-        title: error.checkName,
-        description: error.message,
-        recordId: error.recordId,
-        field: error.field,
-        suggestion: error.suggestedAction || ''
-      })),
-      ...validationResult.warnings.map(warning => ({
-        id: warning.checkName,
-        severity: 'warning' as const,
-        title: warning.checkName,
-        description: warning.message,
-        recordId: warning.recordId,
-        field: warning.field,
-        suggestion: warning.suggestedAction || ''
-      })),
-      ...validationResult.info.map(info => ({
-        id: info.checkName,
-        severity: 'info' as const,
-        title: info.checkName,
-        description: info.message,
-        recordId: info.recordId,
-        field: info.field,
-        suggestion: info.suggestedAction || ''
-      }))
-    ];
+    // Convert engine validation results to API format
+    const issues: ValidationIssue[] = [];
 
-    const transformedResult = {
-      isValid: validationResult.isValid,
-      hasErrors: validationResult.errors.length > 0,
-      hasWarnings: validationResult.warnings.length > 0,
+    // Add errors
+    engineValidationResult.errors.forEach((error, index) => {
+      issues.push({
+        id: `error-${index}`,
+        severity: 'error',
+        title: error.checkName, // This is already formatted by ValidationFormatter
+        description: error.message,
+        recordId: error.recordId || undefined,
+        recordLink: error.recordLink || undefined,
+        field: error.checkName.includes('Invalid') && error.checkName.includes('Values') ? 
+          error.checkName.replace('Invalid ', '').replace(' Values', '') : undefined,
+        suggestion: error.suggestedAction || undefined
+      });
+    });
+
+    // Add warnings
+    engineValidationResult.warnings.forEach((warning, index) => {
+      issues.push({
+        id: `warning-${index}`,
+        severity: 'warning',
+        title: warning.checkName, // This is already formatted by ValidationFormatter
+        description: warning.message,
+        recordId: warning.recordId || undefined,
+        recordLink: warning.recordLink || undefined,
+        suggestion: warning.suggestedAction || undefined
+      });
+    });
+
+    // Add info messages
+    engineValidationResult.info.forEach((info, index) => {
+      issues.push({
+        id: `info-${index}`,
+        severity: 'info',
+        title: info.checkName, // This is already formatted by ValidationFormatter
+        description: info.message,
+        recordId: info.recordId || undefined,
+        recordLink: info.recordLink || undefined,
+        suggestion: info.suggestedAction || undefined
+      });
+    });
+
+    // Add large batch warning if needed
+    if (selectedRecords.length > 200) {
+      issues.push({
+        id: 'large-batch-warning',
+        severity: 'warning',
+        title: 'Large Number of Records Selected',
+        description: `You have selected ${selectedRecords.length} records. Large migrations may take longer and have higher failure rates.`,
+        suggestion: 'Consider breaking this into smaller batches for better reliability.'
+      });
+    }
+
+    // Calculate summary
+    const summary = {
+      errors: issues.filter(i => i.severity === 'error').length,
+      warnings: issues.filter(i => i.severity === 'warning').length,
+      info: issues.filter(i => i.severity === 'info').length,
+    };
+
+    const validationResult: ValidationResult = {
+      isValid: summary.errors === 0,
+      hasErrors: summary.errors > 0,
+      hasWarnings: summary.warnings > 0,
       issues,
-      summary: {
-        errors: validationResult.errors.length,
-        warnings: validationResult.warnings.length,
-        info: validationResult.info.length,
-      }
+      summary
     };
 
     return NextResponse.json({
       success: true,
-      validation: transformedResult
+      validation: validationResult
     });
 
   } catch (error) {

@@ -5,70 +5,81 @@ import {
     ValidationConfig,
     DependencyCheck,
     DataIntegrityCheck,
-    PicklistValidationCheck,
-    PicklistFieldMetadata,
     PreValidationQuery,
+    PicklistValidationCheck,
     ETLStep,
     ExtractConfig,
     MigrationTemplate,
 } from "./interfaces";
 import { sessionManager } from "@/lib/salesforce/session-manager";
 import { ExternalIdUtils } from "../utils/external-id-utils";
+import { ValidationFormatter } from "./validation-formatter";
 
 export class ValidationEngine {
     private validationCache: Map<string, any[]> = new Map();
     private sourceOrgId: string = "";
     private targetOrgId: string = "";
+    private currentTargetObject: string = "";
+    private currentSourceQuery: string = "";
+    private sourceInstanceUrl: string = "";
+    private selectedRecordIds: string[] = [];
+    private seenPicklistErrors: Set<string> = new Set();
+
+    /**
+     * Formats and adds a validation issue to the appropriate collection
+     */
+    private addFormattedIssue(
+        results: ValidationResult,
+        issue: ValidationIssue,
+        severity: "error" | "warning" | "info" = "error"
+    ): void {
+        const formattedIssue = ValidationFormatter.formatValidationIssue(
+            { ...issue, severity },
+            this.sourceOrgId,
+            this.sourceInstanceUrl
+        );
+        
+        switch (severity) {
+            case "error":
+                results.errors.push(formattedIssue);
+                break;
+            case "warning":
+                results.warnings.push(formattedIssue);
+                break;
+            case "info":
+                results.info.push(formattedIssue);
+                break;
+        }
+    }
 
     async validateTemplate(
         template: MigrationTemplate,
         sourceOrgId: string,
         targetOrgId: string,
         selectedRecords?: string[],
+        sourceInstanceUrl?: string,
     ): Promise<ValidationResult> {
         this.sourceOrgId = sourceOrgId;
         this.targetOrgId = targetOrgId;
+        this.sourceInstanceUrl = sourceInstanceUrl || '';
+        this.selectedRecordIds = selectedRecords || [];
+        this.seenPicklistErrors.clear(); // Clear seen errors for each validation run
         
         const results: ValidationResult = this.createEmptyValidationResult();
 
         try {
-            // Verify org connections are healthy - check each org individually
-            const sourceHealth = await sessionManager.getHealthStatus(sourceOrgId);
-            const targetHealth = await sessionManager.getHealthStatus(targetOrgId);
-            
-            if (!sourceHealth.isHealthy && !targetHealth.isHealthy) {
-                results.errors.push({
+
+            // Verify org connections are healthy
+            const orgsHealthy = await sessionManager.areAllOrgsHealthy([sourceOrgId, targetOrgId]);
+            if (!orgsHealthy) {
+                this.addFormattedIssue(results, {
                     checkName: "orgConnectivity",
-                    message: "Both source and target Salesforce organisations are not accessible",
+                    message: "One or more Salesforce organizations are not accessible",
                     severity: "error",
                     recordId: null,
                     recordName: null,
-                    suggestedAction: "Reconnect both organisations and try again",
-                });
-                results.isValid = false;
-                this.updateValidationSummary(results);
-                return results;
-            } else if (!sourceHealth.isHealthy) {
-                results.errors.push({
-                    checkName: "orgConnectivity",
-                    message: "Source Salesforce organisation is not accessible",
-                    severity: "error",
-                    recordId: null,
-                    recordName: null,
-                    suggestedAction: "Reconnect the source organisation and try again",
-                });
-                results.isValid = false;
-                this.updateValidationSummary(results);
-                return results;
-            } else if (!targetHealth.isHealthy) {
-                results.errors.push({
-                    checkName: "orgConnectivity",
-                    message: "Target Salesforce organisation is not accessible",
-                    severity: "error",
-                    recordId: null,
-                    recordName: null,
-                    suggestedAction: "Reconnect the target organisation and try again",
-                });
+                    suggestedAction: "Check organization connections and try again",
+                }, "error");
                 results.isValid = false;
                 this.updateValidationSummary(results);
                 return results;
@@ -103,14 +114,14 @@ export class ValidationEngine {
             
             return results;
         } catch (error) {
-            results.errors.push({
+            this.addFormattedIssue(results, {
                 checkName: "validationError",
                 message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 severity: "error",
                 recordId: null,
                 recordName: null,
                 suggestedAction: "Check template configuration and org connectivity",
-            });
+            }, "error");
             results.isValid = false;
             this.updateValidationSummary(results);
             return results;
@@ -122,6 +133,7 @@ export class ValidationEngine {
         selectedRecords?: string[],
     ): Promise<ValidationResult> {
         const config = step.validationConfig!;
+        this.currentTargetObject = step.loadConfig.targetObject;
 
         try {
             // 1. Execute pre-validation queries to cache target data
@@ -144,11 +156,32 @@ export class ValidationEngine {
                 config.dataIntegrityChecks,
             );
 
-            // 5. Run picklist validation checks
-            const picklistResults = await this.runPicklistValidationChecks(
-                config.picklistValidationChecks || [],
-                sourceData,
-            );
+            // 5. Run picklist validation checks if configuration exists
+            let picklistResults = this.createEmptyValidationResult();
+            if (!config.picklistValidationChecks) {
+                console.log(`\n=== Auto-detecting picklist fields for step: ${step.stepName} ===`);
+                // Auto-detect picklist fields and create validation checks
+                const autoPicklistChecks = await this.autoDetectPicklistFields(
+                    step.transformConfig.fieldMappings,
+                    step.extractConfig.objectApiName,
+                    step.loadConfig.targetObject,
+                );
+                console.log(`Auto-detected ${autoPicklistChecks.length} picklist fields for validation`);
+                if (autoPicklistChecks.length > 0) {
+                    picklistResults = await this.runPicklistValidationChecks(
+                        autoPicklistChecks,
+                        sourceData,
+                        step.extractConfig.objectApiName,
+                    );
+                }
+            } else {
+                console.log(`Using configured picklist validation checks for step: ${step.stepName}`);
+                picklistResults = await this.runPicklistValidationChecks(
+                    config.picklistValidationChecks,
+                    sourceData,
+                    step.extractConfig.objectApiName,
+                );
+            }
 
             return this.combineValidationResults([
                 dependencyResults,
@@ -157,14 +190,14 @@ export class ValidationEngine {
             ]);
         } catch (error) {
             const results = this.createEmptyValidationResult();
-            results.errors.push({
+            this.addFormattedIssue(results, {
                 checkName: step.stepName,
                 message: `Step validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 severity: "error",
                 recordId: null,
                 recordName: null,
                 suggestedAction: "Check step configuration and data access",
-            });
+            }, "error");
             return results;
         }
     }
@@ -202,6 +235,7 @@ export class ValidationEngine {
         selectedRecords?: string[],
     ): Promise<any[]> {
         let query = extractConfig.soqlQuery;
+        this.currentSourceQuery = query;
         
         // Replace external ID field placeholders
         const sourceClient = await sessionManager.getClient(this.sourceOrgId);
@@ -211,20 +245,8 @@ export class ValidationEngine {
         );
         query = ExternalIdUtils.replaceExternalIdPlaceholders(query, externalIdField);
         
-        // Replace {selectedRecordIds} placeholder if present
-        if (query.includes('{selectedRecordIds}')) {
-            if (selectedRecords && selectedRecords.length > 0) {
-                // Replace the placeholder with the actual record IDs
-                const recordIdList = selectedRecords.map(id => `'${id}'`).join(',');
-                query = query.replace(/{selectedRecordIds}/g, recordIdList);
-            } else {
-                // If no records selected, we need to handle this differently
-                // For validation, we'll just get a sample of records
-                query = query.replace(/WHERE Id IN \({selectedRecordIds}\)/g, '');
-                query = query.replace(/AND Id IN \({selectedRecordIds}\)/g, '');
-            }
-        } else if (selectedRecords && selectedRecords.length > 0) {
-            // Add record selection filter if provided and no placeholder exists
+        // Add record selection filter if provided
+        if (selectedRecords && selectedRecords.length > 0) {
             const recordFilter = `Id IN ('${selectedRecords.join("','")}')`;
             query = query.includes("WHERE") 
                 ? `${query} AND ${recordFilter}`
@@ -255,13 +277,13 @@ export class ValidationEngine {
             if (!targetCache) {
                 console.error(`Target cache not found for ${check.targetObject} (cache key: ${cacheKey})`);
                 console.error(`Available cache keys: ${Array.from(this.validationCache.keys()).join(', ')}`);
-                results.errors.push({
+                this.addFormattedIssue(results, {
                     checkName: check.checkName,
                     message: `Target cache for ${check.targetObject} not found (cache key: ${cacheKey})`,
                     severity: "error",
                     recordId: null,
                     recordName: null,
-                });
+                }, "error");
                 continue;
             }
             
@@ -277,10 +299,6 @@ export class ValidationEngine {
                 check.targetField,
                 externalIdField
             );
-            const resolvedSourceField = ExternalIdUtils.replaceExternalIdPlaceholders(
-                check.sourceField,
-                externalIdField
-            );
 
             // Check each source record
             let checkedRecords = 0;
@@ -288,19 +306,11 @@ export class ValidationEngine {
             
             for (const record of sourceData) {
                 checkedRecords++;
-                const sourceValue = this.getFieldValue(record, resolvedSourceField);
-                
-                if (checkedRecords === 1) {
-                    console.log(`Sample dependency check for ${check.checkName}:`);
-                    console.log(`  Source field: ${check.sourceField} -> ${resolvedSourceField}`);
-                    console.log(`  Target field: ${check.targetField} -> ${resolvedTargetField}`);
-                    console.log(`  Source value: ${sourceValue}`);
-                    console.log(`  Target cache sample: ${targetCache[0] ? JSON.stringify(targetCache[0]) : 'empty'}`);
-                }
+                const sourceValue = this.getFieldValue(record, check.sourceField);
                 
                 if (!sourceValue && check.isRequired) {
                     foundIssues++;
-                    results.errors.push({
+                    this.addFormattedIssue(results, {
                         checkName: check.checkName,
                         message: check.errorMessage
                             .replace("{sourceValue}", sourceValue || "null")
@@ -308,7 +318,7 @@ export class ValidationEngine {
                         severity: "error",
                         recordId: record.Id,
                         recordName: record.Name,
-                    });
+                    }, "error");
                 } else if (sourceValue) {
                     const targetExists = targetCache.some((target) =>
                         target[resolvedTargetField] === sourceValue
@@ -317,7 +327,7 @@ export class ValidationEngine {
                     if (!targetExists) {
                         foundIssues++;
                         if (check.isRequired) {
-                            results.errors.push({
+                            this.addFormattedIssue(results, {
                                 checkName: check.checkName,
                                 message: check.errorMessage
                                     .replace("{sourceValue}", sourceValue)
@@ -325,9 +335,11 @@ export class ValidationEngine {
                                 severity: "error",
                                 recordId: record.Id,
                                 recordName: record.Name,
-                            });
+                                fieldName: check.sourceField,
+                                fieldValue: sourceValue,
+                            }, "error");
                         } else if (check.warningMessage) {
-                            results.warnings.push({
+                            this.addFormattedIssue(results, {
                                 checkName: check.checkName,
                                 message: check.warningMessage
                                     .replace("{sourceValue}", sourceValue)
@@ -335,7 +347,9 @@ export class ValidationEngine {
                                 severity: "warning",
                                 recordId: record.Id,
                                 recordName: record.Name,
-                            });
+                                fieldName: check.sourceField,
+                                fieldValue: sourceValue,
+                            }, "warning");
                         }
                     }
                 }
@@ -365,11 +379,25 @@ export class ValidationEngine {
                 );
                 query = ExternalIdUtils.replaceExternalIdPlaceholders(query, externalIdField);
                 
+                // Replace selectedRecordIds placeholder if present
+                if (query.includes('{selectedRecordIds}')) {
+                    if (this.selectedRecordIds && this.selectedRecordIds.length > 0) {
+                        query = query.replace(/{selectedRecordIds}/g, `'${this.selectedRecordIds.join("','")}'`);
+                    } else {
+                        // If no records selected, skip this check
+                        console.log(`Skipping check ${check.checkName} - no records selected`);
+                        continue;
+                    }
+                }
+                
                 console.log(`Executing query: ${query}`);
                 const queryResult = await this.executeSoqlQuery(query, this.sourceOrgId);
                 const count = Array.isArray(queryResult) ? queryResult.length : queryResult;
 
                 console.log(`Query returned ${count} records for check: ${check.checkName}`);
+                if (Array.isArray(queryResult) && queryResult.length > 0) {
+                    console.log(`Sample records:`, queryResult.slice(0, 3));
+                }
 
                 let isValid = false;
                 switch (check.expectedResult) {
@@ -388,38 +416,50 @@ export class ValidationEngine {
 
                 if (!isValid) {
                     console.log(`❌ Data integrity check failed: ${check.checkName} (expected ${check.expectedResult}, found ${count} records)`);
-                    const issue: ValidationIssue = {
-                        checkName: check.checkName,
-                        message: `${check.errorMessage} (Found ${count} records)`,
-                        severity: check.severity,
-                        recordId: null,
-                        recordName: null,
-                        suggestedAction: "Review data quality and fix issues before migration",
-                    };
-
-                    switch (check.severity) {
-                        case "error":
-                            results.errors.push(issue);
-                            break;
-                        case "warning":
-                            results.warnings.push(issue);
-                            break;
-                        case "info":
-                            results.info.push(issue);
-                            break;
+                    
+                    // Process individual records if the query returned actual records (not aggregate results)
+                    if (Array.isArray(queryResult) && queryResult.length > 0 && queryResult[0].Id) {
+                        console.log(`Processing ${queryResult.length} individual records for ${check.checkName}`);
+                        // Create individual issues for each record
+                        for (const record of queryResult) {
+                            console.log(`Creating issue for record:`, { id: record.Id, name: record.Name });
+                            const issue: ValidationIssue = {
+                                checkName: check.checkName,
+                                message: check.errorMessage,
+                                severity: check.severity,
+                                recordId: record.Id || null,
+                                recordName: record.Name || null,
+                                suggestedAction: check.checkName.includes('ExternalIdValidation') 
+                                    ? "Populate external IDs before migration"
+                                    : "Review data quality and fix issues before migration",
+                            };
+                            this.addFormattedIssue(results, issue, check.severity);
+                        }
+                        console.log(`Created ${queryResult.length} individual validation issues`);
+                    } else {
+                        // Generic issue for aggregate results or when no specific records
+                        const issue: ValidationIssue = {
+                            checkName: check.checkName,
+                            message: `${check.errorMessage} (Found ${count} records)`,
+                            severity: check.severity,
+                            recordId: null,
+                            recordName: null,
+                            suggestedAction: "Review data quality and fix issues before migration",
+                        };
+                        this.addFormattedIssue(results, issue, check.severity);
                     }
                 } else {
                     console.log(`✓ Data integrity check passed: ${check.checkName} (expected ${check.expectedResult}, found ${count} records)`);
                 }
             } catch (error) {
-                results.errors.push({
+                this.addFormattedIssue(results, {
                     checkName: check.checkName,
                     message: `Failed to execute integrity check: ${error instanceof Error ? error.message : 'Unknown error'}`,
                     severity: "error",
                     recordId: null,
                     recordName: null,
                     suggestedAction: "Check query syntax and object permissions",
-                });
+                }, "error");
             }
         }
 
@@ -493,7 +533,6 @@ export class ValidationEngine {
         const cacheKeyMap: { [key: string]: string } = {
             'tc9_pr__Pay_Code__c': 'target_pay_codes',
             'tc9_et__Interpretation_Rule__c': 'target_interpretation_rules',
-            'tc9_et__Leave_Header__c': 'target_leave_headers',
             'tc9_pr__Leave_Rule__c': 'target_leave_rules',
             'tc9_et__Interpretation_Breakpoint__c': 'target_interpretation_breakpoints',
         };
@@ -524,104 +563,250 @@ export class ValidationEngine {
         return fromMatch ? fromMatch[1] : "";
     }
 
+    private async autoDetectPicklistFields(
+        fieldMappings: any[],
+        sourceObject: string,
+        targetObject: string,
+    ): Promise<PicklistValidationCheck[]> {
+        const picklistChecks: PicklistValidationCheck[] = [];
+        
+        try {
+            // Get target object metadata to identify picklist fields
+            const targetClient = await sessionManager.getClient(this.targetOrgId);
+            const targetMetadata = await targetClient.getObjectMetadata(targetObject);
+            
+            if (!targetMetadata.success || !targetMetadata.data) {
+                console.error(`Failed to get metadata for target object ${targetObject}`);
+                return picklistChecks;
+            }
+            
+            // Create a map of field names to field metadata
+            const targetFieldMap = new Map<string, any>();
+            targetMetadata.data.fields.forEach((field: any) => {
+                targetFieldMap.set(field.name, field);
+            });
+            
+            // Check each field mapping for picklist fields
+            console.log(`Checking ${fieldMappings.length} field mappings for picklist fields`);
+            for (const mapping of fieldMappings) {
+                if (mapping.transformationType === 'direct') {
+                    const targetFieldMeta = targetFieldMap.get(mapping.targetField);
+                    
+                    if (targetFieldMeta) {
+                        console.log(`Field ${mapping.targetField}: type=${targetFieldMeta.type}, hasPicklistValues=${!!targetFieldMeta.picklistValues}`);
+                        if (targetFieldMeta.type === 'picklist' || targetFieldMeta.type === 'multipicklist') {
+                            picklistChecks.push({
+                                checkName: `picklistValidation_${mapping.targetField}`,
+                                description: `Validate picklist values for ${mapping.targetField}`,
+                                sourceField: mapping.sourceField,
+                                targetField: mapping.targetField,
+                                isRequired: mapping.isRequired !== false,
+                                errorMessage: `Invalid picklist value '{sourceValue}' for field ${mapping.targetField} in record '{recordName}'. This value does not exist in the target org.`,
+                            });
+                            console.log(`✓ Auto-detected picklist field for validation: ${mapping.targetField}`);
+                        }
+                    } else {
+                        console.log(`Field ${mapping.targetField} not found in target metadata`);
+                    }
+                }
+            }
+            
+            return picklistChecks;
+        } catch (error) {
+            console.error('Error auto-detecting picklist fields:', error);
+            return picklistChecks;
+        }
+    }
+
     private async runPicklistValidationChecks(
         checks: PicklistValidationCheck[],
-        sourceData: any[]
+        sourceData: any[],
+        sourceObject?: string,
     ): Promise<ValidationResult> {
-        const results = this.createEmptyValidationResult();
+        const results: ValidationResult = this.createEmptyValidationResult();
         
-        for (const check of checks) {
-            try {
-                console.log(`Running picklist validation check: ${check.checkName}`);
+        if (checks.length === 0) {
+            return results;
+        }
+        
+        try {
+            // For picklist validation, we need to check ALL unique values, not just sample records
+            // First, let's get all unique picklist values from the source
+            const uniquePicklistValues = await this.getUniquePicklistValues(checks, sourceObject || this.extractObjectFromQuery(this.currentSourceQuery));
+            // Get target object from the first check's context
+            // In the actual implementation, the target object should be passed from the ETL config
+            const targetObject = this.currentTargetObject;
                 
-                let allowedValues: string[];
+            if (!targetObject) {
+                console.error('Cannot determine target object for picklist validation');
+                return results;
+            }
+            
+            const targetClient = await sessionManager.getClient(this.targetOrgId);
+            const targetMetadata = await targetClient.getObjectMetadata(targetObject);
+            
+            if (!targetMetadata.success || !targetMetadata.data) {
+                this.addFormattedIssue(results, {
+                    checkName: 'picklistValidation',
+                    message: `Failed to get metadata for target object ${targetObject}`,
+                    severity: 'error',
+                    recordId: null,
+                    recordName: null,
+                }, 'error');
+                return results;
+            }
+            
+            // Create a map of field names to valid picklist values
+            const fieldPicklistValues = new Map<string, Set<string>>();
+            targetMetadata.data.fields.forEach((field: any) => {
+                if ((field.type === 'picklist' || field.type === 'multipicklist') && field.picklistValues) {
+                    const validValues = new Set<string>();
+                    field.picklistValues.forEach((pv: any) => {
+                        if (pv.active) {
+                            validValues.add(pv.value);
+                        }
+                    });
+                    fieldPicklistValues.set(field.name, validValues);
+                    console.log(`Found picklist field ${field.name} with ${validValues.size} valid values`);
+                }
+            });
+            
+            // Validate each check
+            for (const check of checks) {
+                const validValues = fieldPicklistValues.get(check.targetField);
                 
-                if (check.allowedValues) {
-                    // Use custom allowed values if provided
-                    allowedValues = check.allowedValues;
-                } else if (check.validateAgainstTarget) {
-                    // Get picklist metadata from target org
-                    const targetClient = await sessionManager.getClient(this.targetOrgId);
-                    const picklistResult = await targetClient.getPicklistValues(check.objectName, check.fieldName);
-                    
-                    if (!picklistResult.success) {
-                        results.errors.push({
-                            checkName: check.checkName,
-                            message: `Failed to get picklist metadata: ${picklistResult.error}`,
-                            severity: "error",
-                            recordId: null,
-                            recordName: null,
-                            suggestedAction: "Check that the field exists and is a picklist field"
-                        });
-                        continue;
-                    }
-
-                    if (!picklistResult.data) {
-                        results.errors.push({
-                            checkName: check.checkName,
-                            message: 'Picklist metadata not available',
-                            severity: "error",
-                            recordId: null,
-                            recordName: null,
-                            suggestedAction: "Check that the field exists and is a picklist field"
-                        });
-                        continue;
-                    }
-
-                    const targetPicklistData: PicklistFieldMetadata = picklistResult.data;
-                    allowedValues = targetPicklistData.values.map(v => v.value);
-                    console.log(`Picklist values for ${check.fieldName}: ${allowedValues.join(', ')}`);
-                } else {
-                    // Skip validation if no allowed values provided and not validating against target
-                    console.log(`Skipping picklist validation check ${check.checkName} - no allowed values and validateAgainstTarget is false`);
+                if (!validValues) {
+                    console.warn(`No picklist values found for field ${check.targetField}`);
                     continue;
                 }
                 
-                // Validate each source record
-                let picklistIssuesFound = 0;
-                for (const record of sourceData) {
-                    const fieldValue = this.getFieldValue(record, check.fieldName);
-                    
-                    if (fieldValue && !this.isValidPicklistValue(fieldValue, allowedValues)) {
-                        picklistIssuesFound++;
-                        const recordName = record.Name || record.Id || "Unknown";
-                        const issue: ValidationIssue = {
-                            checkName: check.checkName,
-                            message: `Invalid picklist value '${fieldValue}' for field ${check.fieldName}. Allowed values: ${allowedValues.join(', ')}`,
-                            severity: check.severity,
-                            recordId: record.Id || null,
-                            recordName: recordName,
-                            suggestedAction: `Update the ${check.fieldName} field to use a valid picklist value before migration`
-                        };
-                        
-                        if (check.severity === "error") {
-                            results.errors.push(issue);
-                        } else if (check.severity === "warning") {
-                            results.warnings.push(issue);
-                        } else {
-                            results.info.push(issue);
-                        }
+                console.log(`Running picklist validation: ${check.checkName} for ${check.targetField}`);
+                console.log(`Valid values for ${check.targetField}: ${Array.from(validValues).join(', ')}`);
+                
+                // Get unique source values for this field
+                const sourceUniqueValues = uniquePicklistValues.get(check.sourceField) || new Set<string>();
+                
+                // Check all unique values from source
+                let foundIssues = 0;
+                const invalidValues: string[] = [];
+                
+                for (const sourceValue of Array.from(sourceUniqueValues)) {
+                    if (!validValues.has(sourceValue)) {
+                        foundIssues++;
+                        invalidValues.push(sourceValue);
                     }
                 }
                 
-                console.log(`Picklist validation check ${check.checkName} completed: found ${picklistIssuesFound} issues`);
-            } catch (error) {
-                results.errors.push({
-                    checkName: check.checkName,
-                    message: `Picklist validation check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                    severity: "error",
-                    recordId: null,
-                    recordName: null,
-                    suggestedAction: "Check validation configuration and org connectivity"
-                });
+                if (foundIssues > 0) {
+                    // Create a unique key for this picklist error to avoid duplicates
+                    const errorKey = `${check.targetField}-${invalidValues.sort().join(',')}`;
+                    
+                    if (!this.seenPicklistErrors.has(errorKey)) {
+                        this.seenPicklistErrors.add(errorKey);
+                        this.addFormattedIssue(results, {
+                            checkName: check.checkName,
+                            message: `Invalid picklist values found for field ${check.targetField}: ${invalidValues.join(', ')}. These values do not exist in the target org.`,
+                            severity: 'error',
+                            recordId: null,
+                            recordName: null,
+                            suggestedAction: `Valid values are: ${Array.from(validValues).join(', ')}`,
+                        }, 'error');
+                    }
+                }
+                
+                console.log(`✓ Picklist validation ${check.checkName}: checked ${sourceUniqueValues.size} unique values, found ${foundIssues} invalid values`);
             }
+            
+            return results;
+        } catch (error) {
+            this.addFormattedIssue(results, {
+                checkName: 'picklistValidation',
+                message: `Failed to run picklist validation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                severity: 'error',
+                recordId: null,
+                recordName: null,
+            }, 'error');
+            return results;
         }
-        
-        return results;
     }
 
-    private isValidPicklistValue(value: string, allowedValues: string[]): boolean {
-        return allowedValues.includes(value);
+    private async getUniquePicklistValues(
+        checks: PicklistValidationCheck[],
+        sourceObject: string
+    ): Promise<Map<string, Set<string>>> {
+        const fieldUniqueValues = new Map<string, Set<string>>();
+        
+        try {
+            // Build a query to get unique picklist values for each field
+            for (const check of checks) {
+                try {
+                    // First attempt with GROUP BY
+                    const uniqueValuesQuery = `
+                        SELECT ${check.sourceField}, COUNT(Id) recordCount 
+                        FROM ${sourceObject}
+                        WHERE ${check.sourceField} != null
+                        GROUP BY ${check.sourceField}
+                        ORDER BY COUNT(Id) DESC
+                    `;
+                    
+                    console.log(`Getting unique values for field ${check.sourceField}`);
+                    const uniqueResults = await this.executeSoqlQuery(uniqueValuesQuery, this.sourceOrgId);
+                    
+                    const values = new Set<string>();
+                    uniqueResults.forEach((row: any) => {
+                        if (row[check.sourceField]) {
+                            values.add(row[check.sourceField]);
+                        }
+                    });
+                    
+                    fieldUniqueValues.set(check.sourceField, values);
+                    console.log(`Found ${values.size} unique values for ${check.sourceField}: ${Array.from(values).slice(0, 10).join(', ')}${values.size > 10 ? '...' : ''}`);
+                } catch (groupByError: any) {
+                    // If GROUP BY fails (e.g., for multipicklist fields), fall back to getting all values
+                    const errorMessage = groupByError.message || groupByError.toString() || '';
+                    if (errorMessage.includes('can not be grouped') || errorMessage.includes('ERROR at Row')) {
+                        console.log(`Field ${check.sourceField} cannot be grouped (likely a multipicklist). Fetching all values...`);
+                        
+                        const fallbackQuery = `
+                            SELECT ${check.sourceField} 
+                            FROM ${sourceObject}
+                            WHERE ${check.sourceField} != null
+                            LIMIT 1000
+                        `;
+                        
+                        try {
+                            const fallbackResults = await this.executeSoqlQuery(fallbackQuery, this.sourceOrgId);
+                            const values = new Set<string>();
+                            
+                            fallbackResults.forEach((row: any) => {
+                                const fieldValue = row[check.sourceField];
+                                if (fieldValue) {
+                                    // For multipicklist, split by semicolon
+                                    if (fieldValue.includes(';')) {
+                                        fieldValue.split(';').forEach((v: string) => values.add(v.trim()));
+                                    } else {
+                                        values.add(fieldValue);
+                                    }
+                                }
+                            });
+                            
+                            fieldUniqueValues.set(check.sourceField, values);
+                            console.log(`Found ${values.size} unique values for multipicklist ${check.sourceField}`);
+                        } catch (fallbackError) {
+                            console.error(`Failed to fetch values for field ${check.sourceField} even with fallback query:`, fallbackError);
+                            // Continue with other fields instead of failing completely
+                            fieldUniqueValues.set(check.sourceField, new Set<string>());
+                        }
+                    } else {
+                        throw groupByError;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error getting unique picklist values:', error);
+        }
+        
+        return fieldUniqueValues;
     }
 
     // Clear cache for testing or reset

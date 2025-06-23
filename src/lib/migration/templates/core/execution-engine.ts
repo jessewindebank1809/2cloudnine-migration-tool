@@ -294,6 +294,17 @@ export class ExecutionEngine {
       }
     }
     
+    // Special handling for interpretation rule variation step
+    // When extracting variation rules, include those linked to selected parent rules
+    if (step.stepName === 'interpretationRuleVariation' && objectType === 'tc9_et__Interpretation_Rule__c') {
+      const parentRuleIds = context.selectedRecords['tc9_et__Interpretation_Rule__c'] || [];
+      if (parentRuleIds.length > 0) {
+        console.log(`Including variation rules for parent rule IDs: ${JSON.stringify(parentRuleIds)}`);
+        // Modify the query to get variation rules linked to selected parent rules
+        selectedIds = parentRuleIds; // Will be used with tc9_et__Interpretation_Rule__c field
+      }
+    }
+    
     if (selectedIds.length === 0) {
       console.log('No selected records found, returning empty array');
       return [];
@@ -316,11 +327,21 @@ export class ExecutionEngine {
     if (query.includes('{selectedRecordIds}')) {
       query = query.replace(/{selectedRecordIds}/g, `'${selectedIds.join("','")}'`);
     } else {
-      // Add WHERE clause for selected records (legacy behaviour)
+      // Add WHERE clause for selected records (legacy behavior)
+      // Determine the correct filter field based on step and object type
+      let filterField = 'Id';
+      
+      if (objectType === 'tc9_et__Interpretation_Breakpoint__c') {
+        filterField = 'tc9_et__Interpretation_Rule__c';
+      } else if (step.stepName === 'interpretationRuleVariation' && objectType === 'tc9_et__Interpretation_Rule__c') {
+        // For variation rules, filter by parent interpretation rule
+        filterField = 'tc9_et__Interpretation_Rule__c';
+      }
+      
       if (query.toLowerCase().includes('where')) {
-        query += ` AND Id IN ('${selectedIds.join("','")}')`;
+        query += ` AND ${filterField} IN ('${selectedIds.join("','")}')`;
       } else {
-        query += ` WHERE Id IN ('${selectedIds.join("','")}')`;
+        query += ` WHERE ${filterField} IN ('${selectedIds.join("','")}')`;
       }
     }
 
@@ -344,11 +365,21 @@ export class ExecutionEngine {
       if (queryWithoutExternalId.includes('{selectedRecordIds}')) {
         queryWithoutExternalId = queryWithoutExternalId.replace(/{selectedRecordIds}/g, `'${selectedIds.join("','")}'`);
       } else {
-        // Add WHERE clause for selected records (legacy behaviour)
+        // Add WHERE clause for selected records (legacy behavior)
+        // Determine the correct filter field based on step and object type
+        let filterField = 'Id';
+        
+        if (objectType === 'tc9_et__Interpretation_Breakpoint__c') {
+          filterField = 'tc9_et__Interpretation_Rule__c';
+        } else if (step.stepName === 'interpretationRuleVariation' && objectType === 'tc9_et__Interpretation_Rule__c') {
+          // For variation rules, filter by parent interpretation rule
+          filterField = 'tc9_et__Interpretation_Rule__c';
+        }
+        
         if (queryWithoutExternalId.toLowerCase().includes('where')) {
-          queryWithoutExternalId += ` AND Id IN ('${selectedIds.join("','")}')`;
+          queryWithoutExternalId += ` AND ${filterField} IN ('${selectedIds.join("','")}')`;
         } else {
-          queryWithoutExternalId += ` WHERE Id IN ('${selectedIds.join("','")}')`;
+          queryWithoutExternalId += ` WHERE ${filterField} IN ('${selectedIds.join("','")}')`;
         }
       }
       
@@ -363,11 +394,12 @@ export class ExecutionEngine {
     console.log(`Query returned ${result.data?.length || 0} records`);
     
     // Special validation for breakpoint steps - they should always have records if interpretation rules exist
-    if (objectType === 'tc9_et__Interpretation_Breakpoint__c' && 
-        (result.data?.length || 0) === 0 && 
-        (context.selectedRecords['tc9_et__Interpretation_Rule__c']?.length || 0) > 0) {
-      throw new Error(`No breakpoints found for interpretation rules. Interpretation rules must have associated breakpoints.`);
-    }
+    // TEMPORARILY DISABLED: This validation is now handled in the separate validation step
+    // if (objectType === 'tc9_et__Interpretation_Breakpoint__c' && 
+    //     (result.data?.length || 0) === 0 && 
+    //     (context.selectedRecords['tc9_et__Interpretation_Rule__c']?.length || 0) > 0) {
+    //   throw new Error(`No breakpoints found for interpretation rules. Interpretation rules must have associated breakpoints.`);
+    // }
     
     return result.data || [];
   }
@@ -429,6 +461,7 @@ export class ExecutionEngine {
           } else {
             // Direct field mapping
             transformedRecord[targetField] = sourceValue;
+            
           }
         }
       }
@@ -499,19 +532,9 @@ export class ExecutionEngine {
         }
       }
 
-      // Handle external ID field mapping for cross-environment migrations
-      // Only set external ID field if it exists in the source record
-      // This prevents trying to insert non-existent fields in the target org
-      if (record.hasOwnProperty(sourceExternalIdField)) {
-        // For cross-environment migrations, map from source field to target field
-        if (context.externalIdConfig?.strategy === 'cross-environment' && sourceExternalIdField !== targetExternalIdField) {
-          transformedRecord[targetExternalIdField] = record[sourceExternalIdField];
-          console.log(`Cross-environment external ID mapping: ${sourceExternalIdField} -> ${targetExternalIdField}`);
-        } else {
-          // Same environment migration
-          transformedRecord[targetExternalIdField] = record[sourceExternalIdField];
-        }
-      }
+      // Note: External ID field mapping is handled by the field mappings above
+      // The interpretation rules template maps Id -> {externalIdField}
+      // So we don't need additional external ID handling here
 
       transformed.push(transformedRecord);
     }
@@ -521,6 +544,7 @@ export class ExecutionEngine {
     console.log(`Successfully transformed ${transformed.length} records`);
     if (transformed.length > 0) {
       console.log(`Sample transformed record fields: ${Object.keys(transformed[0]).join(', ')}`);
+      
     }
     console.log(`=== END TRANSFORMATION ===\n`);
 

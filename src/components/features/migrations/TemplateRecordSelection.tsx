@@ -105,11 +105,23 @@ export function TemplateRecordSelection({
       if (!primaryObjectType) return { totalCount: 0 };
       
       let countQuery = `SELECT COUNT() FROM ${primaryObjectType}`;
+      let whereClause = '';
+      
+      // For interpretation rules, exclude variation rules
+      if (primaryObjectType === 'tc9_et__Interpretation_Rule__c') {
+        whereClause = " WHERE RecordType.Name != 'Interpretation Variation Rule'";
+      }
       
       // Add search filter if provided
       if (searchTerm.trim()) {
-        countQuery += ` WHERE Name LIKE '%${searchTerm.trim()}%'`;
+        if (whereClause) {
+          whereClause += ` AND Name LIKE '%${searchTerm.trim()}%'`;
+        } else {
+          whereClause = ` WHERE Name LIKE '%${searchTerm.trim()}%'`;
+        }
       }
+      
+      countQuery += whereClause;
 
       const result = await apiCall<any>(() => fetch('/api/salesforce/query', {
         method: 'POST',
@@ -139,12 +151,23 @@ export function TemplateRecordSelection({
       
       const offset = currentPage * pageSize;
       let query = `SELECT Id, Name, CreatedDate, LastModifiedDate FROM ${primaryObjectType}`;
+      let whereClause = '';
+      
+      // For interpretation rules, exclude variation rules
+      if (primaryObjectType === 'tc9_et__Interpretation_Rule__c') {
+        whereClause = " WHERE RecordType.Name != 'Interpretation Variation Rule'";
+      }
       
       // Add search filter if provided
       if (searchTerm.trim()) {
-        query += ` WHERE Name LIKE '%${searchTerm.trim()}%'`;
+        if (whereClause) {
+          whereClause += ` AND Name LIKE '%${searchTerm.trim()}%'`;
+        } else {
+          whereClause = ` WHERE Name LIKE '%${searchTerm.trim()}%'`;
+        }
       }
       
+      query += whereClause;
       query += ` ORDER BY LastModifiedDate DESC LIMIT ${pageSize} OFFSET ${offset}`;
 
       const result = await apiCall<any>(() => fetch('/api/salesforce/query', {
@@ -260,12 +283,23 @@ export function TemplateRecordSelection({
       for (let chunk = 0; chunk < totalChunks; chunk++) {
         const offset = chunk * chunkSize;
         let query = `SELECT Id FROM ${primaryObjectType}`;
+        let whereClause = '';
+        
+        // For interpretation rules, exclude variation rules
+        if (primaryObjectType === 'tc9_et__Interpretation_Rule__c') {
+          whereClause = " WHERE RecordType.Name != 'Interpretation Variation Rule'";
+        }
         
         // Add search filter if provided
         if (searchTerm.trim()) {
-          query += ` WHERE Name LIKE '%${searchTerm.trim()}%'`;
+          if (whereClause) {
+            whereClause += ` AND Name LIKE '%${searchTerm.trim()}%'`;
+          } else {
+            whereClause = ` WHERE Name LIKE '%${searchTerm.trim()}%'`;
+          }
         }
         
+        query += whereClause;
         query += ` ORDER BY LastModifiedDate DESC LIMIT ${chunkSize} OFFSET ${offset}`;
 
         const result = await apiCall<any>(() => fetch('/api/salesforce/query', {
