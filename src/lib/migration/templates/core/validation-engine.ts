@@ -378,8 +378,14 @@ export class ValidationEngine {
                 query = ExternalIdUtils.replaceExternalIdPlaceholders(query, externalIdField);
                 
                 // Replace selectedRecordIds placeholder if present
-                if (query.includes('{selectedRecordIds}') && this.selectedRecordIds) {
-                    query = query.replace(/{selectedRecordIds}/g, `'${this.selectedRecordIds.join("','")}'`);
+                if (query.includes('{selectedRecordIds}')) {
+                    if (this.selectedRecordIds && this.selectedRecordIds.length > 0) {
+                        query = query.replace(/{selectedRecordIds}/g, `'${this.selectedRecordIds.join("','")}'`);
+                    } else {
+                        // If no records selected, skip this check
+                        console.log(`Skipping check ${check.checkName} - no records selected`);
+                        continue;
+                    }
                 }
                 
                 console.log(`Executing query: ${query}`);
@@ -387,6 +393,9 @@ export class ValidationEngine {
                 const count = Array.isArray(queryResult) ? queryResult.length : queryResult;
 
                 console.log(`Query returned ${count} records for check: ${check.checkName}`);
+                if (Array.isArray(queryResult) && queryResult.length > 0) {
+                    console.log(`Sample records:`, queryResult.slice(0, 3));
+                }
 
                 let isValid = false;
                 switch (check.expectedResult) {
@@ -408,8 +417,10 @@ export class ValidationEngine {
                     
                     // For external ID validation checks, process each record individually
                     if (check.checkName.includes('ExternalIdValidation') && Array.isArray(queryResult) && queryResult.length > 0) {
+                        console.log(`Processing ${queryResult.length} individual records for ${check.checkName}`);
                         // Create individual issues for each record missing external ID
                         for (const record of queryResult) {
+                            console.log(`Creating issue for record:`, { id: record.Id, name: record.Name });
                             const issue: ValidationIssue = {
                                 checkName: check.checkName,
                                 message: check.errorMessage,
@@ -420,6 +431,7 @@ export class ValidationEngine {
                             };
                             this.addFormattedIssue(results, issue, check.severity);
                         }
+                        console.log(`Created ${queryResult.length} individual validation issues`);
                     } else {
                         // Generic issue for other types of checks
                         const issue: ValidationIssue = {
@@ -717,26 +729,61 @@ export class ValidationEngine {
         try {
             // Build a query to get unique picklist values for each field
             for (const check of checks) {
-                const uniqueValuesQuery = `
-                    SELECT ${check.sourceField}, COUNT(Id) recordCount 
-                    FROM ${sourceObject}
-                    WHERE ${check.sourceField} != null
-                    GROUP BY ${check.sourceField}
-                    ORDER BY COUNT(Id) DESC
-                `;
-                
-                console.log(`Getting unique values for field ${check.sourceField}`);
-                const uniqueResults = await this.executeSoqlQuery(uniqueValuesQuery, this.sourceOrgId);
-                
-                const values = new Set<string>();
-                uniqueResults.forEach((row: any) => {
-                    if (row[check.sourceField]) {
-                        values.add(row[check.sourceField]);
+                try {
+                    // First attempt with GROUP BY
+                    const uniqueValuesQuery = `
+                        SELECT ${check.sourceField}, COUNT(Id) recordCount 
+                        FROM ${sourceObject}
+                        WHERE ${check.sourceField} != null
+                        GROUP BY ${check.sourceField}
+                        ORDER BY COUNT(Id) DESC
+                    `;
+                    
+                    console.log(`Getting unique values for field ${check.sourceField}`);
+                    const uniqueResults = await this.executeSoqlQuery(uniqueValuesQuery, this.sourceOrgId);
+                    
+                    const values = new Set<string>();
+                    uniqueResults.forEach((row: any) => {
+                        if (row[check.sourceField]) {
+                            values.add(row[check.sourceField]);
+                        }
+                    });
+                    
+                    fieldUniqueValues.set(check.sourceField, values);
+                    console.log(`Found ${values.size} unique values for ${check.sourceField}: ${Array.from(values).slice(0, 10).join(', ')}${values.size > 10 ? '...' : ''}`);
+                } catch (groupByError: any) {
+                    // If GROUP BY fails (e.g., for multipicklist fields), fall back to getting all values
+                    if (groupByError.message?.includes('can not be grouped')) {
+                        console.log(`Field ${check.sourceField} cannot be grouped (likely a multipicklist). Fetching all values...`);
+                        
+                        const fallbackQuery = `
+                            SELECT ${check.sourceField} 
+                            FROM ${sourceObject}
+                            WHERE ${check.sourceField} != null
+                            LIMIT 1000
+                        `;
+                        
+                        const fallbackResults = await this.executeSoqlQuery(fallbackQuery, this.sourceOrgId);
+                        const values = new Set<string>();
+                        
+                        fallbackResults.forEach((row: any) => {
+                            const fieldValue = row[check.sourceField];
+                            if (fieldValue) {
+                                // For multipicklist, split by semicolon
+                                if (fieldValue.includes(';')) {
+                                    fieldValue.split(';').forEach((v: string) => values.add(v.trim()));
+                                } else {
+                                    values.add(fieldValue);
+                                }
+                            }
+                        });
+                        
+                        fieldUniqueValues.set(check.sourceField, values);
+                        console.log(`Found ${values.size} unique values for multipicklist ${check.sourceField}`);
+                    } else {
+                        throw groupByError;
                     }
-                });
-                
-                fieldUniqueValues.set(check.sourceField, values);
-                console.log(`Found ${values.size} unique values for ${check.sourceField}: ${Array.from(values).slice(0, 10).join(', ')}${values.size > 10 ? '...' : ''}`);
+                }
             }
         } catch (error) {
             console.error('Error getting unique picklist values:', error);

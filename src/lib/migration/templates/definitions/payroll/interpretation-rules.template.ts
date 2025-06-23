@@ -203,7 +203,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         checkName: "crossEnvironmentExternalIdValidation",
                         description: "Validate external ID fields exist for cross-environment migration",
                         validationQuery: `SELECT Id, Name FROM tc9_et__Interpretation_Rule__c WHERE 
-                            ({externalIdField} = null) AND Id IN ('{selectedRecordIds}')`,
+                            ({externalIdField} = null) AND Id IN ({selectedRecordIds})`,
                         expectedResult: "empty",
                         errorMessage: "Migration cannot proceed: Found interpretation rules without any external ID values. Cross-environment migration requires external IDs to be populated",
                         severity: "error",
