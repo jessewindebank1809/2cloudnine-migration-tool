@@ -11,6 +11,7 @@ interface ValidationIssue {
   title: string;
   description: string;
   recordId?: string;
+  recordLink?: string;
   field?: string;
   suggestion?: string;
 }
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest) {
       template,
       sourceOrgId,
       targetOrgId,
-      selectedRecords
+      selectedRecords,
+      sourceOrg.instance_url
     );
 
     // Convert engine validation results to API format
@@ -78,10 +80,12 @@ export async function POST(request: NextRequest) {
       issues.push({
         id: `error-${index}`,
         severity: 'error',
-        title: error.checkName,
+        title: error.checkName, // This is already formatted by ValidationFormatter
         description: error.message,
         recordId: error.recordId || undefined,
-        field: error.checkName.includes('picklist') ? error.checkName.replace('picklistValidation_', '') : undefined,
+        recordLink: error.recordLink || undefined,
+        field: error.checkName.includes('Invalid') && error.checkName.includes('Values') ? 
+          error.checkName.replace('Invalid ', '').replace(' Values', '') : undefined,
         suggestion: error.suggestedAction || undefined
       });
     });
@@ -91,9 +95,10 @@ export async function POST(request: NextRequest) {
       issues.push({
         id: `warning-${index}`,
         severity: 'warning',
-        title: warning.checkName,
+        title: warning.checkName, // This is already formatted by ValidationFormatter
         description: warning.message,
         recordId: warning.recordId || undefined,
+        recordLink: warning.recordLink || undefined,
         suggestion: warning.suggestedAction || undefined
       });
     });
@@ -103,9 +108,10 @@ export async function POST(request: NextRequest) {
       issues.push({
         id: `info-${index}`,
         severity: 'info',
-        title: info.checkName,
+        title: info.checkName, // This is already formatted by ValidationFormatter
         description: info.message,
         recordId: info.recordId || undefined,
+        recordLink: info.recordLink || undefined,
         suggestion: info.suggestedAction || undefined
       });
     });

@@ -13,6 +13,7 @@ import {
 } from "./interfaces";
 import { sessionManager } from "@/lib/salesforce/session-manager";
 import { ExternalIdUtils } from "../utils/external-id-utils";
+import { ValidationFormatter } from "./validation-formatter";
 
 export class ValidationEngine {
     private validationCache: Map<string, any[]> = new Map();
@@ -20,30 +21,61 @@ export class ValidationEngine {
     private targetOrgId: string = "";
     private currentTargetObject: string = "";
     private currentSourceQuery: string = "";
+    private sourceInstanceUrl: string = "";
+
+    /**
+     * Formats and adds a validation issue to the appropriate collection
+     */
+    private addFormattedIssue(
+        results: ValidationResult,
+        issue: ValidationIssue,
+        severity: "error" | "warning" | "info" = "error"
+    ): void {
+        const formattedIssue = ValidationFormatter.formatValidationIssue(
+            { ...issue, severity },
+            this.sourceOrgId,
+            this.sourceInstanceUrl
+        );
+        
+        switch (severity) {
+            case "error":
+                results.errors.push(formattedIssue);
+                break;
+            case "warning":
+                results.warnings.push(formattedIssue);
+                break;
+            case "info":
+                results.info.push(formattedIssue);
+                break;
+        }
+    }
 
     async validateTemplate(
         template: MigrationTemplate,
         sourceOrgId: string,
         targetOrgId: string,
         selectedRecords?: string[],
+        sourceInstanceUrl?: string,
     ): Promise<ValidationResult> {
         this.sourceOrgId = sourceOrgId;
         this.targetOrgId = targetOrgId;
+        this.sourceInstanceUrl = sourceInstanceUrl || '';
         
         const results: ValidationResult = this.createEmptyValidationResult();
 
         try {
+
             // Verify org connections are healthy
             const orgsHealthy = await sessionManager.areAllOrgsHealthy([sourceOrgId, targetOrgId]);
             if (!orgsHealthy) {
-                results.errors.push({
+                this.addFormattedIssue(results, {
                     checkName: "orgConnectivity",
                     message: "One or more Salesforce organizations are not accessible",
                     severity: "error",
                     recordId: null,
                     recordName: null,
                     suggestedAction: "Check organization connections and try again",
-                });
+                }, "error");
                 results.isValid = false;
                 this.updateValidationSummary(results);
                 return results;
@@ -78,14 +110,14 @@ export class ValidationEngine {
             
             return results;
         } catch (error) {
-            results.errors.push({
+            this.addFormattedIssue(results, {
                 checkName: "validationError",
                 message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 severity: "error",
                 recordId: null,
                 recordName: null,
                 suggestedAction: "Check template configuration and org connectivity",
-            });
+            }, "error");
             results.isValid = false;
             this.updateValidationSummary(results);
             return results;
@@ -154,14 +186,14 @@ export class ValidationEngine {
             ]);
         } catch (error) {
             const results = this.createEmptyValidationResult();
-            results.errors.push({
+            this.addFormattedIssue(results, {
                 checkName: step.stepName,
                 message: `Step validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 severity: "error",
                 recordId: null,
                 recordName: null,
                 suggestedAction: "Check step configuration and data access",
-            });
+            }, "error");
             return results;
         }
     }
@@ -241,13 +273,13 @@ export class ValidationEngine {
             if (!targetCache) {
                 console.error(`Target cache not found for ${check.targetObject} (cache key: ${cacheKey})`);
                 console.error(`Available cache keys: ${Array.from(this.validationCache.keys()).join(', ')}`);
-                results.errors.push({
+                this.addFormattedIssue(results, {
                     checkName: check.checkName,
                     message: `Target cache for ${check.targetObject} not found (cache key: ${cacheKey})`,
                     severity: "error",
                     recordId: null,
                     recordName: null,
-                });
+                }, "error");
                 continue;
             }
             
@@ -274,7 +306,7 @@ export class ValidationEngine {
                 
                 if (!sourceValue && check.isRequired) {
                     foundIssues++;
-                    results.errors.push({
+                    this.addFormattedIssue(results, {
                         checkName: check.checkName,
                         message: check.errorMessage
                             .replace("{sourceValue}", sourceValue || "null")
@@ -282,7 +314,7 @@ export class ValidationEngine {
                         severity: "error",
                         recordId: record.Id,
                         recordName: record.Name,
-                    });
+                    }, "error");
                 } else if (sourceValue) {
                     const targetExists = targetCache.some((target) =>
                         target[resolvedTargetField] === sourceValue
@@ -291,7 +323,7 @@ export class ValidationEngine {
                     if (!targetExists) {
                         foundIssues++;
                         if (check.isRequired) {
-                            results.errors.push({
+                            this.addFormattedIssue(results, {
                                 checkName: check.checkName,
                                 message: check.errorMessage
                                     .replace("{sourceValue}", sourceValue)
@@ -299,9 +331,11 @@ export class ValidationEngine {
                                 severity: "error",
                                 recordId: record.Id,
                                 recordName: record.Name,
-                            });
+                                fieldName: check.sourceField,
+                                fieldValue: sourceValue,
+                            }, "error");
                         } else if (check.warningMessage) {
-                            results.warnings.push({
+                            this.addFormattedIssue(results, {
                                 checkName: check.checkName,
                                 message: check.warningMessage
                                     .replace("{sourceValue}", sourceValue)
@@ -309,7 +343,9 @@ export class ValidationEngine {
                                 severity: "warning",
                                 recordId: record.Id,
                                 recordName: record.Name,
-                            });
+                                fieldName: check.sourceField,
+                                fieldValue: sourceValue,
+                            }, "warning");
                         }
                     }
                 }
@@ -362,38 +398,45 @@ export class ValidationEngine {
 
                 if (!isValid) {
                     console.log(`❌ Data integrity check failed: ${check.checkName} (expected ${check.expectedResult}, found ${count} records)`);
-                    const issue: ValidationIssue = {
-                        checkName: check.checkName,
-                        message: `${check.errorMessage} (Found ${count} records)`,
-                        severity: check.severity,
-                        recordId: null,
-                        recordName: null,
-                        suggestedAction: "Review data quality and fix issues before migration",
-                    };
-
-                    switch (check.severity) {
-                        case "error":
-                            results.errors.push(issue);
-                            break;
-                        case "warning":
-                            results.warnings.push(issue);
-                            break;
-                        case "info":
-                            results.info.push(issue);
-                            break;
+                    
+                    // For external ID validation checks, process each record individually
+                    if (check.checkName.includes('ExternalIdValidation') && Array.isArray(queryResult) && queryResult.length > 0) {
+                        // Create individual issues for each record missing external ID
+                        for (const record of queryResult) {
+                            const issue: ValidationIssue = {
+                                checkName: check.checkName,
+                                message: check.errorMessage,
+                                severity: check.severity,
+                                recordId: record.Id || null,
+                                recordName: record.Name || null,
+                                suggestedAction: "Populate external IDs before migration",
+                            };
+                            this.addFormattedIssue(results, issue, check.severity);
+                        }
+                    } else {
+                        // Generic issue for other types of checks
+                        const issue: ValidationIssue = {
+                            checkName: check.checkName,
+                            message: `${check.errorMessage} (Found ${count} records)`,
+                            severity: check.severity,
+                            recordId: null,
+                            recordName: null,
+                            suggestedAction: "Review data quality and fix issues before migration",
+                        };
+                        this.addFormattedIssue(results, issue, check.severity);
                     }
                 } else {
                     console.log(`✓ Data integrity check passed: ${check.checkName} (expected ${check.expectedResult}, found ${count} records)`);
                 }
             } catch (error) {
-                results.errors.push({
+                this.addFormattedIssue(results, {
                     checkName: check.checkName,
                     message: `Failed to execute integrity check: ${error instanceof Error ? error.message : 'Unknown error'}`,
                     severity: "error",
                     recordId: null,
                     recordName: null,
                     suggestedAction: "Check query syntax and object permissions",
-                });
+                }, "error");
             }
         }
 
@@ -467,7 +510,6 @@ export class ValidationEngine {
         const cacheKeyMap: { [key: string]: string } = {
             'tc9_pr__Pay_Code__c': 'target_pay_codes',
             'tc9_et__Interpretation_Rule__c': 'target_interpretation_rules',
-            'tc9_et__Leave_Header__c': 'target_leave_headers',
             'tc9_pr__Leave_Rule__c': 'target_leave_rules',
             'tc9_et__Interpretation_Breakpoint__c': 'target_interpretation_breakpoints',
         };
@@ -581,13 +623,13 @@ export class ValidationEngine {
             const targetMetadata = await targetClient.getObjectMetadata(targetObject);
             
             if (!targetMetadata.success || !targetMetadata.data) {
-                results.errors.push({
+                this.addFormattedIssue(results, {
                     checkName: 'picklistValidation',
                     message: `Failed to get metadata for target object ${targetObject}`,
                     severity: 'error',
                     recordId: null,
                     recordName: null,
-                });
+                }, 'error');
                 return results;
             }
             
@@ -625,7 +667,7 @@ export class ValidationEngine {
                 let foundIssues = 0;
                 const invalidValues: string[] = [];
                 
-                for (const sourceValue of sourceUniqueValues) {
+                for (const sourceValue of Array.from(sourceUniqueValues)) {
                     if (!validValues.has(sourceValue)) {
                         foundIssues++;
                         invalidValues.push(sourceValue);
@@ -633,14 +675,14 @@ export class ValidationEngine {
                 }
                 
                 if (foundIssues > 0) {
-                    results.errors.push({
+                    this.addFormattedIssue(results, {
                         checkName: check.checkName,
                         message: `Invalid picklist values found for field ${check.targetField}: ${invalidValues.join(', ')}. These values do not exist in the target org.`,
                         severity: 'error',
                         recordId: null,
                         recordName: null,
                         suggestedAction: `Valid values are: ${Array.from(validValues).join(', ')}`,
-                    });
+                    }, 'error');
                 }
                 
                 console.log(`✓ Picklist validation ${check.checkName}: checked ${sourceUniqueValues.size} unique values, found ${foundIssues} invalid values`);
@@ -648,13 +690,13 @@ export class ValidationEngine {
             
             return results;
         } catch (error) {
-            results.errors.push({
+            this.addFormattedIssue(results, {
                 checkName: 'picklistValidation',
                 message: `Failed to run picklist validation: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 severity: 'error',
                 recordId: null,
                 recordName: null,
-            });
+            }, 'error');
             return results;
         }
     }

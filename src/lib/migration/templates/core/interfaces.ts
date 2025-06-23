@@ -189,6 +189,15 @@ export interface ValidationIssue {
     recordId: string | null;
     recordName: string | null;
     suggestedAction?: string;
+    recordLink?: string | null;
+    fieldName?: string | null;
+    fieldValue?: string | null;
+    relatedRecords?: Array<{
+        id: string;
+        name: string;
+        type: string;
+        link?: string;
+    }>;
 }
 
 export interface ValidationSummary {
