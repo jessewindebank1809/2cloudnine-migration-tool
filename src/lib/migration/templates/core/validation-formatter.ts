@@ -82,12 +82,16 @@ export class ValidationFormatter {
         // Handle external ID validation errors
         if (originalCheckName.includes('ExternalIdValidation')) {
             // For external ID errors, we need to show specific records
-            if (issue.recordId && issue.recordName) {
+            if (issue.recordId) {
                 const objectType = this.getObjectTypeFromCheckName(originalCheckName);
-                return `${objectType} '${issue.recordName}' (${issue.recordId}) missing external ID.`;
+                if (issue.recordName) {
+                    return `${issue.recordName} (${issue.recordId})`;
+                } else {
+                    return `${objectType} ${issue.recordId}`;
+                }
             }
             
-            // Extract record count from message
+            // Fallback to count-based message if no specific record info
             const match = issue.message.match(/Found (\d+) records?/i) || issue.message.match(/\(Found (\d+) records?\)/i);
             const count = match ? match[1] : '1';
             

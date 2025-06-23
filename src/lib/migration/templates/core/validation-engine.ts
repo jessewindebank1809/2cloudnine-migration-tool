@@ -22,6 +22,7 @@ export class ValidationEngine {
     private currentTargetObject: string = "";
     private currentSourceQuery: string = "";
     private sourceInstanceUrl: string = "";
+    private selectedRecordIds: string[] = [];
 
     /**
      * Formats and adds a validation issue to the appropriate collection
@@ -60,6 +61,7 @@ export class ValidationEngine {
         this.sourceOrgId = sourceOrgId;
         this.targetOrgId = targetOrgId;
         this.sourceInstanceUrl = sourceInstanceUrl || '';
+        this.selectedRecordIds = selectedRecords || [];
         
         const results: ValidationResult = this.createEmptyValidationResult();
 
@@ -374,6 +376,11 @@ export class ValidationEngine {
                     sourceClient
                 );
                 query = ExternalIdUtils.replaceExternalIdPlaceholders(query, externalIdField);
+                
+                // Replace selectedRecordIds placeholder if present
+                if (query.includes('{selectedRecordIds}') && this.selectedRecordIds) {
+                    query = query.replace(/{selectedRecordIds}/g, `'${this.selectedRecordIds.join("','")}'`);
+                }
                 
                 console.log(`Executing query: ${query}`);
                 const queryResult = await this.executeSoqlQuery(query, this.sourceOrgId);
