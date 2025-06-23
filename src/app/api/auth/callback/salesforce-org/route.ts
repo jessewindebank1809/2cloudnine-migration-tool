@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
     // Get user info to retrieve the org ID
     const userInfoResponse = await fetch(`${tokenData.instance_url}/services/oauth2/userinfo`, {
       headers: {
-        'Authorisation': `Bearer ${tokenData.access_token}`,
+        'Authorization': `Bearer ${tokenData.access_token}`,
       },
     });
 
