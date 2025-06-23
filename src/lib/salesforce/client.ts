@@ -116,10 +116,15 @@ export class SalesforceClient {
     return this.connection.refreshToken || undefined;
   }
 
-  async refreshAccessToken(): Promise<{ success: boolean; error?: string }> {
+  async refreshAccessToken(): Promise<{ success: boolean; error?: string; requiresReconnect?: boolean }> {
     try {
       if (!this.connection.refreshToken) {
-        return { success: false, error: 'No refresh token available' };
+        console.warn('No refresh token available for org:', this.orgId);
+        return { 
+          success: false, 
+          error: 'No refresh token available. Please reconnect the organisation.',
+          requiresReconnect: true
+        };
       }
 
       console.log('Attempting to refresh access token for org:', this.orgId);
@@ -141,13 +146,33 @@ export class SalesforceClient {
     } catch (error) {
       console.error('Token refresh failed for org:', this.orgId, error);
       
-      // Check if refresh token itself is expired
-      if (error instanceof Error && (
-        error.message.includes('invalid_grant') ||
-        error.message.includes('expired') ||
-        error.message.includes('refresh token')
-      )) {
-        // Mark org as disconnected in database to prevent infinite retry loops
+      // Extract more detailed error information
+      let errorMessage = 'Token refresh failed';
+      let requiresReconnect = false;
+      
+      if (error instanceof Error) {
+        // Check for various OAuth2 error scenarios
+        if (error.message.includes('invalid_grant')) {
+          errorMessage = 'Refresh token is invalid or expired. Please reconnect the organisation.';
+          requiresReconnect = true;
+        } else if (error.message.includes('invalid_client')) {
+          errorMessage = 'OAuth client configuration error. Please contact support.';
+        } else if (error.message.includes('unauthorized_client')) {
+          errorMessage = 'OAuth client not authorised. Please reconnect the organisation.';
+          requiresReconnect = true;
+        } else if (error.message.includes('refresh token') || error.message.includes('expired')) {
+          errorMessage = 'Refresh token expired. Please reconnect the organisation.';
+          requiresReconnect = true;
+        } else if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
+          errorMessage = 'Network error while refreshing token. Please check your connection.';
+        } else {
+          // Include the actual error message for debugging
+          errorMessage = `Token refresh failed: ${error.message}`;
+        }
+      }
+      
+      // If reconnection is required, mark org as needing reconnection (but don't clear org ID)
+      if (requiresReconnect) {
         try {
           await prisma.organisations.update({
             where: { id: this.orgId },
@@ -155,24 +180,20 @@ export class SalesforceClient {
               access_token_encrypted: null,
               refresh_token_encrypted: null,
               token_expires_at: null,
-              salesforce_org_id: null,
+              // Keep salesforce_org_id to maintain the connection identity
               updated_at: new Date()
             }
           });
-          console.log(`Marked org ${this.orgId} as disconnected due to expired refresh token`);
+          console.log(`Marked org ${this.orgId} as needing reconnection due to: ${errorMessage}`);
         } catch (dbError) {
-          console.error('Failed to mark org as disconnected:', dbError);
+          console.error('Failed to update org status:', dbError);
         }
-        
-        return { 
-          success: false, 
-          error: 'Refresh token expired. Please reconnect the organisation.'
-        };
       }
       
       return { 
         success: false, 
-        error: 'Token refresh failed'
+        error: errorMessage,
+        requiresReconnect
       };
     }
   }

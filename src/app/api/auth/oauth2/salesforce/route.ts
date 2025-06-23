@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
       prompt: 'login', // Force user to login even if they have an existing session
     });
 
-    const oauthUrl = `${targetInstanceUrl}/services/oauth2/authorise?${oauthParams.toString()}`;
+    const oauthUrl = `${targetInstanceUrl}/services/oauth2/authorize?${oauthParams.toString()}`;
     
     console.log('✅ OAuth Initiation - Redirecting to Salesforce');
     
