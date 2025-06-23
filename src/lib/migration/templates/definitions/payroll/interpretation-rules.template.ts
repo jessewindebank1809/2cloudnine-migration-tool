@@ -53,8 +53,67 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         sourceField: "tc9_et__Apply_4_Week_Frequency__c",
                         targetField: "tc9_et__Apply_4_Week_Frequency__c",
                         isRequired: false,
-                        transformationType: "direct"
-
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Break_Loading_Interpretation__c",
+                        targetField: "tc9_et__Apply_Break_Loading_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Break_Time_Interpretation__c",
+                        targetField: "tc9_et__Apply_Break_Time_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Casual_Loading__c",
+                        targetField: "tc9_et__Apply_Casual_Loading__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Dual_Leave_Loading_Calculations__c",
+                        targetField: "tc9_et__Apply_Dual_Leave_Loading_Calculations__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Excursion_Interpretation__c",
+                        targetField: "tc9_et__Apply_Excursion_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Interpretation_Variations__c",
+                        targetField: "tc9_et__Apply_Interpretation_Variations__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Minimum_Rest_Interpretation__c",
+                        targetField: "tc9_et__Apply_Minimum_Rest_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Minimum_Rest_on_Overtime__c",
+                        targetField: "tc9_et__Apply_Minimum_Rest_on_Overtime__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c",
+                        targetField: "tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Overnight_Interpretation__c",
+                        targetField: "tc9_et__Apply_Overnight_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "boolean"
                     },
                     {
                         sourceField: "tc9_et__Short_Description__c",
@@ -73,6 +132,30 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         targetField: "tc9_et__Timesheet_Frequency__c",
                         isRequired: false,
                         transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Total_Span_Hours__c",
+                        targetField: "tc9_et__Total_Span_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Frequency_Standard_Hours__c",
+                        targetField: "tc9_et__Frequency_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Has_Saturday_Rule__c",
+                        targetField: "tc9_et__Has_Saturday_Rule__c",
+                        isRequired: false,
+                        transformationType: "boolean",
+                    },
+                    {
+                        sourceField: "tc9_et__Has_Sunday_Rule__c",
+                        targetField: "tc9_et__Has_Sunday_Rule__c",
+                        isRequired: false,
+                        transformationType: "boolean",
                     },
                     {
                         sourceField: "tc9_et__Monday_Standard_Hours__c",
@@ -178,14 +261,6 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                 ],
                 dataIntegrityChecks: [
                     {
-                        checkName: "payCodeNotNull",
-                        description: "Ensure pay code references are not null",
-                        validationQuery: "SELECT COUNT(Id) FROM tc9_et__Interpretation_Rule__c WHERE tc9_et__Pay_Code__c = null",
-                        expectedResult: "empty",
-                        errorMessage: "Found interpretation rules with null pay code references",
-                        severity: "warning",
-                    },
-                    {
                         checkName: "sourcePayCodeExternalIdValidation",
                         description: "Validate that all source pay codes referenced by interpretation rules have external ID values",
                         validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
@@ -197,15 +272,6 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             AND ({externalIdField} = null)`,
                         expectedResult: "empty",
                         errorMessage: "Migration cannot proceed: Found pay codes referenced by interpretation rules that are missing external ID values. All referenced pay codes must have external IDs for cross-environment migration",
-                        severity: "error",
-                    },
-                    {
-                        checkName: "crossEnvironmentExternalIdValidation",
-                        description: "Validate external ID fields exist for cross-environment migration",
-                        validationQuery: `SELECT Id, Name FROM tc9_et__Interpretation_Rule__c WHERE 
-                            ({externalIdField} = null) AND Id IN ({selectedRecordIds})`,
-                        expectedResult: "empty",
-                        errorMessage: "Migration cannot proceed: Found interpretation rules without any external ID values. Cross-environment migration requires external IDs to be populated",
                         severity: "error",
                     },
                     {
@@ -255,6 +321,81 @@ export const interpretationRulesTemplate: MigrationTemplate = {
             extractConfig: {
                 soqlQuery: `SELECT Id, Name, RecordType.Name, tc9_et__Interpretation_Rule__c,
                     tc9_et__Variation_Type__c, tc9_et__Variation_Record_Type__c,
+                    tc9_et__Apply_4_Week_Frequency__c, tc9_et__Apply_Break_Loading_Interpretation__c,
+                    tc9_et__Apply_Break_Time_Interpretation__c, tc9_et__Apply_Casual_Loading__c,
+                    tc9_et__Apply_Dual_Leave_Loading_Calculations__c, tc9_et__Apply_Excursion_Interpretation__c,
+                    tc9_et__Apply_Interpretation_Variations__c, tc9_et__Apply_Minimum_Rest_Interpretation__c,
+                    tc9_et__Apply_Minimum_Rest_on_Overtime__c, tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c,
+                    tc9_et__Apply_Overnight_Interpretation__c, tc9_et__Apply_Overnight_Majority_Friday__c,
+                    tc9_et__Apply_Overnight_Majority_Monday__c, tc9_et__Apply_Overnight_Majority_Public_Holiday__c,
+                    tc9_et__Apply_Overnight_Majority_Saturday__c, tc9_et__Apply_Overnight_Majority_Sunday__c,
+                    tc9_et__Apply_Overnight_Majority_Thursday__c, tc9_et__Apply_Overnight_Majority_Tuesday__c,
+                    tc9_et__Apply_Overnight_Majority_Wednesday__c, tc9_et__Apply_Overnight_Majority_Weekday__c,
+                    tc9_et__Apply_Partial_Daily_Rates__c, tc9_et__Apply_Penalty_Loading__c,
+                    tc9_et__Apply_Shift_End_Or_Start_Interpretation__c, tc9_et__Apply_Sleepover_Interpretation__c,
+                    tc9_et__Apply_Split_Broken_Shift_Interpretation__c, tc9_et__Apply_Wake_Up_Interpretation__c,
+                    tc9_et__Assignment__c, tc9_et__Break_Loading_Hours_Exceeded__c,
+                    tc9_et__Break_Loading_Unpaid_Break_Minutes__c, tc9_et__Broken_Shift_Breakpoint_Application__c,
+                    tc9_et__Broken_Shift_Timesheet_Activity_Required__c, tc9_et__Days_Frequency_Breakpoints_Accrued__c,
+                    tc9_et__Days_Frequency_Breakpoints_Apply__c, tc9_et__Days_Minimum_Rest_Hours_Apply2__c,
+                    tc9_et__Days_Minimum_Rest_Hours_Apply__c, tc9_et__Days_Overtime_Breakpoints_Reset__c,
+                    tc9_et__Days_Total_Span_Hours_Apply2__c, tc9_et__Days_Total_Span_Hours_Apply__c,
+                    tc9_et__Exclude_Overtime_from_Frequency_Hours__c, tc9_et__Excursion_Standard_End_Time__c,
+                    tc9_et__Excursion_Standard_Hours__c, tc9_et__Excursion_Standard_Start_Time__c,
+                    tc9_et__Frequency_Standard_Hours__c, tc9_et__Friday_Interpretation_Type__c,
+                    tc9_et__Friday_Standard_Hours__c, tc9_et__Has_Saturday_Rule__c, tc9_et__Has_Sunday_Rule__c,
+                    tc9_et__Higher_Rate_Friday__c, tc9_et__Higher_Rate_Monday__c,
+                    tc9_et__Higher_Rate_Public_Holiday__c, tc9_et__Higher_Rate_Saturday__c,
+                    tc9_et__Higher_Rate_Sunday__c, tc9_et__Higher_Rate_Thursday__c,
+                    tc9_et__Higher_Rate_Tuesday__c, tc9_et__Higher_Rate_Wednesday__c,
+                    tc9_et__Higher_Rate_Weekday__c, tc9_et__Include_Break_Overtime_In_Overtime__c,
+                    tc9_et__Include_Minimum_Rest_in_Daily_OT_Hours__c, tc9_et__Include_Paid_Breaks_in_Break_Loading__c,
+                    tc9_et__Include_Time_Breakpoints_In_Overtime__c, tc9_et__Interpretation_Rule_Name__c,
+                    tc9_et__Interpretation_Rule_Template_Group__c, tc9_et__Is_Standard_Time_for_Friday_Required__c,
+                    tc9_et__Is_Standard_Time_for_Monday_Required__c, tc9_et__Is_Standard_Time_for_Public_Holidays_Req__c,
+                    tc9_et__Is_Standard_Time_for_Saturday_Required__c, tc9_et__Is_Standard_Time_for_Sunday_Required__c,
+                    tc9_et__Is_Standard_Time_for_Thursday_Required__c, tc9_et__Is_Standard_Time_for_Tuesday_Required__c,
+                    tc9_et__Is_Standard_Time_for_Wednesday_Required__c, tc9_et__Is_Standard_Time_for_Weekdays_Required__c,
+                    tc9_et__Long_Description__c, tc9_et__Minimum_Frequency_Paid_Hours__c,
+                    tc9_et__Minimum_Friday_Paid_Hours__c, tc9_et__Minimum_Hours_Based_On__c,
+                    tc9_et__Minimum_Monday_Paid_Hours__c, tc9_et__Minimum_OT_Round_Up_Shift_Paid_Hours__c,
+                    tc9_et__Minimum_Public_Holiday_Paid_Hours__c, tc9_et__Minimum_Rest_Hours__c,
+                    tc9_et__Minimum_Saturday_Paid_Hours__c, tc9_et__Minimum_Sunday_Paid_Hours__c,
+                    tc9_et__Minimum_Thursday_Paid_Hours__c, tc9_et__Minimum_Tuesday_Paid_Hours__c,
+                    tc9_et__Minimum_Wednesday_Paid_Hours__c, tc9_et__Minimum_Weekday_Paid_Hours__c,
+                    tc9_et__Monday_Interpretation_Type__c, tc9_et__Monday_Standard_Hours__c,
+                    tc9_et__Overnight_Based_on_Majority_of_Shift__c, tc9_et__Overnight_Based_on_Shift_Start_Range__c,
+                    tc9_et__Overnight_Friday_Shift_Starting_from__c, tc9_et__Overnight_Monday_Shift_Starting_from__c,
+                    tc9_et__Overnight_PH_Shift_Starting_from__c, tc9_et__Overnight_Saturday_Shift_Starting_from__c,
+                    tc9_et__Overnight_Sunday_Shift_Starting_from__c, tc9_et__Overnight_Thursday_Shift_Starting_from__c,
+                    tc9_et__Overnight_Tuesday_Shift_Starting_from__c, tc9_et__Overnight_Wednesday_Shift_Starting_from__c,
+                    tc9_et__Overnight_Weekday_Shift_Starting_from__c, tc9_et__Pay_Code__c,
+                    tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Interpretation_Type__c,
+                    tc9_et__Public_Holiday_Standard_Hours__c, tc9_et__Rate_Calculator_Update_Pending__c,
+                    tc9_et__Reset_Frequency_Overtime_Daily__c, tc9_et__Saturday_Interpretation_Type__c,
+                    tc9_et__Saturday_Standard_Hours__c, tc9_et__Short_Description__c,
+                    tc9_et__Sleepover_Breakpoint_Application__c, tc9_et__Sleepover_Minimum_Rest_Hours__c,
+                    tc9_et__Standard_Daily_End_Time__c, tc9_et__Standard_Daily_Start_Time__c,
+                    tc9_et__Standard_Friday_End_Time__c, tc9_et__Standard_Friday_Start_Time__c,
+                    tc9_et__Standard_Monday_End_Time__c, tc9_et__Standard_Monday_Start_Time__c,
+                    tc9_et__Standard_Public_Holiday_End_Time__c, tc9_et__Standard_Public_Holiday_Start_Time__c,
+                    tc9_et__Standard_Saturday_End_Time__c, tc9_et__Standard_Saturday_Start_Time__c,
+                    tc9_et__Standard_Sunday_End_Time__c, tc9_et__Standard_Sunday_Start_Time__c,
+                    tc9_et__Standard_Thursday_End_Time__c, tc9_et__Standard_Thursday_Start_Time__c,
+                    tc9_et__Standard_Tuesday_End_Time__c, tc9_et__Standard_Tuesday_Start_Time__c,
+                    tc9_et__Standard_Wednesday_End_Time__c, tc9_et__Standard_Wednesday_Start_Time__c,
+                    tc9_et__Standard_Weekday_End_Time__c, tc9_et__Standard_Weekday_Start_Time__c,
+                    tc9_et__Status__c, tc9_et__Sunday_Interpretation_Type__c, tc9_et__Sunday_Standard_Hours__c,
+                    tc9_et__Thursday_Interpretation_Type__c, tc9_et__Thursday_Standard_Hours__c,
+                    tc9_et__Timesheet_Frequency__c, tc9_et__Total_Span_Hours__c,
+                    tc9_et__Tuesday_Interpretation_Type__c, tc9_et__Tuesday_Standard_Hours__c,
+                    tc9_et__Wednesday_Interpretation_Type__c, tc9_et__Wednesday_Standard_Hours__c,
+                    tc9_et__Weekday_Interpretation_Type__c, tc9_et__Weekday_Standard_Hours__c,
+                    tc9_et__Apply_Casual_Loading_to_Overtime__c, tc9_et__Apply_Minimum_Rest_To_Same_Day_Entries__c,
+                    tc9_et__Apply_Overtime_On_A_Shift_Basis__c, tc9_et__Apply_Penalty_Loading_to_Overtime__c,
+                    tc9_et__Apply_Shift_Start_Time_BP__c, tc9_et__Calculate_Span_From_Previous_Shift__c,
+                    tc9_et__Include_Time_BPs_in_OT_Daily_Std_Calcs__c, tc9_et__Sleepover_Minimum_Paid_Hours__c,
+                    tc9_et__Split_Broken_Shift_Reset_Hours__c, tc9_et__Wake_Up_Minimum_Hours__c,
                     {externalIdField} FROM tc9_et__Interpretation_Rule__c 
                     WHERE RecordType.Name = 'Interpretation Variation Rule'`,
                 objectApiName: "tc9_et__Interpretation_Rule__c",
@@ -283,6 +424,486 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     {
                         sourceField: "tc9_et__Variation_Record_Type__c",
                         targetField: "tc9_et__Variation_Record_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Status__c",
+                        targetField: "tc9_et__Status__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Short_Description__c",
+                        targetField: "tc9_et__Short_Description__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Long_Description__c",
+                        targetField: "tc9_et__Long_Description__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_4_Week_Frequency__c",
+                        targetField: "tc9_et__Apply_4_Week_Frequency__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Break_Loading_Interpretation__c",
+                        targetField: "tc9_et__Apply_Break_Loading_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Break_Time_Interpretation__c",
+                        targetField: "tc9_et__Apply_Break_Time_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Casual_Loading__c",
+                        targetField: "tc9_et__Apply_Casual_Loading__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Dual_Leave_Loading_Calculations__c",
+                        targetField: "tc9_et__Apply_Dual_Leave_Loading_Calculations__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Excursion_Interpretation__c",
+                        targetField: "tc9_et__Apply_Excursion_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Interpretation_Variations__c",
+                        targetField: "tc9_et__Apply_Interpretation_Variations__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Minimum_Rest_Interpretation__c",
+                        targetField: "tc9_et__Apply_Minimum_Rest_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Minimum_Rest_on_Overtime__c",
+                        targetField: "tc9_et__Apply_Minimum_Rest_on_Overtime__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c",
+                        targetField: "tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Overnight_Interpretation__c",
+                        targetField: "tc9_et__Apply_Overnight_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Penalty_Loading__c",
+                        targetField: "tc9_et__Apply_Penalty_Loading__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Sleepover_Interpretation__c",
+                        targetField: "tc9_et__Apply_Sleepover_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Split_Broken_Shift_Interpretation__c",
+                        targetField: "tc9_et__Apply_Split_Broken_Shift_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Wake_Up_Interpretation__c",
+                        targetField: "tc9_et__Apply_Wake_Up_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Assignment__c",
+                        targetField: "tc9_et__Assignment__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Overnight_Based_on_Majority_of_Shift__c",
+                        targetField: "tc9_et__Overnight_Based_on_Majority_of_Shift__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Overnight_Based_on_Shift_Start_Range__c",
+                        targetField: "tc9_et__Overnight_Based_on_Shift_Start_Range__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Timesheet_Frequency__c",
+                        targetField: "tc9_et__Timesheet_Frequency__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Hours_Based_On__c",
+                        targetField: "tc9_et__Minimum_Hours_Based_On__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Days_Frequency_Breakpoints_Accrued__c",
+                        targetField: "tc9_et__Days_Frequency_Breakpoints_Accrued__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Days_Frequency_Breakpoints_Apply__c",
+                        targetField: "tc9_et__Days_Frequency_Breakpoints_Apply__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Days_Minimum_Rest_Hours_Apply2__c",
+                        targetField: "tc9_et__Days_Minimum_Rest_Hours_Apply2__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Days_Overtime_Breakpoints_Reset__c",
+                        targetField: "tc9_et__Days_Overtime_Breakpoints_Reset__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Include_Paid_Breaks_in_Break_Loading__c",
+                        targetField: "tc9_et__Include_Paid_Breaks_in_Break_Loading__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Monday_Interpretation_Type__c",
+                        targetField: "tc9_et__Monday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Tuesday_Interpretation_Type__c",
+                        targetField: "tc9_et__Tuesday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Wednesday_Interpretation_Type__c",
+                        targetField: "tc9_et__Wednesday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Thursday_Interpretation_Type__c",
+                        targetField: "tc9_et__Thursday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Friday_Interpretation_Type__c",
+                        targetField: "tc9_et__Friday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Saturday_Interpretation_Type__c",
+                        targetField: "tc9_et__Saturday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Sunday_Interpretation_Type__c",
+                        targetField: "tc9_et__Sunday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Public_Holiday_Interpretation_Type__c",
+                        targetField: "tc9_et__Public_Holiday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Weekday_Interpretation_Type__c",
+                        targetField: "tc9_et__Weekday_Interpretation_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Monday_Standard_Hours__c",
+                        targetField: "tc9_et__Monday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Tuesday_Standard_Hours__c",
+                        targetField: "tc9_et__Tuesday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Wednesday_Standard_Hours__c",
+                        targetField: "tc9_et__Wednesday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Thursday_Standard_Hours__c",
+                        targetField: "tc9_et__Thursday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Friday_Standard_Hours__c",
+                        targetField: "tc9_et__Friday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Saturday_Standard_Hours__c",
+                        targetField: "tc9_et__Saturday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Sunday_Standard_Hours__c",
+                        targetField: "tc9_et__Sunday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Public_Holiday_Standard_Hours__c",
+                        targetField: "tc9_et__Public_Holiday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Weekday_Standard_Hours__c",
+                        targetField: "tc9_et__Weekday_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Frequency_Standard_Hours__c",
+                        targetField: "tc9_et__Frequency_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Total_Span_Hours__c",
+                        targetField: "tc9_et__Total_Span_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Rest_Hours__c",
+                        targetField: "tc9_et__Minimum_Rest_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Weekday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Weekday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Monday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Monday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Tuesday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Tuesday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Wednesday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Wednesday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Thursday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Thursday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Friday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Friday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Saturday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Saturday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Sunday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Sunday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Minimum_Public_Holiday_Paid_Hours__c",
+                        targetField: "tc9_et__Minimum_Public_Holiday_Paid_Hours__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Break_Loading_Hours_Exceeded__c",
+                        targetField: "tc9_et__Break_Loading_Hours_Exceeded__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Break_Loading_Unpaid_Break_Minutes__c",
+                        targetField: "tc9_et__Break_Loading_Unpaid_Break_Minutes__c",
+                        isRequired: false,
+                        transformationType: "number",
+                    },
+                    {
+                        sourceField: "tc9_et__Exclude_Overtime_from_Frequency_Hours__c",
+                        targetField: "tc9_et__Exclude_Overtime_from_Frequency_Hours__c",
+                        isRequired: false,
+                        transformationType: "boolean",
+                    },
+                    {
+                        sourceField: "tc9_et__Include_Break_Overtime_In_Overtime__c",
+                        targetField: "tc9_et__Include_Break_Overtime_In_Overtime__c",
+                        isRequired: false,
+                        transformationType: "boolean",
+                    },
+                    {
+                        sourceField: "tc9_et__Include_Time_Breakpoints_In_Overtime__c",
+                        targetField: "tc9_et__Include_Time_Breakpoints_In_Overtime__c",
+                        isRequired: false,
+                        transformationType: "boolean",
+                    },
+                    {
+                        sourceField: "tc9_et__Reset_Frequency_Overtime_Daily__c",
+                        targetField: "tc9_et__Reset_Frequency_Overtime_Daily__c",
+                        isRequired: false,
+                        transformationType: "boolean",
+                    },
+                    {
+                        sourceField: "tc9_et__Has_Saturday_Rule__c",
+                        targetField: "tc9_et__Has_Saturday_Rule__c",
+                        isRequired: false,
+                        transformationType: "boolean",
+                    },
+                    {
+                        sourceField: "tc9_et__Has_Sunday_Rule__c",
+                        targetField: "tc9_et__Has_Sunday_Rule__c",
+                        isRequired: false,
+                        transformationType: "boolean",
+                    },
+                    {
+                        sourceField: "tc9_et__Include_Time_BPs_in_OT_Daily_Std_Calcs__c",
+                        targetField: "tc9_et__Include_Time_BPs_in_OT_Daily_Std_Calcs__c",
+                        isRequired: false,
+                        transformationType: "boolean",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Casual_Loading_to_Overtime__c",
+                        targetField: "tc9_et__Apply_Casual_Loading_to_Overtime__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Penalty_Loading_to_Overtime__c",
+                        targetField: "tc9_et__Apply_Penalty_Loading_to_Overtime__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Overnight_PH_Shift_Starting_from__c",
+                        targetField: "tc9_et__Overnight_PH_Shift_Starting_from__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Overnight_Sunday_Shift_Starting_from__c",
+                        targetField: "tc9_et__Overnight_Sunday_Shift_Starting_from__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Include_Minimum_Rest_in_Daily_OT_Hours__c",
+                        targetField: "tc9_et__Include_Minimum_Rest_in_Daily_OT_Hours__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Is_Standard_Time_for_Monday_Required__c",
+                        targetField: "tc9_et__Is_Standard_Time_for_Monday_Required__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Is_Standard_Time_for_Tuesday_Required__c",
+                        targetField: "tc9_et__Is_Standard_Time_for_Tuesday_Required__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Is_Standard_Time_for_Wednesday_Required__c",
+                        targetField: "tc9_et__Is_Standard_Time_for_Wednesday_Required__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Is_Standard_Time_for_Thursday_Required__c",
+                        targetField: "tc9_et__Is_Standard_Time_for_Thursday_Required__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Is_Standard_Time_for_Friday_Required__c",
+                        targetField: "tc9_et__Is_Standard_Time_for_Friday_Required__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Is_Standard_Time_for_Saturday_Required__c",
+                        targetField: "tc9_et__Is_Standard_Time_for_Saturday_Required__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Is_Standard_Time_for_Sunday_Required__c",
+                        targetField: "tc9_et__Is_Standard_Time_for_Sunday_Required__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_et__Is_Standard_Time_for_Public_Holidays_Req__c",
+                        targetField: "tc9_et__Is_Standard_Time_for_Public_Holidays_Req__c",
                         isRequired: false,
                         transformationType: "direct",
                     },
@@ -337,17 +958,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         description: "Cache all target org interpretation rules for validation",
                     },
                 ],
-                dependencyChecks: [
-                    {
-                        checkName: "interpretationRuleExists",
-                        description: "Verify parent interpretation rule exists in target org",
-                        sourceField: "tc9_et__Interpretation_Rule__c",
-                        targetObject: "tc9_et__Interpretation_Rule__c",
-                        targetField: "{externalIdField}",
-                        isRequired: true,
-                        errorMessage: "Migration cannot proceed: Parent Interpretation Rule '{sourceValue}' for variation '{recordName}' does not exist in target org. Parent interpretation rules must be migrated first",
-                    },
-                ],
+                dependencyChecks: [],
                 dataIntegrityChecks: [],
             },
             dependencies: ["interpretationRuleMaster"],
@@ -494,11 +1105,25 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         isRequired: false,
                         transformationType: "direct" as const,
                     },
+                    {
+                        sourceField: "tc9_et__Minimum_Qualifying_Threshold__c",
+                        targetField: "tc9_et__Minimum_Qualifying_Threshold__c",
+                        isRequired: false,
+                        transformationType: "number" as const,
+                    },
                 ] as FieldMapping[],
                 lookupMappings: [
                     {
                         sourceField: "tc9_et__Interpretation_Rule__c",
                         targetField: "tc9_et__Interpretation_Rule__c",
+                        lookupObject: "tc9_et__Interpretation_Rule__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
+                    {
+                        sourceField: "tc9_et__Interpretation_Variation_Rule__c",
+                        targetField: "tc9_et__Interpretation_Variation_Rule__c",
                         lookupObject: "tc9_et__Interpretation_Rule__c",
                         lookupKeyField: "{externalIdField}",
                         lookupValueField: "{externalIdField}",
@@ -600,6 +1225,38 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         lookupValueField: "{externalIdField}",
                         cacheResults: true,
                     },
+                    {
+                        sourceField: "tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Public_Holiday_Overtime_Pay_Code__c",
+                        lookupObject: "tc9_pr__Pay_Code__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
+                    {
+                        sourceField: "tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Public_Holiday_Penalty_Pay_Code__c",
+                        lookupObject: "tc9_pr__Pay_Code__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
+                    {
+                        sourceField: "tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Saturday_Penalty_Pay_Code__c",
+                        lookupObject: "tc9_pr__Pay_Code__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
+                    {
+                        sourceField: "tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Sunday_Penalty_Pay_Code__c",
+                        lookupObject: "tc9_pr__Pay_Code__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
                 ] as LookupMapping[],
                 loadConfig: {
                     targetObject: "tc9_et__Interpretation_Breakpoint__c",
@@ -642,15 +1299,6 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         },
                     ],
                     dependencyChecks: [
-                        {
-                            checkName: "interpretationRuleExists",
-                            description: "Verify parent interpretation rule exists in target org",
-                            sourceField: "tc9_et__Interpretation_Rule__c",
-                            targetObject: "tc9_et__Interpretation_Rule__c",
-                            targetField: "{externalIdField}",
-                            isRequired: true,
-                            errorMessage: "Migration cannot proceed: Parent Interpretation Rule '{sourceValue}' for breakpoint '{recordName}' does not exist in target org. Parent interpretation rules must be migrated first",
-                        },
                         {
                             checkName: "payCodeExists",
                             description: "Verify referenced pay codes exist in target org",
@@ -722,19 +1370,9 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             severity: "error" as const,
                         },
                         {
-                            checkName: "sourceLeaveHeaderExternalIdValidation",
-                            description: "Validate that all source leave headers referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_et__Interpretation_Breakpoint__c 
-                                WHERE tc9_et__Leave_Header__c != null 
-                                AND tc9_et__Leave_Header__r.{externalIdField} = null`,
-                            expectedResult: "empty" as const,
-                            errorMessage: "Migration cannot proceed: Found leave headers referenced by interpretation breakpoints that are missing external ID values. All referenced leave headers must have external IDs for cross-environment migration",
-                            severity: "error" as const,
-                        },
-                        {
                             checkName: "sourcePayCodeExternalIdValidation",
                             description: "Validate that all source pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
                                 WHERE {externalIdField} = null
                                 AND Id IN (SELECT tc9_et__Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Pay_Code__c != null)`,
                             expectedResult: "empty" as const,
@@ -744,7 +1382,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourceCasualLoadingPayCodeExternalIdValidation",
                             description: "Validate that all source casual loading pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
                                 WHERE {externalIdField} = null
                                 AND Id IN (SELECT tc9_et__Casual_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Casual_Loading_Pay_Code__c != null)`,
                             expectedResult: "empty" as const,
@@ -754,7 +1392,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourceLeaveLoadingPayCodeExternalIdValidation",
                             description: "Validate that all source leave loading pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
                                 WHERE {externalIdField} = null
                                 AND Id IN (SELECT tc9_et__Leave_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Leave_Loading_Pay_Code__c != null)`,
                             expectedResult: "empty" as const,
@@ -764,7 +1402,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourceOvertimePayCodeExternalIdValidation",
                             description: "Validate that all source overtime pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
                                 WHERE {externalIdField} = null
                                 AND Id IN (SELECT tc9_et__Overtime_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Overtime_Pay_Code__c != null)`,
                             expectedResult: "empty" as const,
@@ -774,7 +1412,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourcePenaltyLoadingPayCodeExternalIdValidation",
                             description: "Validate that all source penalty loading pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
                                 WHERE {externalIdField} = null
                                 AND Id IN (SELECT tc9_et__Penalty_Loading_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Penalty_Loading_Pay_Code__c != null)`,
                             expectedResult: "empty" as const,
@@ -784,7 +1422,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourcePublicHolidayPayCodeExternalIdValidation",
                             description: "Validate that all source public holiday pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
                                 WHERE {externalIdField} = null
                                 AND Id IN (SELECT tc9_et__Public_Holiday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Public_Holiday_Pay_Code__c != null)`,
                             expectedResult: "empty" as const,
@@ -794,7 +1432,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourceSaturdayPayCodeExternalIdValidation",
                             description: "Validate that all source Saturday pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
                                 WHERE {externalIdField} = null
                                 AND Id IN (SELECT tc9_et__Saturday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Saturday_Pay_Code__c != null)`,
                             expectedResult: "empty" as const,
@@ -804,27 +1442,11 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sourceSundayPayCodeExternalIdValidation",
                             description: "Validate that all source Sunday pay codes referenced by interpretation breakpoints have external ID values",
-                            validationQuery: `SELECT COUNT(Id) FROM tc9_pr__Pay_Code__c 
+                            validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
                                 WHERE {externalIdField} = null
                                 AND Id IN (SELECT tc9_et__Sunday_Pay_Code__c FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Sunday_Pay_Code__c != null)`,
                             expectedResult: "empty" as const,
                             errorMessage: "Migration cannot proceed: Found Sunday pay codes referenced by interpretation breakpoints that are missing external ID values. All referenced pay codes must have external IDs for cross-environment migration",
-                            severity: "error" as const,
-                        },
-                        {
-                            checkName: "payCodeCapIntegrity",
-                            description: "Verify pay code cap breakpoints have required references",
-                            validationQuery: "SELECT COUNT(Id) FROM tc9_et__Interpretation_Breakpoint__c WHERE RecordType.Name = 'Pay Code Cap' AND tc9_et__Pay_Code__c = null",
-                            expectedResult: "empty" as const,
-                            errorMessage: "Found pay code cap breakpoints missing required pay code references",
-                            severity: "warning" as const,
-                        },
-                        {
-                            checkName: "leaveBreakpointIntegrity",
-                            description: "Verify leave breakpoints have required leave references",
-                            validationQuery: "SELECT COUNT(Id) FROM tc9_et__Interpretation_Breakpoint__c WHERE RecordType.Name = 'Leave Breakpoint' AND tc9_et__Breakpoint_Type__c = 'Leave Header' AND (tc9_et__Leave_Header__c = null OR tc9_et__Leave_Rule__c = null)",
-                            expectedResult: "empty" as const,
-                            errorMessage: "Migration cannot proceed: Found leave breakpoints missing required leave header or leave rule references",
                             severity: "error" as const,
                         },
                     ] as DataIntegrityCheck[],
@@ -851,7 +1473,11 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
                             tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, 
+                            tc9_et__Interpretation_Variation_Rule__c, tc9_et__Minimum_Qualifying_Threshold__c,
+                            tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField},
+                            tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField},
+                            {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE RecordType.Name = 'Leave Breakpoint' 
                             AND tc9_et__Breakpoint_Type__c = 'Leave Header'
@@ -894,7 +1520,11 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
                             tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, 
+                            tc9_et__Interpretation_Variation_Rule__c, tc9_et__Minimum_Qualifying_Threshold__c,
+                            tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField},
+                            tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField},
+                            {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE (RecordType.Name = 'Pay Code Cap' OR RecordType.Name = 'Leave Breakpoint') 
                             AND tc9_et__Breakpoint_Type__c != 'Leave Header'
@@ -938,7 +1568,11 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
                             tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, 
+                            tc9_et__Interpretation_Variation_Rule__c, tc9_et__Minimum_Qualifying_Threshold__c,
+                            tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField},
+                            tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField},
+                            {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE RecordType.Name != 'Pay Code Cap' AND RecordType.Name != 'Leave Breakpoint'
 `,
@@ -984,7 +1618,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             {
                                 checkName: "payCodeExternalIdConsistency",
                                 description: "Check for pay codes with missing external IDs",
-                                validationQuery: "SELECT COUNT(Id) FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Pay_Code__c != null AND tc9_et__Pay_Code__r.{externalIdField} = null",
+                                validationQuery: "SELECT Id, Name FROM tc9_et__Interpretation_Breakpoint__c WHERE tc9_et__Pay_Code__c != null AND tc9_et__Pay_Code__r.{externalIdField} = null",
                                 expectedResult: "empty" as const,
                                 errorMessage: "Migration cannot proceed: Found breakpoints with pay codes that have null external IDs. All referenced pay codes must have external IDs for cross-environment migration",
                                 severity: "error" as const,

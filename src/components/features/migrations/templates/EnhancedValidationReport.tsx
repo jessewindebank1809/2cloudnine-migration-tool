@@ -74,9 +74,6 @@ export function EnhancedValidationReport({
                         <Icon className={cn('w-5 h-5 mt-0.5', colorClass)} />
                         <div>
                             <h4 className="font-medium text-gray-900">{groupName}</h4>
-                            <p className="text-sm text-gray-600 mt-1">
-                                {issues.length} {issues.length === 1 ? 'issue' : 'issues'} found
-                            </p>
                         </div>
                     </div>
                     {isExpanded ? (
@@ -209,13 +206,6 @@ export function EnhancedValidationReport({
             {renderIssueSection('Warnings', warnings, 'warning')}
             {renderIssueSection('Information', info, 'info')}
             
-            {errors.length === 0 && warnings.length === 0 && info.length === 0 && (
-                <Card>
-                    <CardContent className="py-8 text-center">
-                        <p className="text-gray-500">No validation issues found. The migration is ready to proceed.</p>
-                    </CardContent>
-                </Card>
-            )}
         </div>
     );
 }

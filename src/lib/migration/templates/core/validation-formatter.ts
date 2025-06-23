@@ -79,18 +79,16 @@ export class ValidationFormatter {
             return `Pay Code '${payCodeRef}' referenced by '${issue.recordName}' doesn't exist in target org.`;
         }
         
-        // Handle external ID validation errors
+        // If we have specific record information, show it
+        if (issue.recordId && issue.recordName) {
+            return `${issue.recordName} (${issue.recordId})`;
+        } else if (issue.recordId) {
+            const objectType = this.getObjectTypeFromCheckName(originalCheckName);
+            return `${objectType} ${issue.recordId}`;
+        }
+        
+        // Handle external ID validation errors without specific record info
         if (originalCheckName.includes('ExternalIdValidation')) {
-            // For external ID errors, we need to show specific records
-            if (issue.recordId) {
-                const objectType = this.getObjectTypeFromCheckName(originalCheckName);
-                if (issue.recordName) {
-                    return `${issue.recordName} (${issue.recordId})`;
-                } else {
-                    return `${objectType} ${issue.recordId}`;
-                }
-            }
-            
             // Fallback to count-based message if no specific record info
             const match = issue.message.match(/Found (\d+) records?/i) || issue.message.match(/\(Found (\d+) records?\)/i);
             const count = match ? match[1] : '1';
@@ -150,7 +148,7 @@ export class ValidationFormatter {
         
         // Picklist errors
         if (originalCheckName.includes('picklistValidation')) {
-            return "Update to a valid picklist value.";
+            return "Add missing picklist value in target org.";
         }
         
         // Check formatted title for clues

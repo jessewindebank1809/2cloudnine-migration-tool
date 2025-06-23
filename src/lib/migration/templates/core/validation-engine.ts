@@ -23,6 +23,7 @@ export class ValidationEngine {
     private currentSourceQuery: string = "";
     private sourceInstanceUrl: string = "";
     private selectedRecordIds: string[] = [];
+    private seenPicklistErrors: Set<string> = new Set();
 
     /**
      * Formats and adds a validation issue to the appropriate collection
@@ -62,6 +63,7 @@ export class ValidationEngine {
         this.targetOrgId = targetOrgId;
         this.sourceInstanceUrl = sourceInstanceUrl || '';
         this.selectedRecordIds = selectedRecords || [];
+        this.seenPicklistErrors.clear(); // Clear seen errors for each validation run
         
         const results: ValidationResult = this.createEmptyValidationResult();
 
@@ -415,10 +417,10 @@ export class ValidationEngine {
                 if (!isValid) {
                     console.log(`❌ Data integrity check failed: ${check.checkName} (expected ${check.expectedResult}, found ${count} records)`);
                     
-                    // For external ID validation checks, process each record individually
-                    if (check.checkName.includes('ExternalIdValidation') && Array.isArray(queryResult) && queryResult.length > 0) {
+                    // Process individual records if the query returned actual records (not aggregate results)
+                    if (Array.isArray(queryResult) && queryResult.length > 0 && queryResult[0].Id) {
                         console.log(`Processing ${queryResult.length} individual records for ${check.checkName}`);
-                        // Create individual issues for each record missing external ID
+                        // Create individual issues for each record
                         for (const record of queryResult) {
                             console.log(`Creating issue for record:`, { id: record.Id, name: record.Name });
                             const issue: ValidationIssue = {
@@ -427,13 +429,15 @@ export class ValidationEngine {
                                 severity: check.severity,
                                 recordId: record.Id || null,
                                 recordName: record.Name || null,
-                                suggestedAction: "Populate external IDs before migration",
+                                suggestedAction: check.checkName.includes('ExternalIdValidation') 
+                                    ? "Populate external IDs before migration"
+                                    : "Review data quality and fix issues before migration",
                             };
                             this.addFormattedIssue(results, issue, check.severity);
                         }
                         console.log(`Created ${queryResult.length} individual validation issues`);
                     } else {
-                        // Generic issue for other types of checks
+                        // Generic issue for aggregate results or when no specific records
                         const issue: ValidationIssue = {
                             checkName: check.checkName,
                             message: `${check.errorMessage} (Found ${count} records)`,
@@ -694,14 +698,20 @@ export class ValidationEngine {
                 }
                 
                 if (foundIssues > 0) {
-                    this.addFormattedIssue(results, {
-                        checkName: check.checkName,
-                        message: `Invalid picklist values found for field ${check.targetField}: ${invalidValues.join(', ')}. These values do not exist in the target org.`,
-                        severity: 'error',
-                        recordId: null,
-                        recordName: null,
-                        suggestedAction: `Valid values are: ${Array.from(validValues).join(', ')}`,
-                    }, 'error');
+                    // Create a unique key for this picklist error to avoid duplicates
+                    const errorKey = `${check.targetField}-${invalidValues.sort().join(',')}`;
+                    
+                    if (!this.seenPicklistErrors.has(errorKey)) {
+                        this.seenPicklistErrors.add(errorKey);
+                        this.addFormattedIssue(results, {
+                            checkName: check.checkName,
+                            message: `Invalid picklist values found for field ${check.targetField}: ${invalidValues.join(', ')}. These values do not exist in the target org.`,
+                            severity: 'error',
+                            recordId: null,
+                            recordName: null,
+                            suggestedAction: `Valid values are: ${Array.from(validValues).join(', ')}`,
+                        }, 'error');
+                    }
                 }
                 
                 console.log(`✓ Picklist validation ${check.checkName}: checked ${sourceUniqueValues.size} unique values, found ${foundIssues} invalid values`);
@@ -753,7 +763,8 @@ export class ValidationEngine {
                     console.log(`Found ${values.size} unique values for ${check.sourceField}: ${Array.from(values).slice(0, 10).join(', ')}${values.size > 10 ? '...' : ''}`);
                 } catch (groupByError: any) {
                     // If GROUP BY fails (e.g., for multipicklist fields), fall back to getting all values
-                    if (groupByError.message?.includes('can not be grouped')) {
+                    const errorMessage = groupByError.message || groupByError.toString() || '';
+                    if (errorMessage.includes('can not be grouped') || errorMessage.includes('ERROR at Row')) {
                         console.log(`Field ${check.sourceField} cannot be grouped (likely a multipicklist). Fetching all values...`);
                         
                         const fallbackQuery = `
@@ -763,23 +774,29 @@ export class ValidationEngine {
                             LIMIT 1000
                         `;
                         
-                        const fallbackResults = await this.executeSoqlQuery(fallbackQuery, this.sourceOrgId);
-                        const values = new Set<string>();
-                        
-                        fallbackResults.forEach((row: any) => {
-                            const fieldValue = row[check.sourceField];
-                            if (fieldValue) {
-                                // For multipicklist, split by semicolon
-                                if (fieldValue.includes(';')) {
-                                    fieldValue.split(';').forEach((v: string) => values.add(v.trim()));
-                                } else {
-                                    values.add(fieldValue);
+                        try {
+                            const fallbackResults = await this.executeSoqlQuery(fallbackQuery, this.sourceOrgId);
+                            const values = new Set<string>();
+                            
+                            fallbackResults.forEach((row: any) => {
+                                const fieldValue = row[check.sourceField];
+                                if (fieldValue) {
+                                    // For multipicklist, split by semicolon
+                                    if (fieldValue.includes(';')) {
+                                        fieldValue.split(';').forEach((v: string) => values.add(v.trim()));
+                                    } else {
+                                        values.add(fieldValue);
+                                    }
                                 }
-                            }
-                        });
-                        
-                        fieldUniqueValues.set(check.sourceField, values);
-                        console.log(`Found ${values.size} unique values for multipicklist ${check.sourceField}`);
+                            });
+                            
+                            fieldUniqueValues.set(check.sourceField, values);
+                            console.log(`Found ${values.size} unique values for multipicklist ${check.sourceField}`);
+                        } catch (fallbackError) {
+                            console.error(`Failed to fetch values for field ${check.sourceField} even with fallback query:`, fallbackError);
+                            // Continue with other fields instead of failing completely
+                            fieldUniqueValues.set(check.sourceField, new Set<string>());
+                        }
                     } else {
                         throw groupByError;
                     }

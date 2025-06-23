@@ -54,8 +54,15 @@ export async function GET(
     const client = await sessionManager.getClient(sourceOrg.id);
 
     // Build SOQL query to get records
+    // For interpretation rules, exclude variation rules from the selection
+    let whereClause = '';
+    if (objectType === 'tc9_et__Interpretation_Rule__c') {
+      whereClause = "WHERE RecordType.Name != 'Interpretation Variation Rule' ";
+    }
+    
     const query = `SELECT Id, Name, CreatedDate, LastModifiedDate 
                    FROM ${objectType} 
+                   ${whereClause}
                    ORDER BY LastModifiedDate DESC 
                    LIMIT ${limit} OFFSET ${offset}`;
 
@@ -75,7 +82,7 @@ export async function GET(
     }));
 
     // Get total count
-    const countQuery = `SELECT COUNT() FROM ${objectType}`;
+    const countQuery = `SELECT COUNT() FROM ${objectType} ${whereClause}`;
     const countResult = await client.query(countQuery);
     const totalRecords = countResult.success ? countResult.totalSize || 0 : 0;
 
