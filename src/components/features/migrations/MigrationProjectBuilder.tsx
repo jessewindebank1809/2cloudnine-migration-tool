@@ -160,16 +160,6 @@ export function MigrationProjectBuilder() {
     }
   }, [templatesData, projectData.templateId]);
 
-  // Validate existing org selections when component loads or orgs change
-  React.useEffect(() => {
-    if (projectData.sourceOrgId) {
-      validateOrgConnection(projectData.sourceOrgId, 'source');
-    }
-    if (projectData.targetOrgId) {
-      validateOrgConnection(projectData.targetOrgId, 'target');
-    }
-  }, [projectData.sourceOrgId, projectData.targetOrgId, validateOrgConnection]);
-
   // Validation mutation
   const validateMigration = useMutation({
     mutationFn: async (data: typeof projectData) => {
@@ -428,11 +418,6 @@ export function MigrationProjectBuilder() {
   const templates = templatesData?.templates || [];
   const selectedTemplate = templates.find((t: MigrationTemplate) => t.id === projectData.templateId);
 
-  // Memoized callback to prevent infinite re-renders
-  const handleRecordSelectionChange = useCallback((selectedRecords: string[]) => {
-    setProjectData(prev => ({ ...prev, selectedRecords }));
-  }, []);
-
   // Validate org connection when selected
   const validateOrgConnection = useCallback(async (orgId: string, orgType: 'source' | 'target') => {
     if (!orgId) return;
@@ -471,6 +456,21 @@ export function MigrationProjectBuilder() {
       }));
     }
   }, [connectedOrgs]);
+
+  // Validate existing org selections when component loads or orgs change
+  React.useEffect(() => {
+    if (projectData.sourceOrgId) {
+      validateOrgConnection(projectData.sourceOrgId, 'source');
+    }
+    if (projectData.targetOrgId) {
+      validateOrgConnection(projectData.targetOrgId, 'target');
+    }
+  }, [projectData.sourceOrgId, projectData.targetOrgId, validateOrgConnection]);
+
+  // Memoized callback to prevent infinite re-renders
+  const handleRecordSelectionChange = useCallback((selectedRecords: string[]) => {
+    setProjectData(prev => ({ ...prev, selectedRecords }));
+  }, []);
 
   // Helper function to check if there are connection-related errors
   const hasConnectionErrors = (issues: ValidationIssue[]) => {
