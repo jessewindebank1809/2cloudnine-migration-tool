@@ -605,24 +605,26 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         lookupValueField: "{externalIdField}",
                         cacheResults: true,
                     },
-                    {
-                        sourceField: "tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}",
-                        targetField: "tc9_et__Daily_Pay_Code_Cap_Record__c",
-                        lookupObject: "tc9_et__Interpretation_Breakpoint__c",
-                        lookupKeyField: "{externalIdField}",
-                        lookupValueField: "{externalIdField}",
-                        cacheResults: true,
-                        allowNull: true, // Allow null for self-referential lookups that may fail due to order dependencies
-                    },
-                    {
-                        sourceField: "tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}",
-                        targetField: "tc9_et__Frequency_Pay_Code_Cap_Record__c",
-                        lookupObject: "tc9_et__Interpretation_Breakpoint__c",
-                        lookupKeyField: "{externalIdField}",
-                        lookupValueField: "{externalIdField}",
-                        cacheResults: true,
-                        allowNull: true, // Allow null for self-referential lookups that may fail due to order dependencies
-                    },
+                    // MOVED TO SEPARATE UPDATE STEP: Self-referential lookups handled in updateBreakpointReferences step
+                    // to ensure all breakpoints exist before creating references between them
+                    // {
+                    //     sourceField: "tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}",
+                    //     targetField: "tc9_et__Daily_Pay_Code_Cap_Record__c",
+                    //     lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                    //     lookupKeyField: "{externalIdField}",
+                    //     lookupValueField: "{externalIdField}",
+                    //     cacheResults: true,
+                    //     allowNull: true,
+                    // },
+                    // {
+                    //     sourceField: "tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}",
+                    //     targetField: "tc9_et__Frequency_Pay_Code_Cap_Record__c",
+                    //     lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                    //     lookupKeyField: "{externalIdField}",
+                    //     lookupValueField: "{externalIdField}",
+                    //     cacheResults: true,
+                    //     allowNull: true,
+                    // },
                     // REMOVED: tc9_et__Leave_Header__c object doesn't exist
                     // Leave Header is a picklist value in tc9_et__Breakpoint_Type__c, not a lookup field
                     {
@@ -1014,6 +1016,73 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     },
                     dependencies: ["interpretationBreakpointPayCodeCap"],
                 },
+                {
+                    stepName: "updateBreakpointReferences",
+                    stepOrder: 6,
+                    extractConfig: {
+                        soqlQuery: `SELECT Id, {externalIdField},
+                            tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField},
+                            tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}
+                            FROM tc9_et__Interpretation_Breakpoint__c
+                            WHERE (tc9_et__Daily_Pay_Code_Cap_Record__c != null 
+                               OR tc9_et__Frequency_Pay_Code_Cap_Record__c != null)
+                            AND tc9_et__Interpretation_Rule__c IN (SELECT Id FROM tc9_et__Interpretation_Rule__c WHERE Id IN ({selectedRecordIds}))`,
+                        objectApiName: "tc9_et__Interpretation_Breakpoint__c",
+                        batchSize: 200,
+                    },
+                    transformConfig: {
+                        fieldMappings: [
+                            {
+                                sourceField: "{externalIdField}",
+                                targetField: "{externalIdField}",
+                                isRequired: true,
+                                transformationType: "direct" as const,
+                            },
+                            // Only map the self-referential fields in this update step
+                        ],
+                        lookupMappings: [
+                            {
+                                sourceField: "tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}",
+                                targetField: "tc9_et__Daily_Pay_Code_Cap_Record__c",
+                                lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                                lookupKeyField: "{externalIdField}",
+                                lookupValueField: "{externalIdField}",
+                                cacheResults: true,
+                                allowNull: true,
+                            },
+                            {
+                                sourceField: "tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}",
+                                targetField: "tc9_et__Frequency_Pay_Code_Cap_Record__c",
+                                lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                                lookupKeyField: "{externalIdField}",
+                                lookupValueField: "{externalIdField}",
+                                cacheResults: true,
+                                allowNull: true,
+                            },
+                        ] as LookupMapping[],
+                        externalIdHandling: ExternalIdUtils.createDefaultConfig(),
+                    },
+                    loadConfig: {
+                        targetObject: "tc9_et__Interpretation_Breakpoint__c",
+                        operation: "update" as const,
+                        externalIdField: "{externalIdField}",
+                        useBulkApi: true,
+                        batchSize: 200,
+                        allowPartialSuccess: true,
+                        retryConfig: {
+                            maxRetries: 3,
+                            retryWaitSeconds: 30,
+                            retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT"],
+                        },
+                    } as LoadConfig,
+                    validationConfig: {
+                        preValidationQueries: [],
+                        dependencyChecks: [],
+                        dataIntegrityChecks: [],
+                        picklistValidationChecks: [],
+                    } as ValidationConfig,
+                    dependencies: ["interpretationBreakpointOther"], // Run after all breakpoints are created
+                },
             ];
         })(),
     ],
@@ -1023,6 +1092,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
         "interpretationBreakpointLeaveHeader",
         "interpretationBreakpointPayCodeCap",
         "interpretationBreakpointOther",
+        "updateBreakpointReferences",
     ],
     metadata: {
         author: "2cloudnine",
