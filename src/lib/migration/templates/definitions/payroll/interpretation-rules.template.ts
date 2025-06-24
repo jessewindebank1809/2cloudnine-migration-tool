@@ -244,7 +244,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                 retryConfig: {
                     maxRetries: 3,
                     retryWaitSeconds: 30,
-                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT"],
+                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT", "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY"],
                 },
             },
             validationConfig: {
@@ -417,7 +417,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                 retryConfig: {
                     maxRetries: 3,
                     retryWaitSeconds: 30,
-                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT"],
+                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT", "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY"],
                 },
             },
             validationConfig: {
@@ -612,6 +612,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         lookupKeyField: "{externalIdField}",
                         lookupValueField: "{externalIdField}",
                         cacheResults: true,
+                        allowNull: true, // Allow null for self-referential lookups that may fail due to order dependencies
                     },
                     {
                         sourceField: "tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}",
@@ -620,6 +621,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         lookupKeyField: "{externalIdField}",
                         lookupValueField: "{externalIdField}",
                         cacheResults: true,
+                        allowNull: true, // Allow null for self-referential lookups that may fail due to order dependencies
                     },
                     // REMOVED: tc9_et__Leave_Header__c object doesn't exist
                     // Leave Header is a picklist value in tc9_et__Breakpoint_Type__c, not a lookup field
@@ -694,11 +696,11 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     externalIdField: "{externalIdField}",
                     useBulkApi: true,
                     batchSize: 200,
-                    allowPartialSuccess: false,
+                    allowPartialSuccess: true,
                     retryConfig: {
                         maxRetries: 3,
                         retryWaitSeconds: 30,
-                        retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT"],
+                        retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT", "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY"],
                     },
                 } as LoadConfig,
                 validationConfig: {

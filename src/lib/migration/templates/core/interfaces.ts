@@ -71,6 +71,7 @@ export interface LookupMapping {
     sourceExternalIdField?: string;  // Override for source external ID field
     targetExternalIdField?: string;  // Override for target external ID field
     crossEnvironmentMapping?: boolean; // Flag for cross-environment scenarios
+    allowNull?: boolean; // Allow null values for failed lookups (useful for self-referential fields)
 }
 
 // Record Type Mapping

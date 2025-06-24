@@ -509,7 +509,14 @@ export class ExecutionEngine {
             
             if (targetValue) {
               transformedRecord[lookupMapping.targetField] = targetValue;
+            } else if (lookupMapping.allowNull) {
+              // Explicitly set null for failed lookups when allowNull is true
+              transformedRecord[lookupMapping.targetField] = null;
+              console.log(`      Setting ${lookupMapping.targetField} to null (lookup failed but allowNull=true)`);
             }
+          } else if (lookupMapping.allowNull) {
+            // Also set null when source value is empty and allowNull is true
+            transformedRecord[lookupMapping.targetField] = null;
           }
         }
       }
@@ -640,10 +647,18 @@ export class ExecutionEngine {
             failureCount++;
             // Add error for failed record
             const recordErrors = Array.isArray(recordResult.errors) ? recordResult.errors : [recordResult.errors];
+            const errorMessage = recordErrors.join('; ') || 'Unknown error';
+            
+            // Check if this is a retryable error based on the configuration
+            const retryableErrors = step.loadConfig.retryConfig?.retryableErrors || [];
+            const isRetryable = retryableErrors.some((retryableError: string) => 
+              errorMessage.includes(retryableError)
+            );
+            
             errors.push({
               recordId: records[index] ? (records[index][targetExternalIdField] || records[index].Id || `batch-${batchNumber}-${index}`) : `batch-${batchNumber}-${index}`,
-              error: recordErrors.join('; ') || 'Unknown error',
-              retryable: false
+              error: errorMessage,
+              retryable: isRetryable
             });
           }
         });
