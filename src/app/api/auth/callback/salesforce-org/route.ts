@@ -254,7 +254,13 @@ export async function GET(request: NextRequest) {
     } else {
       // Traditional redirect for manual OAuth
       // If returnUrl is provided, redirect there, otherwise go to orgs page
-      const redirectUrl = returnUrl || `${baseUrl}/orgs`;
+      let redirectUrl = returnUrl || '/orgs';
+      
+      // Ensure the URL is absolute
+      if (!redirectUrl.startsWith('http')) {
+        redirectUrl = `${baseUrl}${redirectUrl.startsWith('/') ? '' : '/'}${redirectUrl}`;
+      }
+      
       const separator = redirectUrl.includes('?') ? '&' : '?';
       return NextResponse.redirect(`${redirectUrl}${separator}success=connected`);
     }
