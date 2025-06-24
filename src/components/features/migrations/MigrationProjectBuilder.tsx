@@ -97,6 +97,8 @@ export function MigrationProjectBuilder() {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [currentOperation, setCurrentOperation] = useState<'idle' | 'validating' | 'creating' | 'migrating'>('idle');
   const [orgConnectionErrors, setOrgConnectionErrors] = useState<{[key: string]: string}>({});
+  const [isValidating, setIsValidating] = useState<{[key: string]: boolean}>({});
+  const validationTimeoutRef = useRef<{[key: string]: NodeJS.Timeout}>({});
   const [projectData, setProjectData] = useState({
     name: '',
     templateId: '', // Will be set to interpretation rules template when templates load
@@ -418,54 +420,77 @@ export function MigrationProjectBuilder() {
   const templates = templatesData?.templates || [];
   const selectedTemplate = templates.find((t: MigrationTemplate) => t.id === projectData.templateId);
 
-  // Validate org connection when selected
+  // Validate org connection when selected with debouncing
   const validateOrgConnection = useCallback(async (orgId: string, orgType: 'source' | 'target') => {
     if (!orgId) return;
     
-    try {
-      const response = await fetch(`/api/orgs/${orgId}/health`);
-      const data = await response.json();
+    // Clear any existing timeout for this org type
+    if (validationTimeoutRef.current[orgType]) {
+      clearTimeout(validationTimeoutRef.current[orgType]);
+    }
+    
+    // Set a debounce timeout
+    validationTimeoutRef.current[orgType] = setTimeout(async () => {
+      setIsValidating(prev => ({ ...prev, [orgType]: true }));
       
-      if (!data.isHealthy) {
-        const errorMsg = data.requiresReauth 
-          ? 'Organisation needs to be reconnected. Click to reconnect.'
-          : data.error || 'Organisation connection is unhealthy';
+      try {
+        const response = await fetch(`/api/orgs/${orgId}/health`);
+        const data = await response.json();
         
+        if (!data.isHealthy) {
+          const errorMsg = data.requiresReauth 
+            ? 'Organisation needs to be reconnected. Click to reconnect.'
+            : data.error || 'Organisation connection is unhealthy';
+          
+          setOrgConnectionErrors(prev => ({
+            ...prev,
+            [orgType]: errorMsg
+          }));
+          
+          // No longer auto-prompting for reconnection - user will use the reconnect button
+        } else {
+          // Clear any existing error for this org type
+          setOrgConnectionErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[orgType];
+            return newErrors;
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to validate ${orgType} org connection:`, error);
+        // More user-friendly error message
+        const org = connectedOrgs.find((o: Organisation) => o.id === orgId);
+        const orgName = org?.name || 'Organisation';
         setOrgConnectionErrors(prev => ({
           ...prev,
-          [orgType]: errorMsg
+          [orgType]: `Unable to connect to ${orgName}. Please try reconnecting.`
         }));
-        
-        // No longer auto-prompting for reconnection - user will use the reconnect button
-      } else {
-        // Clear any existing error for this org type
-        setOrgConnectionErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[orgType];
-          return newErrors;
-        });
+      } finally {
+        setIsValidating(prev => ({ ...prev, [orgType]: false }));
       }
-    } catch (error) {
-      console.error(`Failed to validate ${orgType} org connection:`, error);
-      // More user-friendly error message
-      const org = connectedOrgs.find((o: Organisation) => o.id === orgId);
-      const orgName = org?.name || 'Organisation';
-      setOrgConnectionErrors(prev => ({
-        ...prev,
-        [orgType]: `Unable to connect to ${orgName}. Please try reconnecting.`
-      }));
-    }
+    }, 300); // 300ms debounce
   }, [connectedOrgs]);
 
-  // Validate existing org selections when component loads or orgs change
+  // Validate existing org selections only on initial load
   React.useEffect(() => {
-    if (projectData.sourceOrgId) {
-      validateOrgConnection(projectData.sourceOrgId, 'source');
+    // Only run once when both orgs are selected and connectedOrgs is loaded
+    if (projectData.sourceOrgId && projectData.targetOrgId && connectedOrgs.length > 0) {
+      // Use a flag to ensure we only validate once
+      const hasValidated = sessionStorage.getItem('migration-orgs-validated');
+      if (hasValidated !== `${projectData.sourceOrgId}-${projectData.targetOrgId}`) {
+        validateOrgConnection(projectData.sourceOrgId, 'source');
+        validateOrgConnection(projectData.targetOrgId, 'target');
+        sessionStorage.setItem('migration-orgs-validated', `${projectData.sourceOrgId}-${projectData.targetOrgId}`);
+      }
     }
-    if (projectData.targetOrgId) {
-      validateOrgConnection(projectData.targetOrgId, 'target');
-    }
-  }, [projectData.sourceOrgId, projectData.targetOrgId, validateOrgConnection]);
+  }, []); // Only run once on mount
+  
+  // Cleanup timeouts on unmount
+  React.useEffect(() => {
+    return () => {
+      Object.values(validationTimeoutRef.current).forEach(timeout => clearTimeout(timeout));
+    };
+  }, []);
 
   // Memoized callback to prevent infinite re-renders
   const handleRecordSelectionChange = useCallback((selectedRecords: string[]) => {
