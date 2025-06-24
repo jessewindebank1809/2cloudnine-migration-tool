@@ -18,6 +18,31 @@ describe('Picklist Validation', () => {
     let mockSourceClient: jest.Mocked<SalesforceClient>;
     let mockTargetClient: jest.Mocked<SalesforceClient>;
 
+    // Helper to setup common mocks
+    const setupPicklistValidationMocks = (sourceValues: string[], targetPicklistValues: any[]) => {
+        // Mock the query response for unique values
+        const queryData = sourceValues.map(value => ({
+            tc9_et__Variation_Type__c: value,
+            recordCount: 1
+        }));
+        mockSourceClient.query.mockResolvedValue({
+            success: true,
+            data: queryData
+        });
+
+        // Mock target metadata
+        mockTargetClient.getObjectMetadata.mockResolvedValue({
+            success: true,
+            data: {
+                fields: [{
+                    name: 'tc9_et__Variation_Type__c',
+                    type: 'picklist',
+                    picklistValues: targetPicklistValues
+                }]
+            }
+        });
+    };
+
     beforeEach(() => {
         validationEngine = new ValidationEngine();
         
@@ -25,17 +50,25 @@ describe('Picklist Validation', () => {
         mockSourceClient = {
             getPicklistValues: jest.fn(),
             query: jest.fn(),
+            getObjectMetadata: jest.fn(),
         } as any;
         
         mockTargetClient = {
             getPicklistValues: jest.fn(),
             query: jest.fn(),
+            getObjectMetadata: jest.fn(),
         } as any;
 
         // Mock sessionManager
         (sessionManager.getClient as jest.Mock).mockImplementation((orgId: string) => {
             return orgId === 'source-org' ? mockSourceClient : mockTargetClient;
         });
+
+        // Initialize validation engine with org IDs
+        (validationEngine as any).sourceOrgId = 'source-org';
+        (validationEngine as any).targetOrgId = 'target-org';
+        (validationEngine as any).currentTargetObject = 'tc9_et__Interpretation_Breakpoint__c';
+        (validationEngine as any).currentSourceQuery = 'SELECT Id FROM tc9_et__Interpretation_Breakpoint__c';
     });
 
     afterEach(() => {
@@ -105,6 +138,15 @@ describe('Picklist Validation', () => {
 
     describe('ValidationEngine.runPicklistValidationChecks - PASS Cases', () => {
         it('should pass validation when all picklist values are valid', async () => {
+            setupPicklistValidationMocks(
+                ['Standard', 'Premium', 'Basic'],
+                [
+                    { value: 'Standard', label: 'Standard', active: true },
+                    { value: 'Premium', label: 'Premium', active: true },
+                    { value: 'Basic', label: 'Basic', active: true }
+                ]
+            );
+
             // Setup: Target org has valid picklist values
             const mockPicklistData = {
                 fieldName: 'tc9_et__Variation_Type__c',
@@ -153,6 +195,17 @@ describe('Picklist Validation', () => {
         });
 
         it('should pass validation when source records have null/empty picklist values', async () => {
+            // Mock empty query result since no values exist
+            mockSourceClient.query.mockResolvedValue({
+                success: true,
+                data: []
+            });
+
+            setupPicklistValidationMocks(
+                [],
+                [{ value: 'Standard', label: 'Standard', active: true }]
+            );
+
             const mockPicklistData = {
                 fieldName: 'tc9_et__Variation_Type__c',
                 values: [
@@ -193,6 +246,21 @@ describe('Picklist Validation', () => {
         });
 
         it('should pass validation with custom allowed values override', async () => {
+            // Mock the query for source values
+            mockSourceClient.query.mockResolvedValue({
+                success: true,
+                data: [
+                    { tc9_et__Variation_Type__c: 'CustomValue1', recordCount: 1 },
+                    { tc9_et__Variation_Type__c: 'CustomValue2', recordCount: 1 }
+                ]
+            });
+
+            // Mock target metadata even though it won't be used
+            mockTargetClient.getObjectMetadata.mockResolvedValue({
+                success: true,
+                data: { fields: [] }
+            });
+
             // Target org picklist will not be checked when allowedValues is provided
             const sourceData = [
                 { Id: 'rec1', Name: 'Test Record 1', tc9_et__Variation_Type__c: 'CustomValue1' },
@@ -222,6 +290,31 @@ describe('Picklist Validation', () => {
 
     describe('ValidationEngine.runPicklistValidationChecks - FAIL Cases', () => {
         it('should fail validation when picklist values do not exist in target org', async () => {
+            // Mock source query with all unique values
+            mockSourceClient.query.mockResolvedValue({
+                success: true,
+                data: [
+                    { tc9_et__Variation_Type__c: 'Oncall', recordCount: 1 },
+                    { tc9_et__Variation_Type__c: 'Standard', recordCount: 1 },
+                    { tc9_et__Variation_Type__c: 'InvalidValue', recordCount: 1 }
+                ]
+            });
+
+            // Mock target metadata - missing 'Oncall' and 'InvalidValue'
+            mockTargetClient.getObjectMetadata.mockResolvedValue({
+                success: true,
+                data: {
+                    fields: [{
+                        name: 'tc9_et__Variation_Type__c',
+                        type: 'picklist',
+                        picklistValues: [
+                            { value: 'Standard', label: 'Standard', active: true },
+                            { value: 'Premium', label: 'Premium', active: true }
+                        ]
+                    }]
+                }
+            });
+
             // Setup: Target org missing 'Oncall' value
             const mockPicklistData = {
                 fieldName: 'tc9_et__Variation_Type__c',
@@ -286,6 +379,21 @@ describe('Picklist Validation', () => {
         });
 
         it('should fail validation with custom allowed values when source data is invalid', async () => {
+            // Mock source query with invalid values
+            mockSourceClient.query.mockResolvedValue({
+                success: true,
+                data: [
+                    { tc9_et__Variation_Type__c: 'InvalidValue1', recordCount: 1 },
+                    { tc9_et__Variation_Type__c: 'InvalidValue2', recordCount: 1 }
+                ]
+            });
+
+            // Mock target metadata even though it won't be used
+            mockTargetClient.getObjectMetadata.mockResolvedValue({
+                success: true,
+                data: { fields: [] }
+            });
+
             const sourceData = [
                 { Id: 'rec1', Name: 'Test Record 1', tc9_et__Variation_Type__c: 'InvalidValue1' },
                 { Id: 'rec2', Name: 'Test Record 2', tc9_et__Variation_Type__c: 'InvalidValue2' }
@@ -315,6 +423,20 @@ describe('Picklist Validation', () => {
         });
 
         it('should handle errors when picklist metadata fetch fails', async () => {
+            // Mock source query
+            mockSourceClient.query.mockResolvedValue({
+                success: true,
+                data: [
+                    { tc9_et__Variation_Type__c: 'Standard', recordCount: 1 }
+                ]
+            });
+
+            // Mock target metadata fetch failure
+            mockTargetClient.getObjectMetadata.mockResolvedValue({
+                success: false,
+                error: 'Connection timeout'
+            });
+
             mockTargetClient.getPicklistValues.mockResolvedValue({
                 success: false,
                 error: 'Connection timeout'
@@ -351,6 +473,28 @@ describe('Picklist Validation', () => {
         });
 
         it('should handle validation check execution errors gracefully', async () => {
+            // Mock source query
+            mockSourceClient.query.mockResolvedValue({
+                success: true,
+                data: [
+                    { tc9_et__Variation_Type__c: 'Standard', recordCount: 1 }
+                ]
+            });
+
+            // Mock target metadata to succeed but getPicklistValues to fail
+            mockTargetClient.getObjectMetadata.mockResolvedValue({
+                success: true,
+                data: {
+                    fields: [{
+                        name: 'tc9_et__Variation_Type__c',
+                        type: 'picklist',
+                        picklistValues: [
+                            { value: 'Standard', label: 'Standard', active: true }
+                        ]
+                    }]
+                }
+            });
+
             // Simulate an error during validation check execution
             mockTargetClient.getPicklistValues.mockRejectedValue(new Error('Network error'));
 
