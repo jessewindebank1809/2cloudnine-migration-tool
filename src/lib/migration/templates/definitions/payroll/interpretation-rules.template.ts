@@ -256,7 +256,17 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         description: "Cache all target org pay codes for validation",
                     },
                 ],
-                dependencyChecks: [],
+                dependencyChecks: [
+                    {
+                        checkName: "payCodeExists",
+                        description: "Verify referenced pay code exists in target org",
+                        sourceField: "tc9_et__Pay_Code__r.{externalIdField}",
+                        targetObject: "tc9_pr__Pay_Code__c",
+                        targetField: "{externalIdField}",
+                        isRequired: true,
+                        errorMessage: "Migration cannot proceed: Pay Code '{sourceValue}' referenced by interpretation rule '{recordName}' does not exist in target org. All referenced pay codes must be migrated first",
+                    },
+                ],
                 dataIntegrityChecks: [
                     {
                         checkName: "payCodeNotNull",
