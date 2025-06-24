@@ -583,106 +583,119 @@ export function MigrationProjectBuilder() {
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
-                    <div>
-                      <Label htmlFor="source-org">Source Organisation *</Label>
-                      <Select
-                        value={projectData.sourceOrgId}
-                        onValueChange={(value: string) => {
-                          setProjectData({ ...projectData, sourceOrgId: value });
-                          validateOrgConnection(value, 'source');
-                        }}
-                        required
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select source organisation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {connectedOrgs.map((org: Organisation) => (
-                            <SelectItem key={org.id} value={org.id}>
-                              <span className="font-medium">{org.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {orgConnectionErrors.source && (
-                        <Alert variant="destructive" className="mt-2">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription className="text-xs flex items-center justify-between">
-                            <span>{orgConnectionErrors.source}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 px-2 ml-2"
-                              onClick={() => {
-                                const org = connectedOrgs.find((o: Organisation) => o.id === projectData.sourceOrgId);
-                                if (org) {
-                                  // Include return URL to come back to migration setup
-                                  const returnUrl = '/migrations/new';
-                                  const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
-                                  window.location.href = oauthUrl;
-                                }
-                              }}
-                            >
-                              Reconnect
-                              <ExternalLink className="h-3 w-3 ml-1" />
-                            </Button>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                    <div className="flex justify-center pb-2">
-                      <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <Label htmlFor="target-org">Target Organisation *</Label>
-                      <Select
-                        value={projectData.targetOrgId}
-                        onValueChange={(value: string) => {
-                          setProjectData({ ...projectData, targetOrgId: value });
-                          validateOrgConnection(value, 'target');
-                        }}
-                        required
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select target organisation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {connectedOrgs
-                            .filter((org: Organisation) => org.id !== projectData.sourceOrgId)
-                            .map((org: Organisation) => (
+                  <div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
+                      <div>
+                        <Label htmlFor="source-org">Source Organisation *</Label>
+                        <Select
+                          value={projectData.sourceOrgId}
+                          onValueChange={(value: string) => {
+                            setProjectData({ ...projectData, sourceOrgId: value });
+                            validateOrgConnection(value, 'source');
+                          }}
+                          required
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select source organisation" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {connectedOrgs.map((org: Organisation) => (
                               <SelectItem key={org.id} value={org.id}>
                                 <span className="font-medium">{org.name}</span>
                               </SelectItem>
                             ))}
-                        </SelectContent>
-                      </Select>
-                      {orgConnectionErrors.target && (
-                        <Alert variant="destructive" className="mt-2">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription className="text-xs flex items-center justify-between">
-                            <span>{orgConnectionErrors.target}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 px-2 ml-2"
-                              onClick={() => {
-                                const org = connectedOrgs.find((o: Organisation) => o.id === projectData.targetOrgId);
-                                if (org) {
-                                  // Include return URL to come back to migration setup
-                                  const returnUrl = '/migrations/new';
-                                  const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
-                                  window.location.href = oauthUrl;
-                                }
-                              }}
-                            >
-                              Reconnect
-                              <ExternalLink className="h-3 w-3 ml-1" />
-                            </Button>
-                          </AlertDescription>
-                        </Alert>
-                      )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex justify-center pb-2">
+                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <Label htmlFor="target-org">Target Organisation *</Label>
+                        <Select
+                          value={projectData.targetOrgId}
+                          onValueChange={(value: string) => {
+                            setProjectData({ ...projectData, targetOrgId: value });
+                            validateOrgConnection(value, 'target');
+                          }}
+                          required
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select target organisation" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {connectedOrgs
+                              .filter((org: Organisation) => org.id !== projectData.sourceOrgId)
+                              .map((org: Organisation) => (
+                                <SelectItem key={org.id} value={org.id}>
+                                  <span className="font-medium">{org.name}</span>
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
+                    
+                    {/* Error messages below the grid */}
+                    {(orgConnectionErrors.source || orgConnectionErrors.target) && (
+                      <div className="grid grid-cols-[1fr_auto_1fr] gap-4 mt-2">
+                        <div>
+                          {orgConnectionErrors.source && (
+                            <Alert variant="destructive">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription className="text-xs flex items-center justify-between">
+                                <span>{orgConnectionErrors.source}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 ml-2"
+                                  onClick={() => {
+                                    const org = connectedOrgs.find((o: Organisation) => o.id === projectData.sourceOrgId);
+                                    if (org) {
+                                      // Include return URL to come back to migration setup
+                                      const returnUrl = '/migrations/new';
+                                      const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+                                      window.location.href = oauthUrl;
+                                    }
+                                  }}
+                                >
+                                  Reconnect
+                                  <ExternalLink className="h-3 w-3 ml-1" />
+                                </Button>
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                        <div></div>
+                        <div>
+                          {orgConnectionErrors.target && (
+                            <Alert variant="destructive">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription className="text-xs flex items-center justify-between">
+                                <span>{orgConnectionErrors.target}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 ml-2"
+                                  onClick={() => {
+                                    const org = connectedOrgs.find((o: Organisation) => o.id === projectData.targetOrgId);
+                                    if (org) {
+                                      // Include return URL to come back to migration setup
+                                      const returnUrl = '/migrations/new';
+                                      const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+                                      window.location.href = oauthUrl;
+                                    }
+                                  }}
+                                >
+                                  Reconnect
+                                  <ExternalLink className="h-3 w-3 ml-1" />
+                                </Button>
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="template">Migration Template *</Label>
