@@ -245,6 +245,16 @@ export class ValidationEngine {
         );
         query = ExternalIdUtils.replaceExternalIdPlaceholders(query, externalIdField);
         
+        // Replace selectedRecordIds placeholder if present
+        if (query.includes('{selectedRecordIds}')) {
+            if (this.selectedRecordIds && this.selectedRecordIds.length > 0) {
+                query = query.replace(/{selectedRecordIds}/g, `'${this.selectedRecordIds.join("','")}'`);
+            } else {
+                // If no records selected, replace with empty condition
+                query = query.replace(/{selectedRecordIds}/g, "''");
+            }
+        }
+        
         // Add record selection filter if provided
         if (selectedRecords && selectedRecords.length > 0) {
             const recordFilter = `Id IN ('${selectedRecords.join("','")}')`;
@@ -299,6 +309,12 @@ export class ValidationEngine {
                 check.targetField,
                 externalIdField
             );
+            
+            // Also resolve external ID field placeholder in source field
+            const resolvedSourceField = ExternalIdUtils.replaceExternalIdPlaceholders(
+                check.sourceField,
+                externalIdField
+            );
 
             // Check each source record
             let checkedRecords = 0;
@@ -306,7 +322,7 @@ export class ValidationEngine {
             
             for (const record of sourceData) {
                 checkedRecords++;
-                const sourceValue = this.getFieldValue(record, check.sourceField);
+                const sourceValue = this.getFieldValue(record, resolvedSourceField);
                 
                 if (!sourceValue && check.isRequired) {
                     foundIssues++;
@@ -335,7 +351,7 @@ export class ValidationEngine {
                                 severity: "error",
                                 recordId: record.Id,
                                 recordName: record.Name,
-                                fieldName: check.sourceField,
+                                fieldName: resolvedSourceField,
                                 fieldValue: sourceValue,
                             }, "error");
                         } else if (check.warningMessage) {
@@ -347,7 +363,7 @@ export class ValidationEngine {
                                 severity: "warning",
                                 recordId: record.Id,
                                 recordName: record.Name,
-                                fieldName: check.sourceField,
+                                fieldName: resolvedSourceField,
                                 fieldValue: sourceValue,
                             }, "warning");
                         }
