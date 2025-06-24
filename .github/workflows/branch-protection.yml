@@ -9,13 +9,16 @@ on:
 jobs:
   enforce-staging-flow:
     runs-on: ubuntu-latest
-    # Skip this entire job if not targeting main branch
-    if: |
-      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     steps:
+      - name: Check if this is a staging PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'staging'
+        run: |
+          echo "✅ This is a PR to staging branch - skipping main branch protection checks"
+          echo "PR from ${{ github.head_ref }} to ${{ github.event.pull_request.base.ref }} is allowed"
+          exit 0
+          
       - name: Check PR source branch
-        if: github.event_name == 'pull_request' && github.head_ref != 'staging'
+        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.head_ref != 'staging'
         run: |
           echo "❌ ERROR: Pull requests to main must come from staging branch only!"
           echo "Current source branch: ${{ github.head_ref }}"
