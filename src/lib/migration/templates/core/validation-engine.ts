@@ -246,7 +246,8 @@ export class ValidationEngine {
         query = ExternalIdUtils.replaceExternalIdPlaceholders(query, externalIdField);
         
         // Replace selectedRecordIds placeholder if present
-        if (query.includes('{selectedRecordIds}')) {
+        const hasSelectedRecordsPlaceholder = query.includes('{selectedRecordIds}');
+        if (hasSelectedRecordsPlaceholder) {
             if (this.selectedRecordIds && this.selectedRecordIds.length > 0) {
                 query = query.replace(/{selectedRecordIds}/g, `'${this.selectedRecordIds.join("','")}'`);
             } else {
@@ -255,8 +256,8 @@ export class ValidationEngine {
             }
         }
         
-        // Add record selection filter if provided
-        if (selectedRecords && selectedRecords.length > 0) {
+        // Add record selection filter if provided and query doesn't already have selectedRecordIds placeholder
+        if (selectedRecords && selectedRecords.length > 0 && !hasSelectedRecordsPlaceholder) {
             const recordFilter = `Id IN ('${selectedRecords.join("','")}')`;
             query = query.includes("WHERE") 
                 ? `${query} AND ${recordFilter}`
@@ -269,6 +270,7 @@ export class ValidationEngine {
         }
 
         console.log(`Extracting source data for validation: ${extractConfig.objectApiName}`);
+        console.log(`Final query: ${query}`);
         return await this.executeSoqlQuery(query, this.sourceOrgId);
     }
 
@@ -337,6 +339,17 @@ export class ValidationEngine {
                 if (!targetExists) {
                     foundIssues++;
                     if (check.isRequired) {
+                        // Extract field name from the source field path for context
+                        // e.g., "tc9_et__Pay_Code__r.{externalIdField}" -> "tc9_et__Pay_Code__r"
+                        const relationshipPath = resolvedSourceField.split('.')[0];
+                        const relationshipName = relationshipPath.replace('__r', '__c');
+                        
+                        // Try to get the name from the relationship object if available
+                        let missingTargetName = null;
+                        if (relationshipPath.endsWith('__r') && record[relationshipPath]) {
+                            missingTargetName = record[relationshipPath].Name || null;
+                        }
+                        
                         this.addFormattedIssue(results, {
                             checkName: check.checkName,
                             message: check.errorMessage
@@ -346,6 +359,14 @@ export class ValidationEngine {
                             recordId: record.Id,
                             recordName: record.Name,
                             field: resolvedSourceField,
+                            // Pass additional context for better error formatting
+                            context: {
+                                sourceValue,
+                                targetObject: check.targetObject,
+                                missingTargetName,
+                                missingTargetExternalId: sourceValue,
+                                sourceRecordType: record.RecordType?.Name || null,
+                            }
                         }, "error");
                     } else if (check.warningMessage) {
                         this.addFormattedIssue(results, {

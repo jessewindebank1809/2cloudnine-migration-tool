@@ -209,6 +209,13 @@ export interface ValidationIssue {
     recordName: string | null;
     field?: string;
     suggestedAction?: string;
+    context?: {
+        sourceValue?: string;
+        targetObject?: string;
+        missingTargetName?: string | null;
+        missingTargetExternalId?: string;
+        sourceRecordType?: string | null;
+    };
 }
 
 export interface ValidationSummary {
