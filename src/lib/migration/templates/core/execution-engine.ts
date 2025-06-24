@@ -706,6 +706,9 @@ export class ExecutionEngine {
         const isBreakpointLookup = mapping.lookupObject === 'tc9_et__Interpretation_Breakpoint__c' || 
                                   mapping.lookupObject === 'tc9_pr__Pay_Code__c' || 
                                   mapping.lookupObject === 'tc9_pr__Leave_Rule__c';
+        
+        // Special handling for interpretation rule lookups - use source record ID directly
+        const isInterpretationRuleLookup = mapping.lookupObject === 'tc9_et__Interpretation_Rule__c';
 
         console.log(`    Resolving lookup for ${mapping.lookupObject}:`);
         console.log(`      Source value: ${sourceValue}`);
@@ -726,7 +729,11 @@ export class ExecutionEngine {
         console.log(`      Source field pattern: ${mapping.sourceField}`);
         console.log(`      Is direct external ID: ${isDirectExternalId}`);
         
-        if (!isDirectExternalId) {
+        // Special case for interpretation rule lookups - always use source record ID directly
+        if (isInterpretationRuleLookup && !isDirectExternalId) {
+          console.log(`      Using source record ID directly for interpretation rule lookup: ${sourceValue}`);
+          externalId = sourceValue;
+        } else if (!isDirectExternalId) {
           // sourceValue is a record ID, need to get the external ID from source record
           console.log(`      Need to resolve record ID to external ID`);
         
