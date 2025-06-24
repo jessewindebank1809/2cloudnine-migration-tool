@@ -13,35 +13,50 @@ export async function POST(request: NextRequest) {
     registerAllTemplates();
     
     const body = await request.json();
-    const { migrationId } = body;
+    const { migrationId, sourceOrgId, targetOrgId, templateId, selectedRecords } = body;
 
-    if (!migrationId) {
+    let config: any;
+    let testMigrationId: string;
+
+    if (migrationId) {
+      // Use existing migration
+      const migration = await prisma.migration_projects.findFirst({
+        where: { id: migrationId }
+      });
+
+      if (!migration) {
+        return NextResponse.json(
+          { error: 'Migration not found' },
+          { status: 404 }
+        );
+      }
+
+      config = migration.config as any;
+      testMigrationId = migrationId;
+    } else if (sourceOrgId && targetOrgId && templateId && selectedRecords) {
+      // Create temporary test configuration
+      config = {
+        sourceOrgId,
+        targetOrgId,
+        templateId,
+        selectedRecords: Array.isArray(selectedRecords) 
+          ? { 'tc9_et__Interpretation_Rule__c': selectedRecords }
+          : selectedRecords
+      };
+      testMigrationId = `test-${Date.now()}`;
+      
+      console.log('Test execution with config:', config);
+    } else {
       return NextResponse.json(
-        { error: 'Migration ID is required' },
+        { error: 'Either migrationId or complete configuration (sourceOrgId, targetOrgId, templateId, selectedRecords) is required' },
         { status: 400 }
       );
     }
 
-    // Get migration project without auth check
-    const migration = await prisma.migration_projects.findFirst({
-      where: { id: migrationId }
-    });
-
-    if (!migration) {
-      return NextResponse.json(
-        { error: 'Migration not found' },
-        { status: 404 }
-      );
-    }
-
-    const config = migration.config as any;
-    const sourceOrgId = config.sourceOrgId;
-    const targetOrgId = config.targetOrgId;
-
     // Get orgs without auth check
     const [sourceOrg, targetOrg] = await Promise.all([
-      prisma.organisations.findUnique({ where: { id: sourceOrgId } }),
-      prisma.organisations.findUnique({ where: { id: targetOrgId } })
+      prisma.organisations.findUnique({ where: { id: config.sourceOrgId } }),
+      prisma.organisations.findUnique({ where: { id: config.targetOrgId } })
     ]);
 
     if (!sourceOrg || !targetOrg) {
@@ -121,16 +136,18 @@ export async function POST(request: NextRequest) {
     
     const result = await engine.execute(template, executionContext);
 
-    // Update migration status
-    await prisma.migration_projects.update({
-      where: { id: migrationId },
-      data: {
-        status: result.status === 'success' ? 'completed' : 'failed',
-        last_run_at: new Date(),
-        execution_results: result as any,
-        updated_at: new Date()
-      }
-    });
+    // Update migration status only if it's not a test migration
+    if (migrationId && !testMigrationId.startsWith('test-')) {
+      await prisma.migration_projects.update({
+        where: { id: migrationId },
+        data: {
+          status: result.status === 'success' ? 'completed' : 'failed',
+          last_run_at: new Date(),
+          execution_results: result as any,
+          updated_at: new Date()
+        }
+      });
+    }
 
     return NextResponse.json(result);
 
