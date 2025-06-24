@@ -246,7 +246,7 @@ export interface ConditionalTransform {
 
 // Execution interfaces for Phase 4
 export interface ExecutionResult {
-    status: 'success' | 'failed';
+    status: 'success' | 'failed' | 'partial';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;
@@ -260,7 +260,7 @@ export interface ExecutionProgress {
     currentStep: number;
     totalSteps: number;
     stepName: string;
-    status: 'running' | 'success' | 'failed';
+    status: 'running' | 'success' | 'failed' | 'partial';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;
