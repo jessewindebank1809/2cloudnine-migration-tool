@@ -324,47 +324,40 @@ export class ValidationEngine {
                 checkedRecords++;
                 const sourceValue = this.getFieldValue(record, resolvedSourceField);
                 
-                if (!sourceValue && check.isRequired) {
-                    foundIssues++;
-                    this.addFormattedIssue(results, {
-                        checkName: check.checkName,
-                        message: check.errorMessage
-                            .replace("{sourceValue}", sourceValue || "null")
-                            .replace("{recordName}", record.Name || record.Id),
-                        severity: "error",
-                        recordId: record.Id,
-                        recordName: record.Name,
-                    }, "error");
-                } else if (sourceValue) {
-                    const targetExists = targetCache.some((target) =>
-                        target[resolvedTargetField] === sourceValue
-                    );
+                // Skip null references - they are allowed
+                if (!sourceValue) {
+                    continue;
+                }
+                
+                // Only validate non-null references
+                const targetExists = targetCache.some((target) =>
+                    target[resolvedTargetField] === sourceValue
+                );
 
-                    if (!targetExists) {
-                        foundIssues++;
-                        if (check.isRequired) {
-                            this.addFormattedIssue(results, {
-                                checkName: check.checkName,
-                                message: check.errorMessage
-                                    .replace("{sourceValue}", sourceValue)
-                                    .replace("{recordName}", record.Name || record.Id),
-                                severity: "error",
-                                recordId: record.Id,
-                                recordName: record.Name,
-                                field: resolvedSourceField,
-                            }, "error");
-                        } else if (check.warningMessage) {
-                            this.addFormattedIssue(results, {
-                                checkName: check.checkName,
-                                message: check.warningMessage
-                                    .replace("{sourceValue}", sourceValue)
-                                    .replace("{recordName}", record.Name || record.Id),
-                                severity: "warning",
-                                recordId: record.Id,
-                                recordName: record.Name,
-                                field: resolvedSourceField,
-                            }, "warning");
-                        }
+                if (!targetExists) {
+                    foundIssues++;
+                    if (check.isRequired) {
+                        this.addFormattedIssue(results, {
+                            checkName: check.checkName,
+                            message: check.errorMessage
+                                .replace("{sourceValue}", sourceValue)
+                                .replace("{recordName}", record.Name || record.Id),
+                            severity: "error",
+                            recordId: record.Id,
+                            recordName: record.Name,
+                            field: resolvedSourceField,
+                        }, "error");
+                    } else if (check.warningMessage) {
+                        this.addFormattedIssue(results, {
+                            checkName: check.checkName,
+                            message: check.warningMessage
+                                .replace("{sourceValue}", sourceValue)
+                                .replace("{recordName}", record.Name || record.Id),
+                            severity: "warning",
+                            recordId: record.Id,
+                            recordName: record.Name,
+                            field: resolvedSourceField,
+                        }, "warning");
                     }
                 }
             }
