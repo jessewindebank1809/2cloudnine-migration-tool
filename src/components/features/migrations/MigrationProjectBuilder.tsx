@@ -160,6 +160,16 @@ export function MigrationProjectBuilder() {
     }
   }, [templatesData, projectData.templateId]);
 
+  // Validate existing org selections when component loads or orgs change
+  React.useEffect(() => {
+    if (projectData.sourceOrgId) {
+      validateOrgConnection(projectData.sourceOrgId, 'source');
+    }
+    if (projectData.targetOrgId) {
+      validateOrgConnection(projectData.targetOrgId, 'target');
+    }
+  }, [projectData.sourceOrgId, projectData.targetOrgId, validateOrgConnection]);
+
   // Validation mutation
   const validateMigration = useMutation({
     mutationFn: async (data: typeof projectData) => {
@@ -441,14 +451,7 @@ export function MigrationProjectBuilder() {
           [orgType]: errorMsg
         }));
         
-        // If requires reauth, show a user-friendly prompt
-        if (data.requiresReauth) {
-          const org = connectedOrgs.find((o: Organisation) => o.id === orgId);
-          if (org && window.confirm(`${org.name} needs to be reconnected. Would you like to reconnect now?`)) {
-            const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(orgId)}&instanceUrl=${encodeURIComponent(org.instance_url)}`;
-            window.location.href = oauthUrl;
-          }
-        }
+        // No longer auto-prompting for reconnection - user will use the reconnect button
       } else {
         // Clear any existing error for this org type
         setOrgConnectionErrors(prev => {
@@ -520,8 +523,9 @@ export function MigrationProjectBuilder() {
       return;
     }
     
-    // Trigger the OAuth flow for the failed organisation
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}`;
+    // Trigger the OAuth flow for the failed organisation with return URL
+    const returnUrl = '/migrations/new';
+    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
     window.location.href = oauthUrl;
   };
 
@@ -613,7 +617,9 @@ export function MigrationProjectBuilder() {
                               onClick={() => {
                                 const org = connectedOrgs.find((o: Organisation) => o.id === projectData.sourceOrgId);
                                 if (org) {
-                                  const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}`;
+                                  // Include return URL to come back to migration setup
+                                  const returnUrl = '/migrations/new';
+                                  const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
                                   window.location.href = oauthUrl;
                                 }
                               }}
@@ -663,7 +669,9 @@ export function MigrationProjectBuilder() {
                               onClick={() => {
                                 const org = connectedOrgs.find((o: Organisation) => o.id === projectData.targetOrgId);
                                 if (org) {
-                                  const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}`;
+                                  // Include return URL to come back to migration setup
+                                  const returnUrl = '/migrations/new';
+                                  const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
                                   window.location.href = oauthUrl;
                                 }
                               }}
