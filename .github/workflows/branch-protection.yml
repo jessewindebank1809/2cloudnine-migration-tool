@@ -8,6 +8,8 @@ on:
 
 jobs:
   enforce-staging-flow:
+    # This job only runs for PRs targeting main branch
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Check PR source branch
