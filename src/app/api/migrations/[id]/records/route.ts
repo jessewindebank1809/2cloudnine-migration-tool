@@ -8,11 +8,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: projectId } = await params;
+  
   try {
     // Require authentication and get current user
     const session = await requireAuth(request);
-    
-    const { id: projectId } = await params;
     const { searchParams } = new URL(request.url);
     const objectType = searchParams.get('objectType');
     const limit = parseInt(searchParams.get('limit') || '100');

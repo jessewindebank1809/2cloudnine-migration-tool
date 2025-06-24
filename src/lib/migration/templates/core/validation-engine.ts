@@ -351,8 +351,7 @@ export class ValidationEngine {
                                 severity: "error",
                                 recordId: record.Id,
                                 recordName: record.Name,
-                                fieldName: resolvedSourceField,
-                                fieldValue: sourceValue,
+                                field: resolvedSourceField,
                             }, "error");
                         } else if (check.warningMessage) {
                             this.addFormattedIssue(results, {
@@ -363,8 +362,7 @@ export class ValidationEngine {
                                 severity: "warning",
                                 recordId: record.Id,
                                 recordName: record.Name,
-                                fieldName: resolvedSourceField,
-                                fieldValue: sourceValue,
+                                field: resolvedSourceField,
                             }, "warning");
                         }
                     }
@@ -614,10 +612,11 @@ export class ValidationEngine {
                             picklistChecks.push({
                                 checkName: `picklistValidation_${mapping.targetField}`,
                                 description: `Validate picklist values for ${mapping.targetField}`,
-                                sourceField: mapping.sourceField,
-                                targetField: mapping.targetField,
-                                isRequired: mapping.isRequired !== false,
+                                fieldName: mapping.targetField,
+                                objectName: targetObject,
+                                validateAgainstTarget: true,
                                 errorMessage: `Invalid picklist value '{sourceValue}' for field ${mapping.targetField} in record '{recordName}'. This value does not exist in the target org.`,
+                                severity: "error",
                             });
                             console.log(`✓ Auto-detected picklist field for validation: ${mapping.targetField}`);
                         }
@@ -689,18 +688,18 @@ export class ValidationEngine {
             
             // Validate each check
             for (const check of checks) {
-                const validValues = fieldPicklistValues.get(check.targetField);
+                const validValues = fieldPicklistValues.get(check.fieldName);
                 
                 if (!validValues) {
-                    console.warn(`No picklist values found for field ${check.targetField}`);
+                    console.warn(`No picklist values found for field ${check.fieldName}`);
                     continue;
                 }
                 
-                console.log(`Running picklist validation: ${check.checkName} for ${check.targetField}`);
-                console.log(`Valid values for ${check.targetField}: ${Array.from(validValues).join(', ')}`);
+                console.log(`Running picklist validation: ${check.checkName} for ${check.fieldName}`);
+                console.log(`Valid values for ${check.fieldName}: ${Array.from(validValues).join(', ')}`);
                 
                 // Get unique source values for this field
-                const sourceUniqueValues = uniquePicklistValues.get(check.sourceField) || new Set<string>();
+                const sourceUniqueValues = uniquePicklistValues.get(check.fieldName) || new Set<string>();
                 
                 // Check all unique values from source
                 let foundIssues = 0;
@@ -715,13 +714,13 @@ export class ValidationEngine {
                 
                 if (foundIssues > 0) {
                     // Create a unique key for this picklist error to avoid duplicates
-                    const errorKey = `${check.targetField}-${invalidValues.sort().join(',')}`;
+                    const errorKey = `${check.fieldName}-${invalidValues.sort().join(',')}`;
                     
                     if (!this.seenPicklistErrors.has(errorKey)) {
                         this.seenPicklistErrors.add(errorKey);
                         this.addFormattedIssue(results, {
                             checkName: check.checkName,
-                            message: `Invalid picklist values found for field ${check.targetField}: ${invalidValues.join(', ')}. These values do not exist in the target org.`,
+                            message: `Invalid picklist values found for field ${check.fieldName}: ${invalidValues.join(', ')}. These values do not exist in the target org.`,
                             severity: 'error',
                             recordId: null,
                             recordName: null,
@@ -758,35 +757,35 @@ export class ValidationEngine {
                 try {
                     // First attempt with GROUP BY
                     const uniqueValuesQuery = `
-                        SELECT ${check.sourceField}, COUNT(Id) recordCount 
+                        SELECT ${check.fieldName}, COUNT(Id) recordCount 
                         FROM ${sourceObject}
-                        WHERE ${check.sourceField} != null
-                        GROUP BY ${check.sourceField}
+                        WHERE ${check.fieldName} != null
+                        GROUP BY ${check.fieldName}
                         ORDER BY COUNT(Id) DESC
                     `;
                     
-                    console.log(`Getting unique values for field ${check.sourceField}`);
+                    console.log(`Getting unique values for field ${check.fieldName}`);
                     const uniqueResults = await this.executeSoqlQuery(uniqueValuesQuery, this.sourceOrgId);
                     
                     const values = new Set<string>();
                     uniqueResults.forEach((row: any) => {
-                        if (row[check.sourceField]) {
-                            values.add(row[check.sourceField]);
+                        if (row[check.fieldName]) {
+                            values.add(row[check.fieldName]);
                         }
                     });
                     
-                    fieldUniqueValues.set(check.sourceField, values);
-                    console.log(`Found ${values.size} unique values for ${check.sourceField}: ${Array.from(values).slice(0, 10).join(', ')}${values.size > 10 ? '...' : ''}`);
+                    fieldUniqueValues.set(check.fieldName, values);
+                    console.log(`Found ${values.size} unique values for ${check.fieldName}: ${Array.from(values).slice(0, 10).join(', ')}${values.size > 10 ? '...' : ''}`);
                 } catch (groupByError: any) {
                     // If GROUP BY fails (e.g., for multipicklist fields), fall back to getting all values
                     const errorMessage = groupByError.message || groupByError.toString() || '';
                     if (errorMessage.includes('can not be grouped') || errorMessage.includes('ERROR at Row')) {
-                        console.log(`Field ${check.sourceField} cannot be grouped (likely a multipicklist). Fetching all values...`);
+                        console.log(`Field ${check.fieldName} cannot be grouped (likely a multipicklist). Fetching all values...`);
                         
                         const fallbackQuery = `
-                            SELECT ${check.sourceField} 
+                            SELECT ${check.fieldName} 
                             FROM ${sourceObject}
-                            WHERE ${check.sourceField} != null
+                            WHERE ${check.fieldName} != null
                             LIMIT 1000
                         `;
                         
@@ -795,7 +794,7 @@ export class ValidationEngine {
                             const values = new Set<string>();
                             
                             fallbackResults.forEach((row: any) => {
-                                const fieldValue = row[check.sourceField];
+                                const fieldValue = row[check.fieldName];
                                 if (fieldValue) {
                                     // For multipicklist, split by semicolon
                                     if (fieldValue.includes(';')) {
@@ -806,12 +805,12 @@ export class ValidationEngine {
                                 }
                             });
                             
-                            fieldUniqueValues.set(check.sourceField, values);
-                            console.log(`Found ${values.size} unique values for multipicklist ${check.sourceField}`);
+                            fieldUniqueValues.set(check.fieldName, values);
+                            console.log(`Found ${values.size} unique values for multipicklist ${check.fieldName}`);
                         } catch (fallbackError) {
-                            console.error(`Failed to fetch values for field ${check.sourceField} even with fallback query:`, fallbackError);
+                            console.error(`Failed to fetch values for field ${check.fieldName} even with fallback query:`, fallbackError);
                             // Continue with other fields instead of failing completely
-                            fieldUniqueValues.set(check.sourceField, new Set<string>());
+                            fieldUniqueValues.set(check.fieldName, new Set<string>());
                         }
                     } else {
                         throw groupByError;

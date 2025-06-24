@@ -81,22 +81,20 @@ export async function POST(request: NextRequest) {
 
     const sourceOrgData: SalesforceOrg = {
       id: sourceOrg.id,
-      name: sourceOrg.name,
       instanceUrl: sourceOrg.instance_url,
       accessToken: sourceTokens.accessToken,
       refreshToken: sourceOrg.refresh_token_encrypted!,
-      organizationId: sourceOrg.salesforce_org_id!,
-      organizationName: sourceOrg.name
+      organisationId: sourceOrg.salesforce_org_id!,
+      organisationName: sourceOrg.name
     };
 
     const targetOrgData: SalesforceOrg = {
       id: targetOrg.id,
-      name: targetOrg.name,
       instanceUrl: targetOrg.instance_url,
       accessToken: targetTokens.accessToken,
       refreshToken: targetOrg.refresh_token_encrypted!,
-      organizationId: targetOrg.salesforce_org_id!,
-      organizationName: targetOrg.name
+      organisationId: targetOrg.salesforce_org_id!,
+      organisationName: targetOrg.name
     };
 
     // Get template
@@ -154,9 +152,7 @@ export async function POST(request: NextRequest) {
       await prisma.migration_projects.update({
         where: { id: migrationId },
         data: {
-          status: result.status === 'success' ? 'completed' : 'failed',
-          last_run_at: new Date(),
-          execution_results: result as any,
+          status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
           updated_at: new Date()
         }
       });

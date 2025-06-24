@@ -89,6 +89,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    return handleApiError(error, 'Failed to execute query', orgId);
+    return handleApiError(error, 'Failed to execute query');
   }
 } 

@@ -129,6 +129,7 @@ describe('Picklist Validation', () => {
                             dependencyChecks: [],
                             dataIntegrityChecks: [],
                             preValidationQueries: [],
+                            picklistValidationChecks: [],
                             // No explicit picklist checks - should auto-detect
                         },
                     },
@@ -258,6 +259,7 @@ describe('Picklist Validation', () => {
                             dependencyChecks: [],
                             dataIntegrityChecks: [],
                             preValidationQueries: [],
+                            picklistValidationChecks: [],
                         },
                     },
                 ],
