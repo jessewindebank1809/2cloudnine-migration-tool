@@ -55,6 +55,8 @@ export class ValidationFormatter {
             ...issue,
             checkName: friendlyTitle,
             message: this.formatMessage(issue, instanceUrl),
+            // Add record link if we have instance URL and record ID
+            recordLink: issue.recordId && instanceUrl ? `${instanceUrl}/${issue.recordId}` : undefined,
             // Remove suggestedAction from the formatted issue
             suggestedAction: undefined,
         };
@@ -72,10 +74,6 @@ export class ValidationFormatter {
         // Handle dependency errors with context
         if (issue.context && issue.context.targetObject) {
             const { missingTargetName, missingTargetExternalId, targetObject } = issue.context;
-            // Create a clickable URL format that works in plain text
-            const recordReference = issue.recordId && instanceUrl ? 
-                `${issue.recordName} (${instanceUrl}/${issue.recordId})` : 
-                issue.recordName;
             
             // Determine the object type name from the API name
             let objectTypeName = 'Record';
@@ -100,23 +98,20 @@ export class ValidationFormatter {
             }
             
             if (missingTargetName && missingTargetExternalId) {
-                return `${objectTypeName} (name: ${missingTargetName}, external id: ${missingTargetExternalId}) is missing from target org referenced by ${sourceObjectType} (name: '${recordReference}')`;
+                return `${objectTypeName} (name: ${missingTargetName}, external id: ${missingTargetExternalId}) is missing from target org referenced by ${sourceObjectType} (name: '${issue.recordName}')`;
             } else if (missingTargetExternalId) {
-                return `${objectTypeName} (external id: ${missingTargetExternalId}) is missing from target org referenced by ${sourceObjectType} (name: '${recordReference}')`;
+                return `${objectTypeName} (external id: ${missingTargetExternalId}) is missing from target org referenced by ${sourceObjectType} (name: '${issue.recordName}')`;
             } else {
                 // Fallback to original format
                 const ref = issue.message.match(/'([^']+)'/)?.[1] || "null";
-                return `${objectTypeName} '${ref}' referenced by '${recordReference}' doesn't exist in target org.`;
+                return `${objectTypeName} '${ref}' referenced by '${issue.recordName}' doesn't exist in target org.`;
             }
         }
         
         // Legacy format for dependency errors without context
         if (originalCheckName === 'payCodeExists' && issue.recordName) {
             const payCodeRef = issue.message.match(/'([^']+)'/)?.[1] || "null";
-            const recordReference = issue.recordId && instanceUrl ? 
-                `${issue.recordName} (${instanceUrl}/${issue.recordId})` : 
-                issue.recordName;
-            return `Pay Code '${payCodeRef}' referenced by '${recordReference}' doesn't exist in target org.`;
+            return `Pay Code '${payCodeRef}' referenced by '${issue.recordName}' doesn't exist in target org.`;
         }
         
         // If we have specific record information, show it

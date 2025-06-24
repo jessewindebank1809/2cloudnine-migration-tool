@@ -165,6 +165,12 @@ sf data query --query "SELECT tc9_et__Breakpoint_Type__c, COUNT(Id) cnt FROM tc9
     'tc9_et__Sunday_Pay_Code__c', 'tc9_et__Sunday_Penalty_Pay_Code__c', 'tc9_et__Variation_Type__c',
     'tc9_edc__External_ID_Data_Creation__c'
 
+### Mapping validation command
+
+'node scripts/validate-migration.js a5Y9r0000005zHNEAY
+affinitynursingrecruitment.support@2cloudnine.com.affdev
+affinitynursingrecruitment.support@2cloudnine.com.uat'
+
 ### Validation Request
 
 ''' curl -X POST http://localhost:3000/api/migrations/validate\
