@@ -244,7 +244,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                 retryConfig: {
                     maxRetries: 3,
                     retryWaitSeconds: 30,
-                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT"],
+                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT", "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY"],
                 },
             },
             validationConfig: {
@@ -417,7 +417,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                 retryConfig: {
                     maxRetries: 3,
                     retryWaitSeconds: 30,
-                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT"],
+                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT", "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY"],
                 },
             },
             validationConfig: {
@@ -545,24 +545,26 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         isRequired: false,
                         transformationType: "direct" as const,
                     },
-                    {
-                        sourceField: "tc9_et__Primary_Interpretation_Breakpoint__c",
-                        targetField: "tc9_et__Primary_Interpretation_Breakpoint__c",
-                        isRequired: false,
-                        transformationType: "direct" as const,
-                    },
+                    // MOVED TO SEPARATE UPDATE STEP: Self-referential lookups handled in updateBreakpointReferences step
+                    // {
+                    //     sourceField: "tc9_et__Primary_Interpretation_Breakpoint__c",
+                    //     targetField: "tc9_et__Primary_Interpretation_Breakpoint__c",
+                    //     isRequired: false,
+                    //     transformationType: "direct" as const,
+                    // },
                     {
                         sourceField: "tc9_et__Reset_After_Payment__c",
                         targetField: "tc9_et__Reset_After_Payment__c",
                         isRequired: false,
                         transformationType: "direct" as const,
                     },
-                    {
-                        sourceField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
-                        targetField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
-                        isRequired: false,
-                        transformationType: "direct" as const,
-                    },
+                    // MOVED TO SEPARATE UPDATE STEP: Self-referential lookups handled in updateBreakpointReferences step
+                    // {
+                    //     sourceField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
+                    //     targetField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
+                    //     isRequired: false,
+                    //     transformationType: "direct" as const,
+                    // },
                     {
                         sourceField: "tc9_et__Start_Threshold__c",
                         targetField: "tc9_et__Start_Threshold__c",
@@ -605,22 +607,26 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         lookupValueField: "{externalIdField}",
                         cacheResults: true,
                     },
-                    {
-                        sourceField: "tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}",
-                        targetField: "tc9_et__Daily_Pay_Code_Cap_Record__c",
-                        lookupObject: "tc9_et__Interpretation_Breakpoint__c",
-                        lookupKeyField: "{externalIdField}",
-                        lookupValueField: "{externalIdField}",
-                        cacheResults: true,
-                    },
-                    {
-                        sourceField: "tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}",
-                        targetField: "tc9_et__Frequency_Pay_Code_Cap_Record__c",
-                        lookupObject: "tc9_et__Interpretation_Breakpoint__c",
-                        lookupKeyField: "{externalIdField}",
-                        lookupValueField: "{externalIdField}",
-                        cacheResults: true,
-                    },
+                    // MOVED TO SEPARATE UPDATE STEP: Self-referential lookups handled in updateBreakpointReferences step
+                    // to ensure all breakpoints exist before creating references between them
+                    // {
+                    //     sourceField: "tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}",
+                    //     targetField: "tc9_et__Daily_Pay_Code_Cap_Record__c",
+                    //     lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                    //     lookupKeyField: "{externalIdField}",
+                    //     lookupValueField: "{externalIdField}",
+                    //     cacheResults: true,
+                    //     allowNull: true,
+                    // },
+                    // {
+                    //     sourceField: "tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}",
+                    //     targetField: "tc9_et__Frequency_Pay_Code_Cap_Record__c",
+                    //     lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                    //     lookupKeyField: "{externalIdField}",
+                    //     lookupValueField: "{externalIdField}",
+                    //     cacheResults: true,
+                    //     allowNull: true,
+                    // },
                     // REMOVED: tc9_et__Leave_Header__c object doesn't exist
                     // Leave Header is a picklist value in tc9_et__Breakpoint_Type__c, not a lookup field
                     {
@@ -694,11 +700,11 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     externalIdField: "{externalIdField}",
                     useBulkApi: true,
                     batchSize: 200,
-                    allowPartialSuccess: false,
+                    allowPartialSuccess: true,
                     retryConfig: {
                         maxRetries: 3,
                         retryWaitSeconds: 30,
-                        retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT"],
+                        retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT", "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY"],
                     },
                 } as LoadConfig,
                 validationConfig: {
@@ -850,17 +856,17 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         soqlQuery: `SELECT Id, Name, RecordType.Name, tc9_et__Interpretation_Rule__c,
                             tc9_et__Breakpoint_Type__c, tc9_et__Additional_Interpretation_BP_Details__c,
                             tc9_et__Allowance_Type__c, tc9_et__Casual_Loading_Pay_Code__r.{externalIdField},
-                            tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}, tc9_et__Daily_Pay_Code_Cap_Value__c,
+                            tc9_et__Daily_Pay_Code_Cap_Value__c,
                             tc9_et__Daily_Quantity__c, tc9_et__Days_Leave_Applies_To_OT_And_Frequency__c,
-                            tc9_et__End_Threshold__c, tc9_et__End_Time__c, tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField},
+                            tc9_et__End_Threshold__c, tc9_et__End_Time__c,
                             tc9_et__Frequency_Pay_Code_Cap_Value__c, tc9_et__Has_Saturday_Rule__c, tc9_et__Has_Sunday_Rule__c,
                             tc9_et__Leave_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Leave_Rule__r.{externalIdField}, tc9_et__Minimum_Paid_Hours__c, tc9_et__No_Cap_Required__c,
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
-                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Primary_Interpretation_Breakpoint__c,
+                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
                             tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
@@ -893,17 +899,17 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         soqlQuery: `SELECT Id, Name, RecordType.Name, tc9_et__Interpretation_Rule__c,
                             tc9_et__Breakpoint_Type__c, tc9_et__Additional_Interpretation_BP_Details__c,
                             tc9_et__Allowance_Type__c, tc9_et__Casual_Loading_Pay_Code__r.{externalIdField},
-                            tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}, tc9_et__Daily_Pay_Code_Cap_Value__c,
+                            tc9_et__Daily_Pay_Code_Cap_Value__c,
                             tc9_et__Daily_Quantity__c, tc9_et__Days_Leave_Applies_To_OT_And_Frequency__c,
-                            tc9_et__End_Threshold__c, tc9_et__End_Time__c, tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField},
+                            tc9_et__End_Threshold__c, tc9_et__End_Time__c,
                             tc9_et__Frequency_Pay_Code_Cap_Value__c, tc9_et__Has_Saturday_Rule__c, tc9_et__Has_Sunday_Rule__c,
                             tc9_et__Leave_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Leave_Rule__r.{externalIdField}, tc9_et__Minimum_Paid_Hours__c, tc9_et__No_Cap_Required__c,
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
-                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Primary_Interpretation_Breakpoint__c,
+                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
                             tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
@@ -937,17 +943,17 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         soqlQuery: `SELECT Id, Name, RecordType.Name, tc9_et__Interpretation_Rule__c,
                             tc9_et__Breakpoint_Type__c, tc9_et__Additional_Interpretation_BP_Details__c,
                             tc9_et__Allowance_Type__c, tc9_et__Casual_Loading_Pay_Code__r.{externalIdField},
-                            tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}, tc9_et__Daily_Pay_Code_Cap_Value__c,
+                            tc9_et__Daily_Pay_Code_Cap_Value__c,
                             tc9_et__Daily_Quantity__c, tc9_et__Days_Leave_Applies_To_OT_And_Frequency__c,
-                            tc9_et__End_Threshold__c, tc9_et__End_Time__c, tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField},
+                            tc9_et__End_Threshold__c, tc9_et__End_Time__c,
                             tc9_et__Frequency_Pay_Code_Cap_Value__c, tc9_et__Has_Saturday_Rule__c, tc9_et__Has_Sunday_Rule__c,
                             tc9_et__Leave_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Leave_Rule__r.{externalIdField}, tc9_et__Minimum_Paid_Hours__c, tc9_et__No_Cap_Required__c,
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
-                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Primary_Interpretation_Breakpoint__c,
+                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
                             tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
@@ -1012,6 +1018,95 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     },
                     dependencies: ["interpretationBreakpointPayCodeCap"],
                 },
+                {
+                    stepName: "updateBreakpointReferences",
+                    stepOrder: 6,
+                    extractConfig: {
+                        soqlQuery: `SELECT Id, {externalIdField},
+                            tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField},
+                            tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField},
+                            tc9_et__Primary_Interpretation_Breakpoint__r.{externalIdField},
+                            tc9_et__Secondary_Interpretation_Breakpoint__r.{externalIdField}
+                            FROM tc9_et__Interpretation_Breakpoint__c
+                            WHERE (tc9_et__Daily_Pay_Code_Cap_Record__c != null 
+                               OR tc9_et__Frequency_Pay_Code_Cap_Record__c != null
+                               OR tc9_et__Primary_Interpretation_Breakpoint__c != null
+                               OR tc9_et__Secondary_Interpretation_Breakpoint__c != null)
+                            AND tc9_et__Interpretation_Rule__c IN (SELECT Id FROM tc9_et__Interpretation_Rule__c WHERE Id IN ({selectedRecordIds}))`,
+                        objectApiName: "tc9_et__Interpretation_Breakpoint__c",
+                        batchSize: 200,
+                    },
+                    transformConfig: {
+                        fieldMappings: [
+                            {
+                                sourceField: "Id",
+                                targetField: "{externalIdField}",
+                                isRequired: true,
+                                transformationType: "direct" as const,
+                            },
+                            // Only map the self-referential fields in this update step
+                        ],
+                        lookupMappings: [
+                            {
+                                sourceField: "tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}",
+                                targetField: "tc9_et__Daily_Pay_Code_Cap_Record__c",
+                                lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                                lookupKeyField: "{externalIdField}",
+                                lookupValueField: "{externalIdField}",
+                                cacheResults: true,
+                                allowNull: true,
+                            },
+                            {
+                                sourceField: "tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}",
+                                targetField: "tc9_et__Frequency_Pay_Code_Cap_Record__c",
+                                lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                                lookupKeyField: "{externalIdField}",
+                                lookupValueField: "{externalIdField}",
+                                cacheResults: true,
+                                allowNull: true,
+                            },
+                            {
+                                sourceField: "tc9_et__Primary_Interpretation_Breakpoint__r.{externalIdField}",
+                                targetField: "tc9_et__Primary_Interpretation_Breakpoint__c",
+                                lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                                lookupKeyField: "{externalIdField}",
+                                lookupValueField: "{externalIdField}",
+                                cacheResults: true,
+                                allowNull: true,
+                            },
+                            {
+                                sourceField: "tc9_et__Secondary_Interpretation_Breakpoint__r.{externalIdField}",
+                                targetField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
+                                lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                                lookupKeyField: "{externalIdField}",
+                                lookupValueField: "{externalIdField}",
+                                cacheResults: true,
+                                allowNull: true,
+                            },
+                        ] as LookupMapping[],
+                        externalIdHandling: ExternalIdUtils.createDefaultConfig(),
+                    },
+                    loadConfig: {
+                        targetObject: "tc9_et__Interpretation_Breakpoint__c",
+                        operation: "upsert" as const,
+                        externalIdField: "{externalIdField}",
+                        useBulkApi: true,
+                        batchSize: 200,
+                        allowPartialSuccess: true,
+                        retryConfig: {
+                            maxRetries: 3,
+                            retryWaitSeconds: 30,
+                            retryableErrors: ["UNABLE_TO_LOCK_ROW", "TIMEOUT"],
+                        },
+                    } as LoadConfig,
+                    validationConfig: {
+                        preValidationQueries: [],
+                        dependencyChecks: [],
+                        dataIntegrityChecks: [],
+                        picklistValidationChecks: [],
+                    } as ValidationConfig,
+                    dependencies: ["interpretationBreakpointOther"], // Run after all breakpoints are created
+                },
             ];
         })(),
     ],
@@ -1021,6 +1116,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
         "interpretationBreakpointLeaveHeader",
         "interpretationBreakpointPayCodeCap",
         "interpretationBreakpointOther",
+        "updateBreakpointReferences",
     ],
     metadata: {
         author: "2cloudnine",

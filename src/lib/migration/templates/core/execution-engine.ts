@@ -31,7 +31,7 @@ export interface ExecutionContext {
 
 export interface StepExecutionResult {
   stepName: string;
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'partial';
   totalRecords: number;
   successfulRecords: number;
   failedRecords: number;
@@ -119,12 +119,14 @@ export class ExecutionEngine {
         // Update lookup cache with successful mappings
         this.updateLookupCache(step.stepName, stepResult.lookupMappings);
 
-        // Stop execution if step failed
+        // Stop execution if step failed completely
         if (stepResult.status === 'failed') {
-          console.log(`Step ${step.stepName} failed (${stepResult.failedRecords} failures vs ${stepResult.successfulRecords} successes), initiating rollback...`);
+          console.log(`Step ${step.stepName} failed completely (${stepResult.failedRecords} failures, ${stepResult.successfulRecords} successes), initiating rollback...`);
           // Perform rollback of successfully inserted records
           await this.performRollback(context);
           break;
+        } else if (stepResult.status === 'partial') {
+          console.log(`Step ${step.stepName} partially succeeded (${stepResult.successfulRecords} successes, ${stepResult.failedRecords} failures). Continuing execution...`);
         }
       }
 
@@ -132,8 +134,10 @@ export class ExecutionEngine {
       
       // Check if any steps failed completely
       const hasFailedSteps = stepResults.some(step => step.status === 'failed');
+      const hasPartialSteps = stepResults.some(step => step.status === 'partial');
       const finalStatus = hasFailedSteps ? 'failed' :
-                         failedRecords === 0 ? 'success' : 'failed';
+                         failedRecords === 0 ? 'success' : 
+                         hasPartialSteps ? 'partial' : 'failed';
 
       this.notifyProgress({
         currentStep: context.template.etlSteps.length,
@@ -238,7 +242,10 @@ export class ExecutionEngine {
         });
       }
 
-      const status = failureCount === 0 ? 'success' : 'failed';
+      // Determine status based on failures and allowPartialSuccess setting
+      const allowPartialSuccess = step.loadConfig?.allowPartialSuccess || false;
+      const status = failureCount === 0 ? 'success' : 
+                     (allowPartialSuccess && successCount > 0) ? 'partial' : 'failed';
 
       return {
         stepName,
@@ -509,7 +516,14 @@ export class ExecutionEngine {
             
             if (targetValue) {
               transformedRecord[lookupMapping.targetField] = targetValue;
+            } else if (lookupMapping.allowNull) {
+              // Explicitly set null for failed lookups when allowNull is true
+              transformedRecord[lookupMapping.targetField] = null;
+              console.log(`      Setting ${lookupMapping.targetField} to null (lookup failed but allowNull=true)`);
             }
+          } else if (lookupMapping.allowNull) {
+            // Also set null when source value is empty and allowNull is true
+            transformedRecord[lookupMapping.targetField] = null;
           }
         }
       }
@@ -640,10 +654,18 @@ export class ExecutionEngine {
             failureCount++;
             // Add error for failed record
             const recordErrors = Array.isArray(recordResult.errors) ? recordResult.errors : [recordResult.errors];
+            const errorMessage = recordErrors.join('; ') || 'Unknown error';
+            
+            // Check if this is a retryable error based on the configuration
+            const retryableErrors = step.loadConfig.retryConfig?.retryableErrors || [];
+            const isRetryable = retryableErrors.some((retryableError: string) => 
+              errorMessage.includes(retryableError)
+            );
+            
             errors.push({
               recordId: records[index] ? (records[index][targetExternalIdField] || records[index].Id || `batch-${batchNumber}-${index}`) : `batch-${batchNumber}-${index}`,
-              error: recordErrors.join('; ') || 'Unknown error',
-              retryable: false
+              error: errorMessage,
+              retryable: isRetryable
             });
           }
         });

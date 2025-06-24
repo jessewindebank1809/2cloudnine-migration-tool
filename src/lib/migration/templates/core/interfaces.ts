@@ -71,6 +71,7 @@ export interface LookupMapping {
     sourceExternalIdField?: string;  // Override for source external ID field
     targetExternalIdField?: string;  // Override for target external ID field
     crossEnvironmentMapping?: boolean; // Flag for cross-environment scenarios
+    allowNull?: boolean; // Allow null values for failed lookups (useful for self-referential fields)
 }
 
 // Record Type Mapping
@@ -245,7 +246,7 @@ export interface ConditionalTransform {
 
 // Execution interfaces for Phase 4
 export interface ExecutionResult {
-    status: 'success' | 'failed';
+    status: 'success' | 'failed' | 'partial';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;
@@ -259,7 +260,7 @@ export interface ExecutionProgress {
     currentStep: number;
     totalSteps: number;
     stepName: string;
-    status: 'running' | 'success' | 'failed';
+    status: 'running' | 'success' | 'failed' | 'partial';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;
