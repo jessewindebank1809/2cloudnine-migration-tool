@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { requireAuth } from '@/lib/auth/session-helper';
 import { sessionManager } from '@/lib/salesforce/session-manager';
+import { handleApiError, isTokenRelatedError, createTokenErrorResponse } from '@/lib/salesforce/api-error-handler';
 
 export async function GET(
   request: NextRequest,
@@ -51,7 +52,16 @@ export async function GET(
     }
 
     // Get Salesforce client
-    const client = await sessionManager.getClient(sourceOrg.id);
+    let client;
+    try {
+      client = await sessionManager.getClient(sourceOrg.id);
+    } catch (error) {
+      // Check if it's a token-related error
+      if (isTokenRelatedError(error)) {
+        return createTokenErrorResponse(error, sourceOrg.id, `/migrations/${projectId}`);
+      }
+      throw error;
+    }
 
     // Build SOQL query to get records
     // For interpretation rules, exclude variation rules from the selection
@@ -106,13 +116,20 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch records', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
-    );
+    // Handle token-related errors
+    if (isTokenRelatedError(error)) {
+      // Try to get the org ID from the request params or project
+      const project = await prisma.migration_projects.findUnique({
+        where: { id: projectId },
+        select: { source_org_id: true }
+      }).catch(() => null);
+      
+      if (project?.source_org_id) {
+        return createTokenErrorResponse(error, project.source_org_id, `/migrations/${projectId}`);
+      }
+    }
+    
+    return handleApiError(error, 'Failed to fetch records');
   }
 }
 

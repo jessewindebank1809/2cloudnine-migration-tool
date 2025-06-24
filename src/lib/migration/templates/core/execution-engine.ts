@@ -453,11 +453,19 @@ export class ExecutionEngine {
               console.log(`Transformed picklist value: "${sourceValue}" -> "${transformedValue}" for field ${targetField}`);
             }
           } else if (fieldMapping.transformationType === 'boolean') {
-            // Handle boolean transformation
-            transformedRecord[targetField] = sourceValue === true || sourceValue === 'true' || sourceValue === 1;
+            // Handle boolean transformation - preserve actual boolean values
+            if (sourceValue !== null && sourceValue !== undefined) {
+              transformedRecord[targetField] = sourceValue === true || sourceValue === 'true' || sourceValue === 1 || sourceValue === '1';
+            } else {
+              transformedRecord[targetField] = sourceValue;
+            }
           } else if (fieldMapping.transformationType === 'number') {
-            // Handle number transformation
-            transformedRecord[targetField] = sourceValue ? parseFloat(sourceValue) : null;
+            // Handle number transformation - preserve zero values
+            if (sourceValue !== null && sourceValue !== undefined && sourceValue !== '') {
+              transformedRecord[targetField] = parseFloat(sourceValue);
+            } else {
+              transformedRecord[targetField] = null;
+            }
           } else {
             // Direct field mapping
             transformedRecord[targetField] = sourceValue;

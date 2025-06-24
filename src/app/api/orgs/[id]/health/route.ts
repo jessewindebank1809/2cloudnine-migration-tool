@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionManager } from '@/lib/salesforce/session-manager';
+import { prisma } from '@/lib/database/prisma';
 
 export async function GET(
   request: NextRequest,
@@ -8,13 +9,30 @@ export async function GET(
   try {
     const { id: orgId } = await context.params;
     
-    // Check if the org session exists and is healthy
-    const session = await sessionManager.getSession(orgId);
+    // First check if the org exists in the database
+    const org = await prisma.organisations.findUnique({
+      where: { id: orgId },
+      select: { 
+        id: true, 
+        name: true, 
+        access_token_encrypted: true,
+        refresh_token_encrypted: true 
+      }
+    });
     
-    if (!session) {
+    if (!org) {
       return NextResponse.json({ 
         isHealthy: false, 
         error: 'Organisation not found' 
+      });
+    }
+    
+    // Check if org has tokens
+    if (!org.access_token_encrypted) {
+      return NextResponse.json({ 
+        isHealthy: false, 
+        error: 'Organisation not connected. Please reconnect.',
+        requiresReauth: true
       });
     }
     
@@ -22,7 +40,11 @@ export async function GET(
     try {
       const client = await sessionManager.getClient(orgId);
       // Query the org's basic info to verify the connection
-      await client.query('SELECT Id FROM Organization LIMIT 1');
+      const result = await client.query('SELECT Id FROM Organization LIMIT 1');
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Query failed');
+      }
       
       return NextResponse.json({ 
         isHealthy: true,
@@ -50,9 +72,21 @@ export async function GET(
     }
   } catch (error) {
     console.error('Health check error:', error);
+    
+    // Check if it's a specific connection error
+    if (error instanceof Error && 
+        (error.message.includes('not connected') || 
+         error.message.includes('tokens expired'))) {
+      return NextResponse.json({ 
+        isHealthy: false, 
+        error: error.message,
+        requiresReauth: true
+      });
+    }
+    
     return NextResponse.json({ 
       isHealthy: false, 
-      error: 'Internal server error' 
-    }, { status: 500 });
+      error: 'Failed to validate organisation connection' 
+    });
   }
 }
