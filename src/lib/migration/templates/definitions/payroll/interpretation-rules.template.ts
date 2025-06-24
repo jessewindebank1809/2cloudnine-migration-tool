@@ -545,24 +545,26 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         isRequired: false,
                         transformationType: "direct" as const,
                     },
-                    {
-                        sourceField: "tc9_et__Primary_Interpretation_Breakpoint__c",
-                        targetField: "tc9_et__Primary_Interpretation_Breakpoint__c",
-                        isRequired: false,
-                        transformationType: "direct" as const,
-                    },
+                    // MOVED TO SEPARATE UPDATE STEP: Self-referential lookups handled in updateBreakpointReferences step
+                    // {
+                    //     sourceField: "tc9_et__Primary_Interpretation_Breakpoint__c",
+                    //     targetField: "tc9_et__Primary_Interpretation_Breakpoint__c",
+                    //     isRequired: false,
+                    //     transformationType: "direct" as const,
+                    // },
                     {
                         sourceField: "tc9_et__Reset_After_Payment__c",
                         targetField: "tc9_et__Reset_After_Payment__c",
                         isRequired: false,
                         transformationType: "direct" as const,
                     },
-                    {
-                        sourceField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
-                        targetField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
-                        isRequired: false,
-                        transformationType: "direct" as const,
-                    },
+                    // MOVED TO SEPARATE UPDATE STEP: Self-referential lookups handled in updateBreakpointReferences step
+                    // {
+                    //     sourceField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
+                    //     targetField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
+                    //     isRequired: false,
+                    //     transformationType: "direct" as const,
+                    // },
                     {
                         sourceField: "tc9_et__Start_Threshold__c",
                         targetField: "tc9_et__Start_Threshold__c",
@@ -862,9 +864,9 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Leave_Rule__r.{externalIdField}, tc9_et__Minimum_Paid_Hours__c, tc9_et__No_Cap_Required__c,
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
-                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Primary_Interpretation_Breakpoint__c,
+                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
                             tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
@@ -905,9 +907,9 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Leave_Rule__r.{externalIdField}, tc9_et__Minimum_Paid_Hours__c, tc9_et__No_Cap_Required__c,
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
-                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Primary_Interpretation_Breakpoint__c,
+                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
                             tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
@@ -949,9 +951,9 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Leave_Rule__r.{externalIdField}, tc9_et__Minimum_Paid_Hours__c, tc9_et__No_Cap_Required__c,
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
-                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Primary_Interpretation_Breakpoint__c,
+                            tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
                             tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Secondary_Interpretation_Breakpoint__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
                             tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
@@ -1022,10 +1024,14 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     extractConfig: {
                         soqlQuery: `SELECT Id, {externalIdField},
                             tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField},
-                            tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}
+                            tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField},
+                            tc9_et__Primary_Interpretation_Breakpoint__r.{externalIdField},
+                            tc9_et__Secondary_Interpretation_Breakpoint__r.{externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c
                             WHERE (tc9_et__Daily_Pay_Code_Cap_Record__c != null 
-                               OR tc9_et__Frequency_Pay_Code_Cap_Record__c != null)
+                               OR tc9_et__Frequency_Pay_Code_Cap_Record__c != null
+                               OR tc9_et__Primary_Interpretation_Breakpoint__c != null
+                               OR tc9_et__Secondary_Interpretation_Breakpoint__c != null)
                             AND tc9_et__Interpretation_Rule__c IN (SELECT Id FROM tc9_et__Interpretation_Rule__c WHERE Id IN ({selectedRecordIds}))`,
                         objectApiName: "tc9_et__Interpretation_Breakpoint__c",
                         batchSize: 200,
@@ -1053,6 +1059,24 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             {
                                 sourceField: "tc9_et__Frequency_Pay_Code_Cap_Record__r.{externalIdField}",
                                 targetField: "tc9_et__Frequency_Pay_Code_Cap_Record__c",
+                                lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                                lookupKeyField: "{externalIdField}",
+                                lookupValueField: "{externalIdField}",
+                                cacheResults: true,
+                                allowNull: true,
+                            },
+                            {
+                                sourceField: "tc9_et__Primary_Interpretation_Breakpoint__r.{externalIdField}",
+                                targetField: "tc9_et__Primary_Interpretation_Breakpoint__c",
+                                lookupObject: "tc9_et__Interpretation_Breakpoint__c",
+                                lookupKeyField: "{externalIdField}",
+                                lookupValueField: "{externalIdField}",
+                                cacheResults: true,
+                                allowNull: true,
+                            },
+                            {
+                                sourceField: "tc9_et__Secondary_Interpretation_Breakpoint__r.{externalIdField}",
+                                targetField: "tc9_et__Secondary_Interpretation_Breakpoint__c",
                                 lookupObject: "tc9_et__Interpretation_Breakpoint__c",
                                 lookupKeyField: "{externalIdField}",
                                 lookupValueField: "{externalIdField}",
