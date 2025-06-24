@@ -693,6 +693,38 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         lookupValueField: "{externalIdField}",
                         cacheResults: true,
                     },
+                    {
+                        sourceField: "tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Public_Holiday_Overtime_Pay_Code__c",
+                        lookupObject: "tc9_pr__Pay_Code__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
+                    {
+                        sourceField: "tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Public_Holiday_Penalty_Pay_Code__c",
+                        lookupObject: "tc9_pr__Pay_Code__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
+                    {
+                        sourceField: "tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Saturday_Penalty_Pay_Code__c",
+                        lookupObject: "tc9_pr__Pay_Code__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
+                    {
+                        sourceField: "tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Sunday_Penalty_Pay_Code__c",
+                        lookupObject: "tc9_pr__Pay_Code__c",
+                        lookupKeyField: "{externalIdField}",
+                        lookupValueField: "{externalIdField}",
+                        cacheResults: true,
+                    },
                 ] as LookupMapping[],
                 loadConfig: {
                     targetObject: "tc9_et__Interpretation_Breakpoint__c",
@@ -824,6 +856,42 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             errorMessage: "Migration cannot proceed: Sunday Pay Code '{sourceValue}' referenced by breakpoint '{recordName}' does not exist in target org. All referenced pay codes must be migrated first",
                         },
                         {
+                            checkName: "publicHolidayOvertimePayCodeExists",
+                            description: "Verify referenced public holiday overtime pay codes exist in target org",
+                            sourceField: "tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField}",
+                            targetObject: "tc9_pr__Pay_Code__c",
+                            targetField: "{externalIdField}",
+                            isRequired: true,
+                            errorMessage: "Migration cannot proceed: Public Holiday Overtime Pay Code '{sourceValue}' referenced by breakpoint '{recordName}' does not exist in target org. All referenced pay codes must be migrated first",
+                        },
+                        {
+                            checkName: "publicHolidayPenaltyPayCodeExists",
+                            description: "Verify referenced public holiday penalty pay codes exist in target org",
+                            sourceField: "tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}",
+                            targetObject: "tc9_pr__Pay_Code__c",
+                            targetField: "{externalIdField}",
+                            isRequired: true,
+                            errorMessage: "Migration cannot proceed: Public Holiday Penalty Pay Code '{sourceValue}' referenced by breakpoint '{recordName}' does not exist in target org. All referenced pay codes must be migrated first",
+                        },
+                        {
+                            checkName: "saturdayPenaltyPayCodeExists",
+                            description: "Verify referenced Saturday penalty pay codes exist in target org",
+                            sourceField: "tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}",
+                            targetObject: "tc9_pr__Pay_Code__c",
+                            targetField: "{externalIdField}",
+                            isRequired: true,
+                            errorMessage: "Migration cannot proceed: Saturday Penalty Pay Code '{sourceValue}' referenced by breakpoint '{recordName}' does not exist in target org. All referenced pay codes must be migrated first",
+                        },
+                        {
+                            checkName: "sundayPenaltyPayCodeExists",
+                            description: "Verify referenced Sunday penalty pay codes exist in target org",
+                            sourceField: "tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}",
+                            targetObject: "tc9_pr__Pay_Code__c",
+                            targetField: "{externalIdField}",
+                            isRequired: true,
+                            errorMessage: "Migration cannot proceed: Sunday Penalty Pay Code '{sourceValue}' referenced by breakpoint '{recordName}' does not exist in target org. All referenced pay codes must be migrated first",
+                        },
+                        {
                             checkName: "dailyPayCodeCapRecordExists",
                             description: "Verify referenced daily pay code cap records exist in target org",
                             sourceField: "tc9_et__Daily_Pay_Code_Cap_Record__r.{externalIdField}",
@@ -919,10 +987,12 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
                             tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
-                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
+                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField},
+                            tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField},
+                            tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE RecordType.Name = 'Leave Breakpoint' 
                             AND tc9_et__Breakpoint_Type__c = 'Leave Header'
@@ -962,10 +1032,12 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
                             tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
-                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
+                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField},
+                            tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField},
+                            tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE (RecordType.Name = 'Pay Code Cap' OR RecordType.Name = 'Leave Breakpoint') 
                             AND tc9_et__Breakpoint_Type__c != 'Leave Header'
@@ -1006,10 +1078,12 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField},
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
                             tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField},
-                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField},
+                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Overtime_Pay_Code__r.{externalIdField},
+                            tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Reset_After_Payment__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField},
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Variation_Type__c, {externalIdField}
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField},
+                            tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE RecordType.Name != 'Pay Code Cap' AND RecordType.Name != 'Leave Breakpoint'
                             AND tc9_et__Interpretation_Rule__c IN (SELECT Id FROM tc9_et__Interpretation_Rule__c WHERE Id IN ({selectedRecordIds}))`,
