@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
-import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw, ExternalLink } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,6 +96,9 @@ export function MigrationProjectBuilder() {
   const [createdMigrationId, setCreatedMigrationId] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [currentOperation, setCurrentOperation] = useState<'idle' | 'validating' | 'creating' | 'migrating'>('idle');
+  const [orgConnectionErrors, setOrgConnectionErrors] = useState<{[key: string]: string}>({});
+  const [isValidating, setIsValidating] = useState<{[key: string]: boolean}>({});
+  const validationTimeoutRef = useRef<{[key: string]: NodeJS.Timeout}>({});
   const [projectData, setProjectData] = useState({
     name: '',
     templateId: '', // Will be set to interpretation rules template when templates load
@@ -320,7 +323,8 @@ export function MigrationProjectBuilder() {
           projectData.targetOrgId.length > 0 && 
           projectData.targetOrgId !== projectData.sourceOrgId &&
           projectData.templateId.length > 0 &&
-          connectedOrgs.length >= 2
+          connectedOrgs.length >= 2 &&
+          Object.keys(orgConnectionErrors).length === 0
         );
       case 'record-selection':
         return projectData.selectedRecords.length > 0;
@@ -416,6 +420,78 @@ export function MigrationProjectBuilder() {
   const templates = templatesData?.templates || [];
   const selectedTemplate = templates.find((t: MigrationTemplate) => t.id === projectData.templateId);
 
+  // Validate org connection when selected with debouncing
+  const validateOrgConnection = useCallback(async (orgId: string, orgType: 'source' | 'target') => {
+    if (!orgId) return;
+    
+    // Clear any existing timeout for this org type
+    if (validationTimeoutRef.current[orgType]) {
+      clearTimeout(validationTimeoutRef.current[orgType]);
+    }
+    
+    // Set a debounce timeout
+    validationTimeoutRef.current[orgType] = setTimeout(async () => {
+      setIsValidating(prev => ({ ...prev, [orgType]: true }));
+      
+      try {
+        const response = await fetch(`/api/orgs/${orgId}/health`);
+        const data = await response.json();
+        
+        if (!data.isHealthy) {
+          const errorMsg = data.requiresReauth 
+            ? 'Organisation needs to be reconnected. Click to reconnect.'
+            : data.error || 'Organisation connection is unhealthy';
+          
+          setOrgConnectionErrors(prev => ({
+            ...prev,
+            [orgType]: errorMsg
+          }));
+          
+          // No longer auto-prompting for reconnection - user will use the reconnect button
+        } else {
+          // Clear any existing error for this org type
+          setOrgConnectionErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[orgType];
+            return newErrors;
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to validate ${orgType} org connection:`, error);
+        // More user-friendly error message
+        const org = connectedOrgs.find((o: Organisation) => o.id === orgId);
+        const orgName = org?.name || 'Organisation';
+        setOrgConnectionErrors(prev => ({
+          ...prev,
+          [orgType]: `Unable to connect to ${orgName}. Please try reconnecting.`
+        }));
+      } finally {
+        setIsValidating(prev => ({ ...prev, [orgType]: false }));
+      }
+    }, 300); // 300ms debounce
+  }, [connectedOrgs]);
+
+  // Validate existing org selections only on initial load
+  React.useEffect(() => {
+    // Only run once when both orgs are selected and connectedOrgs is loaded
+    if (projectData.sourceOrgId && projectData.targetOrgId && connectedOrgs.length > 0) {
+      // Use a flag to ensure we only validate once
+      const hasValidated = sessionStorage.getItem('migration-orgs-validated');
+      if (hasValidated !== `${projectData.sourceOrgId}-${projectData.targetOrgId}`) {
+        validateOrgConnection(projectData.sourceOrgId, 'source');
+        validateOrgConnection(projectData.targetOrgId, 'target');
+        sessionStorage.setItem('migration-orgs-validated', `${projectData.sourceOrgId}-${projectData.targetOrgId}`);
+      }
+    }
+  }, []); // Only run once on mount
+  
+  // Cleanup timeouts on unmount
+  React.useEffect(() => {
+    return () => {
+      Object.values(validationTimeoutRef.current).forEach(timeout => clearTimeout(timeout));
+    };
+  }, []);
+
   // Memoized callback to prevent infinite re-renders
   const handleRecordSelectionChange = useCallback((selectedRecords: string[]) => {
     setProjectData(prev => ({ ...prev, selectedRecords }));
@@ -472,8 +548,9 @@ export function MigrationProjectBuilder() {
       return;
     }
     
-    // Trigger the OAuth flow for the failed organisation
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}`;
+    // Trigger the OAuth flow for the failed organisation with return URL
+    const returnUrl = '/migrations/new';
+    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
     window.location.href = oauthUrl;
   };
 
@@ -531,54 +608,119 @@ export function MigrationProjectBuilder() {
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
-                    <div>
-                      <Label htmlFor="source-org">Source Organisation *</Label>
-                      <Select
-                        value={projectData.sourceOrgId}
-                        onValueChange={(value: string) =>
-                          setProjectData({ ...projectData, sourceOrgId: value })
-                        }
-                        required
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select source organisation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {connectedOrgs.map((org: Organisation) => (
-                            <SelectItem key={org.id} value={org.id}>
-                              <span className="font-medium">{org.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex justify-center pb-2">
-                      <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <Label htmlFor="target-org">Target Organisation *</Label>
-                      <Select
-                        value={projectData.targetOrgId}
-                        onValueChange={(value: string) =>
-                          setProjectData({ ...projectData, targetOrgId: value })
-                        }
-                        required
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select target organisation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {connectedOrgs
-                            .filter((org: Organisation) => org.id !== projectData.sourceOrgId)
-                            .map((org: Organisation) => (
+                  <div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
+                      <div>
+                        <Label htmlFor="source-org">Source Organisation *</Label>
+                        <Select
+                          value={projectData.sourceOrgId}
+                          onValueChange={(value: string) => {
+                            setProjectData({ ...projectData, sourceOrgId: value });
+                            validateOrgConnection(value, 'source');
+                          }}
+                          required
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select source organisation" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {connectedOrgs.map((org: Organisation) => (
                               <SelectItem key={org.id} value={org.id}>
                                 <span className="font-medium">{org.name}</span>
                               </SelectItem>
                             ))}
-                        </SelectContent>
-                      </Select>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex justify-center pb-2">
+                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <Label htmlFor="target-org">Target Organisation *</Label>
+                        <Select
+                          value={projectData.targetOrgId}
+                          onValueChange={(value: string) => {
+                            setProjectData({ ...projectData, targetOrgId: value });
+                            validateOrgConnection(value, 'target');
+                          }}
+                          required
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select target organisation" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {connectedOrgs
+                              .filter((org: Organisation) => org.id !== projectData.sourceOrgId)
+                              .map((org: Organisation) => (
+                                <SelectItem key={org.id} value={org.id}>
+                                  <span className="font-medium">{org.name}</span>
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
+                    
+                    {/* Error messages below the grid */}
+                    {(orgConnectionErrors.source || orgConnectionErrors.target) && (
+                      <div className="grid grid-cols-[1fr_auto_1fr] gap-4 mt-2">
+                        <div>
+                          {orgConnectionErrors.source && (
+                            <Alert variant="destructive">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription className="text-xs flex items-center justify-between">
+                                <span>{orgConnectionErrors.source}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 ml-2"
+                                  onClick={() => {
+                                    const org = connectedOrgs.find((o: Organisation) => o.id === projectData.sourceOrgId);
+                                    if (org) {
+                                      // Include return URL to come back to migration setup
+                                      const returnUrl = '/migrations/new';
+                                      const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+                                      window.location.href = oauthUrl;
+                                    }
+                                  }}
+                                >
+                                  Reconnect
+                                  <ExternalLink className="h-3 w-3 ml-1" />
+                                </Button>
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                        <div></div>
+                        <div>
+                          {orgConnectionErrors.target && (
+                            <Alert variant="destructive">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription className="text-xs flex items-center justify-between">
+                                <span>{orgConnectionErrors.target}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 ml-2"
+                                  onClick={() => {
+                                    const org = connectedOrgs.find((o: Organisation) => o.id === projectData.targetOrgId);
+                                    if (org) {
+                                      // Include return URL to come back to migration setup
+                                      const returnUrl = '/migrations/new';
+                                      const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+                                      window.location.href = oauthUrl;
+                                    }
+                                  }}
+                                >
+                                  Reconnect
+                                  <ExternalLink className="h-3 w-3 ml-1" />
+                                </Button>
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="template">Migration Template *</Label>

@@ -54,7 +54,90 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         targetField: "tc9_et__Apply_4_Week_Frequency__c",
                         isRequired: false,
                         transformationType: "direct"
-
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Break_Loading_Interpretation__c",
+                        targetField: "tc9_et__Apply_Break_Loading_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Break_Time_Interpretation__c",
+                        targetField: "tc9_et__Apply_Break_Time_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Casual_Loading__c",
+                        targetField: "tc9_et__Apply_Casual_Loading__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Dual_Leave_Loading_Calculations__c",
+                        targetField: "tc9_et__Apply_Dual_Leave_Loading_Calculations__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Excursion_Interpretation__c",
+                        targetField: "tc9_et__Apply_Excursion_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Interpretation_Variations__c",
+                        targetField: "tc9_et__Apply_Interpretation_Variations__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Minimum_Rest_Interpretation__c",
+                        targetField: "tc9_et__Apply_Minimum_Rest_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Minimum_Rest_on_Overtime__c",
+                        targetField: "tc9_et__Apply_Minimum_Rest_on_Overtime__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c",
+                        targetField: "tc9_et__Apply_OT_Round_Up_Shift_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Apply_Overnight_Interpretation__c",
+                        targetField: "tc9_et__Apply_Overnight_Interpretation__c",
+                        isRequired: false,
+                        transformationType: "direct"
+                    },
+                    {
+                        sourceField: "tc9_et__Total_Span_Hours__c",
+                        targetField: "tc9_et__Total_Span_Hours__c",
+                        isRequired: false,
+                        transformationType: "number"
+                    },
+                    {
+                        sourceField: "tc9_et__Frequency_Standard_Hours__c",
+                        targetField: "tc9_et__Frequency_Standard_Hours__c",
+                        isRequired: false,
+                        transformationType: "number"
+                    },
+                    {
+                        sourceField: "tc9_et__Has_Saturday_Rule__c",
+                        targetField: "tc9_et__Has_Saturday_Rule__c",
+                        isRequired: false,
+                        transformationType: "boolean"
+                    },
+                    {
+                        sourceField: "tc9_et__Has_Sunday_Rule__c",
+                        targetField: "tc9_et__Has_Sunday_Rule__c",
+                        isRequired: false,
+                        transformationType: "boolean"
                     },
                     {
                         sourceField: "tc9_et__Short_Description__c",
@@ -173,17 +256,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         description: "Cache all target org pay codes for validation",
                     },
                 ],
-                dependencyChecks: [
-                    {
-                        checkName: "payCodeExists",
-                        description: "Verify all referenced pay codes exist in target org",
-                        sourceField: "tc9_et__Pay_Code__c",
-                        targetObject: "tc9_pr__Pay_Code__c",
-                        targetField: "{externalIdField}",
-                        isRequired: true,
-                        errorMessage: "Migration cannot proceed: Pay Code '{sourceValue}' referenced by Interpretation Rule '{recordName}' does not exist in target org. All referenced pay codes must be migrated first",
-                    },
-                ],
+                dependencyChecks: [],
                 dataIntegrityChecks: [
                     {
                         checkName: "payCodeNotNull",

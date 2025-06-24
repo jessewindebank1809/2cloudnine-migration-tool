@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       include: {
         migration_projects: {
           include: {
-            users: {
+            User: {
               select: {
                 email: true,
                 name: true
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       return {
         id: session.id,
         status: session.status,
-        user: session.migration_projects?.users?.email || 'Unknown',
+        user: session.migration_projects?.User?.email || 'Unknown',
         sourceOrg: session.migration_projects?.organisations_migration_projects_source_org_idToorganisations?.name || 'Unknown',
         targetOrg: session.migration_projects?.organisations_migration_projects_target_org_idToorganisations?.name || 'Unknown',
         startedAt: startTime,

@@ -1,10 +1,10 @@
-name: CI
+name: Staging CI
 
 on:
-  push:
-    branches: [ main, staging, develop ]
   pull_request:
-    branches: [ main, staging ]
+    branches: [staging]
+  push:
+    branches: [staging]
 
 jobs:
   test:
@@ -71,4 +71,4 @@ jobs:
       with:
         name: build-files
         path: .next/
-        retention-days: 7 
+        retention-days: 7

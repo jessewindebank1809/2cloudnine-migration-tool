@@ -50,10 +50,8 @@ export class ValidationFormatter {
         // Generate user-friendly title
         const friendlyTitle = this.ERROR_TITLES[issue.checkName] || this.generateFriendlyTitle(issue.checkName);
         
-        // Generate record link if we have an ID
-        if (issue.recordId && instanceUrl) {
-            issue.recordLink = `${instanceUrl}/${issue.recordId}`;
-        }
+        // Record link can be generated but not stored on the issue
+        const recordLink = issue.recordId && instanceUrl ? `${instanceUrl}/${issue.recordId}` : undefined;
         
         // Format the message based on the check type
         const formattedIssue: ValidationIssue = {
@@ -75,7 +73,7 @@ export class ValidationFormatter {
         
         // Handle payCodeExists and similar dependency errors
         if (originalCheckName === 'payCodeExists' && issue.recordName) {
-            const payCodeRef = issue.fieldValue || issue.message.match(/'([^']+)'/)?.[1] || "null";
+            const payCodeRef = issue.message.match(/'([^']+)'/)?.[1] || "null";
             return `Pay Code '${payCodeRef}' referenced by '${issue.recordName}' doesn't exist in target org.`;
         }
         
@@ -271,7 +269,7 @@ export class ValidationFormatter {
      */
     public static createGroupSummary(groupName: string, issues: ValidationIssue[]): string {
         const recordCount = issues.length;
-        const recordsWithLinks = issues.filter(i => i.recordLink).length;
+        const recordsWithLinks = issues.filter(i => i.recordId).length;
         
         let summary = `${groupName} (${recordCount} issue${recordCount !== 1 ? 's' : ''})`;
         

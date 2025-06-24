@@ -453,11 +453,19 @@ export class ExecutionEngine {
               console.log(`Transformed picklist value: "${sourceValue}" -> "${transformedValue}" for field ${targetField}`);
             }
           } else if (fieldMapping.transformationType === 'boolean') {
-            // Handle boolean transformation
-            transformedRecord[targetField] = sourceValue === true || sourceValue === 'true' || sourceValue === 1;
+            // Handle boolean transformation - preserve actual boolean values
+            if (sourceValue !== null && sourceValue !== undefined) {
+              transformedRecord[targetField] = sourceValue === true || sourceValue === 'true' || sourceValue === 1 || sourceValue === '1';
+            } else {
+              transformedRecord[targetField] = sourceValue;
+            }
           } else if (fieldMapping.transformationType === 'number') {
-            // Handle number transformation
-            transformedRecord[targetField] = sourceValue ? parseFloat(sourceValue) : null;
+            // Handle number transformation - preserve zero values
+            if (sourceValue !== null && sourceValue !== undefined && sourceValue !== '') {
+              transformedRecord[targetField] = parseFloat(sourceValue);
+            } else {
+              transformedRecord[targetField] = null;
+            }
           } else {
             // Direct field mapping
             transformedRecord[targetField] = sourceValue;
@@ -706,6 +714,9 @@ export class ExecutionEngine {
         const isBreakpointLookup = mapping.lookupObject === 'tc9_et__Interpretation_Breakpoint__c' || 
                                   mapping.lookupObject === 'tc9_pr__Pay_Code__c' || 
                                   mapping.lookupObject === 'tc9_pr__Leave_Rule__c';
+        
+        // Special handling for interpretation rule lookups - use source record ID directly
+        const isInterpretationRuleLookup = mapping.lookupObject === 'tc9_et__Interpretation_Rule__c';
 
         console.log(`    Resolving lookup for ${mapping.lookupObject}:`);
         console.log(`      Source value: ${sourceValue}`);
@@ -726,7 +737,11 @@ export class ExecutionEngine {
         console.log(`      Source field pattern: ${mapping.sourceField}`);
         console.log(`      Is direct external ID: ${isDirectExternalId}`);
         
-        if (!isDirectExternalId) {
+        // Special case for interpretation rule lookups - always use source record ID directly
+        if (isInterpretationRuleLookup && !isDirectExternalId) {
+          console.log(`      Using source record ID directly for interpretation rule lookup: ${sourceValue}`);
+          externalId = sourceValue;
+        } else if (!isDirectExternalId) {
           // sourceValue is a record ID, need to get the external ID from source record
           console.log(`      Need to resolve record ID to external ID`);
         
