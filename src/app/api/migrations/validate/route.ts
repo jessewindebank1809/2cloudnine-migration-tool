@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
         title: error.checkName, // This is already formatted by ValidationFormatter
         description: error.message,
         recordId: error.recordId || undefined,
+        recordLink: error.recordLink || undefined,
         field: error.checkName.includes('Invalid') && error.checkName.includes('Values') ? 
           error.checkName.replace('Invalid ', '').replace(' Values', '') : undefined,
         suggestion: error.suggestedAction || undefined
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
         title: warning.checkName, // This is already formatted by ValidationFormatter
         description: warning.message,
         recordId: warning.recordId || undefined,
+        recordLink: warning.recordLink || undefined,
         suggestion: warning.suggestedAction || undefined
       });
     });
@@ -109,6 +111,7 @@ export async function POST(request: NextRequest) {
         title: info.checkName, // This is already formatted by ValidationFormatter
         description: info.message,
         recordId: info.recordId || undefined,
+        recordLink: info.recordLink || undefined,
         suggestion: info.suggestedAction || undefined
       });
     });

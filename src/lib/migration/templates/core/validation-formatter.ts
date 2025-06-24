@@ -50,15 +50,15 @@ export class ValidationFormatter {
         // Generate user-friendly title
         const friendlyTitle = this.ERROR_TITLES[issue.checkName] || this.generateFriendlyTitle(issue.checkName);
         
-        // Record link can be generated but not stored on the issue
-        const recordLink = issue.recordId && instanceUrl ? `${instanceUrl}/${issue.recordId}` : undefined;
-        
         // Format the message based on the check type
         const formattedIssue: ValidationIssue = {
             ...issue,
             checkName: friendlyTitle,
-            message: this.formatMessage(issue),
-            suggestedAction: this.getSuggestedAction(issue),
+            message: this.formatMessage(issue, instanceUrl),
+            // Add record link if we have instance URL and record ID
+            recordLink: issue.recordId && instanceUrl ? `${instanceUrl}/${issue.recordId}` : undefined,
+            // Remove suggestedAction from the formatted issue
+            suggestedAction: undefined,
         };
         
         return formattedIssue;
@@ -67,11 +67,48 @@ export class ValidationFormatter {
     /**
      * Formats the error message to be more user-friendly
      */
-    private static formatMessage(issue: ValidationIssue): string {
+    private static formatMessage(issue: ValidationIssue, instanceUrl?: string): string {
         const originalCheckName = issue.checkName;
         const friendlyTitle = this.ERROR_TITLES[originalCheckName] || this.generateFriendlyTitle(originalCheckName);
         
-        // Handle payCodeExists and similar dependency errors
+        // Handle dependency errors with context
+        if (issue.context && issue.context.targetObject) {
+            const { missingTargetName, missingTargetExternalId, targetObject } = issue.context;
+            
+            // Determine the object type name from the API name
+            let objectTypeName = 'Record';
+            if (targetObject === 'tc9_pr__Pay_Code__c') {
+                objectTypeName = 'Pay Code';
+            } else if (targetObject === 'tc9_pr__Leave_Rule__c') {
+                objectTypeName = 'Leave Rule';
+            } else if (targetObject === 'tc9_et__Interpretation_Rule__c') {
+                objectTypeName = 'Interpretation Rule';
+            } else if (targetObject === 'tc9_et__Interpretation_Breakpoint__c') {
+                objectTypeName = 'Breakpoint';
+            }
+            
+            // Determine the source object type
+            let sourceObjectType = 'Record';
+            if (issue.context.sourceRecordType) {
+                sourceObjectType = issue.context.sourceRecordType;
+            } else if (issue.recordName && issue.recordName.includes('Breakpoint')) {
+                sourceObjectType = 'Breakpoint';
+            } else if (issue.recordName && issue.recordName.includes('Rule')) {
+                sourceObjectType = 'Rule';
+            }
+            
+            if (missingTargetName && missingTargetExternalId) {
+                return `${objectTypeName} (name: ${missingTargetName}, external id: ${missingTargetExternalId}) is missing from target org referenced by ${sourceObjectType} (name: '${issue.recordName}')`;
+            } else if (missingTargetExternalId) {
+                return `${objectTypeName} (external id: ${missingTargetExternalId}) is missing from target org referenced by ${sourceObjectType} (name: '${issue.recordName}')`;
+            } else {
+                // Fallback to original format
+                const ref = issue.message.match(/'([^']+)'/)?.[1] || "null";
+                return `${objectTypeName} '${ref}' referenced by '${issue.recordName}' doesn't exist in target org.`;
+            }
+        }
+        
+        // Legacy format for dependency errors without context
         if (originalCheckName === 'payCodeExists' && issue.recordName) {
             const payCodeRef = issue.message.match(/'([^']+)'/)?.[1] || "null";
             return `Pay Code '${payCodeRef}' referenced by '${issue.recordName}' doesn't exist in target org.`;

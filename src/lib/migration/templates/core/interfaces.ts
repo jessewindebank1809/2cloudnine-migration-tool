@@ -207,8 +207,16 @@ export interface ValidationIssue {
     severity: "error" | "warning" | "info";
     recordId: string | null;
     recordName: string | null;
+    recordLink?: string;
     field?: string;
     suggestedAction?: string;
+    context?: {
+        sourceValue?: string;
+        targetObject?: string;
+        missingTargetName?: string | null;
+        missingTargetExternalId?: string;
+        sourceRecordType?: string | null;
+    };
 }
 
 export interface ValidationSummary {
