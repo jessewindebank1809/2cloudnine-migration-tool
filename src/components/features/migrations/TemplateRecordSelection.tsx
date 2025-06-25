@@ -104,7 +104,7 @@ export function TemplateRecordSelection({
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
       setCurrentPage(0); // Reset to first page when search changes
-    }, 300); // 300ms delay
+    }, 800); // 800ms delay to prevent focus loss
 
     return () => clearTimeout(timer);
   }, [searchInput]);
