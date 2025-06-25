@@ -4,6 +4,7 @@ import { OrgCapabilityDetector, OrgCapabilities } from './org-capabilities';
 import { prisma } from '@/lib/database/prisma';
 import { decrypt } from '@/lib/utils/encryption';
 import { SalesforceRateLimiter } from './rate-limiter';
+import { TokenManager } from './token-manager';
 
 export interface OrgSession {
   orgId: string;
@@ -54,18 +55,22 @@ export class MultiOrgSessionManager {
       throw new Error(`Organisation ${orgId} not found or not connected`);
     }
 
-    // Decrypt tokens
-    const accessToken = decrypt(org.access_token_encrypted);
-    const refreshToken = org.refresh_token_encrypted ? decrypt(org.refresh_token_encrypted) : undefined;
+    // Get valid tokens using TokenManager (handles refresh if needed)
+    const tokenManager = TokenManager.getInstance();
+    const validTokens = await tokenManager.getValidToken(orgId);
+    
+    if (!validTokens) {
+      throw new Error(`Failed to get valid tokens for organisation ${orgId}`);
+    }
 
-    // Create Salesforce client
+    // Create Salesforce client with valid tokens
     const client = new SalesforceClient({
       id: org.id,
       organisationId: org.salesforce_org_id || '',
       organisationName: org.name,
       instanceUrl: org.instance_url,
-      accessToken,
-      refreshToken,
+      accessToken: validTokens.accessToken,
+      refreshToken: validTokens.refreshToken,
     });
 
     // Create supporting services
@@ -220,6 +225,35 @@ export class MultiOrgSessionManager {
    */
   clearAllSessions(): void {
     this.sessions.clear();
+  }
+
+  /**
+   * Refresh tokens for an existing session
+   */
+  async refreshSessionTokens(orgId: string): Promise<void> {
+    const session = this.sessions.get(orgId);
+    if (!session) {
+      console.log(`No active session for org ${orgId}, skipping token refresh`);
+      return;
+    }
+
+    try {
+      const tokenManager = TokenManager.getInstance();
+      const validTokens = await tokenManager.getValidToken(orgId);
+      
+      if (validTokens) {
+        // Update the client with new tokens
+        session.client.accessToken = validTokens.accessToken;
+        session.client.refreshToken = validTokens.refreshToken;
+        console.log(`✅ Refreshed tokens for session ${orgId}`);
+      } else {
+        console.error(`❌ Failed to refresh tokens for session ${orgId}, removing session`);
+        this.removeSession(orgId);
+      }
+    } catch (error) {
+      console.error(`Error refreshing tokens for session ${orgId}:`, error);
+      // Don't remove session on error - let it fail on next use
+    }
   }
 
   /**

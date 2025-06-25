@@ -8,6 +8,7 @@ const nextConfig = {
     // Development performance improvements
     forceSwcTransforms: true,
     swcTraceProfiling: false,
+    instrumentationHook: true, // Enable instrumentation for token refresh
   },
   images: {
     unoptimized: true,
