@@ -8,7 +8,13 @@
 - /Users/jessewindebank/Documents/code/salesforce/tc9-migration-tool/migration-output.log
   stores the output of migration runs
 
-  npm install @salesforce/cli --global
+## sf upgrade command
+
+npm install @salesforce/cli --global
+
+## Tools
+
+- use gh cli for github interactions
 
 ## CLI Commands
 
@@ -124,6 +130,16 @@ sf data query --query "SELECT tc9_et__Breakpoint_Type__c, COUNT(Id) cnt FROM tc9
 
 - Source: `affinitynursingrecruitment.support@2cloudnine.com.affdev`
 - Target: `affinitynursingrecruitment.support@2cloudnine.com.uat`
+
+### External Id Rules/Logic
+
+- Primary transactions = tc9_et__Interpretation_Rule__c,
+  tc9_et__Interpretation_Breakpoint__c
+- Related records = tc9_pr__Pay_Code__c, tc9_pr__Leave_Rule__c
+- Unmanaged uses External_ID_Data_Creation__c for related records
+- Managed uses tc9_edc__External_ID_Data_Creation__c for related records
+- Primary transaction objects map source record id > target external id
+- Related objects map source external id > target external id
 
 ### Interpretation Rule Fields
 

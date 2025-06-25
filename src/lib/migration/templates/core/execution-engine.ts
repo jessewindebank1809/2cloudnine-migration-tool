@@ -81,8 +81,8 @@ export class ExecutionEngine {
 
     try {
       // Initialize Salesforce clients
-      this.sourceClient = new SalesforceClient(context.sourceOrg);
-      this.targetClient = new SalesforceClient(context.targetOrg);
+      this.sourceClient = await SalesforceClient.create(context.sourceOrg);
+      this.targetClient = await SalesforceClient.create(context.targetOrg);
 
       // Clear caches for fresh execution
       this.clearCaches();
@@ -1076,7 +1076,7 @@ export class ExecutionEngine {
     console.log('Records to rollback:', JSON.stringify(this.insertedRecords, null, 2));
 
     try {
-      const rollbackService = new RollbackService(context.targetOrg);
+      const rollbackService = await RollbackService.create(context.targetOrg);
       const rollbackResult = await rollbackService.rollbackRecords(this.insertedRecords);
 
       if (rollbackResult.success) {

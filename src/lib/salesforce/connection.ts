@@ -12,8 +12,13 @@ export interface SalesforceConnection {
 export class SalesforceConnectionImpl implements SalesforceConnection {
   private client: SalesforceClient;
 
-  constructor(org: SalesforceOrg, orgType: 'PRODUCTION' | 'SANDBOX' = 'PRODUCTION') {
-    this.client = new SalesforceClient(org, orgType);
+  private constructor(client: SalesforceClient) {
+    this.client = client;
+  }
+
+  static async create(org: SalesforceOrg, orgType: 'PRODUCTION' | 'SANDBOX' = 'PRODUCTION'): Promise<SalesforceConnectionImpl> {
+    const client = await SalesforceClient.create(org, orgType);
+    return new SalesforceConnectionImpl(client);
   }
 
   async query(soql: string): Promise<{ records: any[]; totalSize: number }> {

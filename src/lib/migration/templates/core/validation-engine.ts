@@ -225,6 +225,14 @@ export class ValidationEngine {
                 const resultsArray = Array.isArray(results) ? results : [];
                 this.validationCache.set(query.cacheKey, resultsArray);
                 console.log(`Cached ${resultsArray.length} records for ${query.cacheKey}`);
+                
+                // Debug logging for leave rules cache content
+                if (query.cacheKey === 'target_leave_rules' && resultsArray.length > 0) {
+                    console.log(`Pre-validation query used: ${soqlQuery}`);
+                    console.log(`External ID field detected: ${externalIdField}`);
+                    const sampleRecord = resultsArray[0];
+                    console.log(`Sample leave rule record:`, JSON.stringify(sampleRecord, null, 2));
+                }
             } catch (error) {
                 console.error(`Failed to execute pre-validation query ${query.queryName}:`, error);
                 this.validationCache.set(query.cacheKey, []);
@@ -305,22 +313,39 @@ export class ValidationEngine {
             
             console.log(`Found ${targetCache.length} cached records for ${check.targetObject}`);
 
-            // Replace external ID field placeholder in target field
+            // Get external ID fields for both source and target orgs
             const sourceClient = await sessionManager.getClient(this.sourceOrgId);
-            const externalIdField = await ExternalIdUtils.detectExternalIdField(
+            const targetClient = await sessionManager.getClient(this.targetOrgId);
+            
+            // Detect external ID field for source org (for source field resolution)
+            const sourceExternalIdField = await ExternalIdUtils.detectExternalIdField(
                 check.targetObject,
                 sourceClient
             );
-            const resolvedTargetField = ExternalIdUtils.replaceExternalIdPlaceholders(
-                check.targetField,
-                externalIdField
+            
+            // Detect external ID field for target org (for target field resolution)
+            const targetExternalIdField = await ExternalIdUtils.detectExternalIdField(
+                check.targetObject,
+                targetClient
             );
             
-            // Also resolve external ID field placeholder in source field
+            // Resolve placeholders with appropriate external ID fields
+            const resolvedTargetField = ExternalIdUtils.replaceExternalIdPlaceholders(
+                check.targetField,
+                targetExternalIdField
+            );
+            
             const resolvedSourceField = ExternalIdUtils.replaceExternalIdPlaceholders(
                 check.sourceField,
-                externalIdField
+                sourceExternalIdField
             );
+            
+            // Debug logging for leave rules cache
+            if (check.targetObject === 'tc9_pr__Leave_Rule__c' && targetCache.length > 0) {
+                console.log(`Source external ID field: ${sourceExternalIdField}, Target external ID field: ${targetExternalIdField}`);
+                const sampleIds = targetCache.slice(0, 5).map(t => t[resolvedTargetField]).filter(Boolean);
+                console.log(`Sample Leave Rule external IDs in target cache: ${sampleIds.join(', ')}`);
+            }
 
             // Check each source record
             let checkedRecords = 0;
@@ -336,9 +361,24 @@ export class ValidationEngine {
                 }
                 
                 // Only validate non-null references
-                const targetExists = targetCache.some((target) =>
-                    target[resolvedTargetField] === sourceValue
-                );
+                // Use case-insensitive comparison for external IDs to handle org differences
+                const targetExists = targetCache.some((target) => {
+                    const targetValue = target[resolvedTargetField];
+                    if (!targetValue) return false;
+                    
+                    // For external ID fields, use case-insensitive comparison
+                    if (resolvedTargetField.includes('External_ID') || resolvedTargetField.includes('external_id')) {
+                        const matches = targetValue.toLowerCase() === sourceValue.toLowerCase();
+                        // Debug logging for leave rules
+                        if (check.targetObject === 'tc9_pr__Leave_Rule__c' && !matches) {
+                            console.log(`Leave Rule mismatch: source="${sourceValue}" target="${targetValue}" (case-insensitive comparison)`);
+                        }
+                        return matches;
+                    }
+                    
+                    // For other fields, use exact match
+                    return targetValue === sourceValue;
+                });
 
                 if (!targetExists) {
                     foundIssues++;

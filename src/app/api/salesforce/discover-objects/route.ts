@@ -58,14 +58,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Salesforce client
-    const client = new SalesforceClient({
+    const client = await SalesforceClient.create({
       id: org.id,
       organisationId: org.salesforce_org_id || '',
       organisationName: org.name,
       instanceUrl: org.instance_url,
       accessToken,
       refreshToken,
-    });
+    }, org.org_type as 'PRODUCTION' | 'SANDBOX');
 
     // Create object discovery engine
     const discoveryEngine = new ObjectDiscoveryEngine(client);

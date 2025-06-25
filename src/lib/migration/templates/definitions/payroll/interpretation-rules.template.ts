@@ -31,17 +31,16 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     tc9_et__Break_Loading_Unpaid_Break_Minutes__c, tc9_et__Include_Paid_Breaks_in_Break_Loading__c,
                     tc9_et__Excursion_Standard_Start_Time__c,
                     tc9_et__Excursion_Standard_End_Time__c, tc9_et__Excursion_Standard_Hours__c,
-                    tc9_et__Apply_Wake_Up_Interpretation__c, tc9_et__Wake_Up_Minimum_Hours__c,
+                    tc9_et__Apply_Wake_Up_Interpretation__c,
                     tc9_et__Overnight_Based_on_Majority_of_Shift__c,
                     tc9_et__Overnight_Based_on_Shift_Start_Range__c, tc9_et__Apply_Split_Broken_Shift_Interpretation__c,
-                    tc9_et__Calculate_Span_From_Previous_Shift__c, tc9_et__Split_Broken_Shift_Reset_Hours__c,
-                    tc9_et__Days_Total_Span_Hours_Apply__c, tc9_et__Apply_Minimum_Rest_To_Same_Day_Entries__c,
+                    tc9_et__Days_Total_Span_Hours_Apply__c,
                     tc9_et__Include_Minimum_Rest_in_Daily_OT_Hours__c, tc9_et__Days_Frequency_Breakpoints_Accrued__c,
                     tc9_et__Days_Frequency_Breakpoints_Apply__c, tc9_et__Minimum_Frequency_Paid_Hours__c,
-                    tc9_et__Exclude_Overtime_from_Frequency_Hours__c, tc9_et__Include_Time_BPs_in_OT_Daily_Std_Calcs__c,
+                    tc9_et__Exclude_Overtime_from_Frequency_Hours__c,
                     tc9_et__Days_Overtime_Breakpoints_Reset__c,
                     tc9_et__Minimum_OT_Round_Up_Shift_Paid_Hours__c, tc9_et__Broken_Shift_Breakpoint_Application__c,
-                    tc9_et__Broken_Shift_Timesheet_Activity_Required__c, tc9_et__Apply_Shift_Start_Time_BP__c,
+                    tc9_et__Broken_Shift_Timesheet_Activity_Required__c,
                     tc9_et__Minimum_Hours_Based_On__c,
                     tc9_et__Weekday_Interpretation_Type__c, tc9_et__Weekday_Standard_Hours__c,
                     tc9_et__Minimum_Weekday_Paid_Hours__c, tc9_et__Is_Standard_Time_for_Weekdays_Required__c,
@@ -347,12 +346,6 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         transformationType: "direct"
                     },
                     {
-                        sourceField: "tc9_et__Wake_Up_Minimum_Hours__c",
-                        targetField: "tc9_et__Wake_Up_Minimum_Hours__c",
-                        isRequired: false,
-                        transformationType: "number"
-                    },
-                    {
                         sourceField: "tc9_et__Overnight_Based_on_Majority_of_Shift__c",
                         targetField: "tc9_et__Overnight_Based_on_Majority_of_Shift__c",
                         isRequired: false,
@@ -371,26 +364,8 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         transformationType: "direct"
                     },
                     {
-                        sourceField: "tc9_et__Calculate_Span_From_Previous_Shift__c",
-                        targetField: "tc9_et__Calculate_Span_From_Previous_Shift__c",
-                        isRequired: false,
-                        transformationType: "direct"
-                    },
-                    {
-                        sourceField: "tc9_et__Split_Broken_Shift_Reset_Hours__c",
-                        targetField: "tc9_et__Split_Broken_Shift_Reset_Hours__c",
-                        isRequired: false,
-                        transformationType: "number"
-                    },
-                    {
                         sourceField: "tc9_et__Days_Total_Span_Hours_Apply__c",
                         targetField: "tc9_et__Days_Total_Span_Hours_Apply__c",
-                        isRequired: false,
-                        transformationType: "direct"
-                    },
-                    {
-                        sourceField: "tc9_et__Apply_Minimum_Rest_To_Same_Day_Entries__c",
-                        targetField: "tc9_et__Apply_Minimum_Rest_To_Same_Day_Entries__c",
                         isRequired: false,
                         transformationType: "direct"
                     },
@@ -425,12 +400,6 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         transformationType: "direct"
                     },
                     {
-                        sourceField: "tc9_et__Include_Time_BPs_in_OT_Daily_Std_Calcs__c",
-                        targetField: "tc9_et__Include_Time_BPs_in_OT_Daily_Std_Calcs__c",
-                        isRequired: false,
-                        transformationType: "direct"
-                    },
-                    {
                         sourceField: "tc9_et__Days_Overtime_Breakpoints_Reset__c",
                         targetField: "tc9_et__Days_Overtime_Breakpoints_Reset__c",
                         isRequired: false,
@@ -451,12 +420,6 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     {
                         sourceField: "tc9_et__Broken_Shift_Timesheet_Activity_Required__c",
                         targetField: "tc9_et__Broken_Shift_Timesheet_Activity_Required__c",
-                        isRequired: false,
-                        transformationType: "direct"
-                    },
-                    {
-                        sourceField: "tc9_et__Apply_Shift_Start_Time_BP__c",
-                        targetField: "tc9_et__Apply_Shift_Start_Time_BP__c",
                         isRequired: false,
                         transformationType: "direct"
                     },
@@ -1788,15 +1751,16 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                     },
                 ],
                 dependencyChecks: [
-                    {
-                        checkName: "interpretationRuleExists",
-                        description: "Verify parent interpretation rule exists in target org",
-                        sourceField: "tc9_et__Interpretation_Rule__c",
-                        targetObject: "tc9_et__Interpretation_Rule__c",
-                        targetField: "{externalIdField}",
-                        isRequired: true,
-                        errorMessage: "Migration cannot proceed: Parent Interpretation Rule '{sourceValue}' for variation '{recordName}' does not exist in target org. Parent interpretation rules must be migrated first",
-                    },
+                    // Removed interpretation rule existence check - parent rules are migrated in the same operation
+                    // {
+                    //     checkName: "interpretationRuleExists",
+                    //     description: "Verify parent interpretation rule exists in target org",
+                    //     sourceField: "tc9_et__Interpretation_Rule__c",
+                    //     targetObject: "tc9_et__Interpretation_Rule__c",
+                    //     targetField: "{externalIdField}",
+                    //     isRequired: true,
+                    //     errorMessage: "Migration cannot proceed: Parent Interpretation Rule '{sourceValue}' for variation '{recordName}' does not exist in target org. Parent interpretation rules must be migrated first",
+                    // },
                 ],
                 dataIntegrityChecks: [],
                 picklistValidationChecks: [],
@@ -2061,24 +2025,24 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         cacheResults: true,
                     },
                     {
-                        sourceField: "tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}",
-                        targetField: "tc9_et__Public_Holiday_Penalty_Pay_Code__c",
+                        sourceField: "tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Public_Holiday_Pay_Code__c",
                         lookupObject: "tc9_pr__Pay_Code__c",
                         lookupKeyField: "{externalIdField}",
                         lookupValueField: "{externalIdField}",
                         cacheResults: true,
                     },
                     {
-                        sourceField: "tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}",
-                        targetField: "tc9_et__Saturday_Penalty_Pay_Code__c",
+                        sourceField: "tc9_et__Saturday_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Saturday_Pay_Code__c",
                         lookupObject: "tc9_pr__Pay_Code__c",
                         lookupKeyField: "{externalIdField}",
                         lookupValueField: "{externalIdField}",
                         cacheResults: true,
                     },
                     {
-                        sourceField: "tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}",
-                        targetField: "tc9_et__Sunday_Penalty_Pay_Code__c",
+                        sourceField: "tc9_et__Sunday_Pay_Code__r.{externalIdField}",
+                        targetField: "tc9_et__Sunday_Pay_Code__c",
                         lookupObject: "tc9_pr__Pay_Code__c",
                         lookupKeyField: "{externalIdField}",
                         lookupValueField: "{externalIdField}",
@@ -2122,15 +2086,16 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         },
                     ],
                     dependencyChecks: [
-                        {
-                            checkName: "interpretationRuleExists",
-                            description: "Verify parent interpretation rule exists in target org",
-                            sourceField: "tc9_et__Interpretation_Rule__c",
-                            targetObject: "tc9_et__Interpretation_Rule__c",
-                            targetField: "{externalIdField}",
-                            isRequired: true,
-                            errorMessage: "Migration cannot proceed: Parent Interpretation Rule '{sourceValue}' for breakpoint '{recordName}' does not exist in target org. Parent interpretation rules must be migrated first",
-                        },
+                        // Removed interpretation rule existence check - parent rules are migrated in the same operation
+                        // {
+                        //     checkName: "interpretationRuleExists",
+                        //     description: "Verify parent interpretation rule exists in target org",
+                        //     sourceField: "tc9_et__Interpretation_Rule__c",
+                        //     targetObject: "tc9_et__Interpretation_Rule__c",
+                        //     targetField: "{externalIdField}",
+                        //     isRequired: true,
+                        //     errorMessage: "Migration cannot proceed: Parent Interpretation Rule '{sourceValue}' for breakpoint '{recordName}' does not exist in target org. Parent interpretation rules must be migrated first",
+                        // },
                         {
                             checkName: "payCodeExists",
                             description: "Verify referenced pay codes exist in target org",
@@ -2217,7 +2182,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "publicHolidayPenaltyPayCodeExists",
                             description: "Verify referenced public holiday penalty pay codes exist in target org",
-                            sourceField: "tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}",
+                            sourceField: "tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}",
                             targetObject: "tc9_pr__Pay_Code__c",
                             targetField: "{externalIdField}",
                             isRequired: true,
@@ -2226,7 +2191,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "saturdayPenaltyPayCodeExists",
                             description: "Verify referenced Saturday penalty pay codes exist in target org",
-                            sourceField: "tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}",
+                            sourceField: "tc9_et__Saturday_Pay_Code__r.{externalIdField}",
                             targetObject: "tc9_pr__Pay_Code__c",
                             targetField: "{externalIdField}",
                             isRequired: true,
@@ -2235,7 +2200,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         {
                             checkName: "sundayPenaltyPayCodeExists",
                             description: "Verify referenced Sunday penalty pay codes exist in target org",
-                            sourceField: "tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}",
+                            sourceField: "tc9_et__Sunday_Pay_Code__r.{externalIdField}",
                             targetObject: "tc9_pr__Pay_Code__c",
                             targetField: "{externalIdField}",
                             isRequired: true,
@@ -2329,11 +2294,10 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField}, tc9_et__Overtime_Pay_Code__r.Name,
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code__r.Name, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
                             tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Penalty_Loading_Pay_Code__r.Name,
-                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Pay_Code__r.Name,
-                            tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Penalty_Pay_Code__r.Name, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Pay_Code__r.Name, tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Penalty_Pay_Code__r.Name,
+                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Pay_Code__r.Name, tc9_et__Reset_After_Payment__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Pay_Code__r.Name,
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Pay_Code__r.Name, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.Name,
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Pay_Code__r.Name,
                             tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE RecordType.Name = 'Leave Breakpoint' 
@@ -2377,11 +2341,10 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField}, tc9_et__Overtime_Pay_Code__r.Name,
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code__r.Name, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
                             tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Penalty_Loading_Pay_Code__r.Name,
-                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Pay_Code__r.Name,
-                            tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Penalty_Pay_Code__r.Name, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Pay_Code__r.Name, tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Penalty_Pay_Code__r.Name,
+                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Pay_Code__r.Name, tc9_et__Reset_After_Payment__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Pay_Code__r.Name,
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Pay_Code__r.Name, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.Name,
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Pay_Code__r.Name,
                             tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE (RecordType.Name = 'Pay Code Cap' OR RecordType.Name = 'Leave Breakpoint') 
@@ -2426,11 +2389,10 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField}, tc9_et__Overtime_Pay_Code__r.Name,
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code__r.Name, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
                             tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Penalty_Loading_Pay_Code__r.Name,
-                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Pay_Code__r.Name,
-                            tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Penalty_Pay_Code__r.Name, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Pay_Code__r.Name, tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Penalty_Pay_Code__r.Name,
+                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Pay_Code__r.Name, tc9_et__Reset_After_Payment__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Pay_Code__r.Name,
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Pay_Code__r.Name, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.Name,
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Pay_Code__r.Name,
                             tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE RecordType.Name != 'Pay Code Cap' AND RecordType.Name != 'Leave Breakpoint'
@@ -2612,11 +2574,10 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             tc9_et__Overtime_Breakpoint__c, tc9_et__Overtime_Pay_Code__r.{externalIdField}, tc9_et__Overtime_Pay_Code__r.Name,
                             tc9_et__Pay_Code__r.{externalIdField}, tc9_et__Pay_Code__r.Name, tc9_et__Pay_Code_Cap__c, tc9_et__Pay_Partial_Quantity__c,
                             tc9_et__Penalty_Loading_Pay_Code__r.{externalIdField}, tc9_et__Penalty_Loading_Pay_Code__r.Name,
-                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Pay_Code__r.Name,
-                            tc9_et__Public_Holiday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Penalty_Pay_Code__r.Name, tc9_et__Reset_After_Payment__c,
-                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Pay_Code__r.Name, tc9_et__Saturday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Penalty_Pay_Code__r.Name,
+                            tc9_et__Public_Holiday_Pay_Code__r.{externalIdField}, tc9_et__Public_Holiday_Pay_Code__r.Name, tc9_et__Reset_After_Payment__c,
+                            tc9_et__Saturday_Pay_Code__r.{externalIdField}, tc9_et__Saturday_Pay_Code__r.Name,
                             tc9_et__Start_Threshold__c, tc9_et__Start_Threshold_Type__c, tc9_et__Start_Time__c,
-                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Pay_Code__r.Name, tc9_et__Sunday_Penalty_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Penalty_Pay_Code__r.Name,
+                            tc9_et__Sunday_Pay_Code__r.{externalIdField}, tc9_et__Sunday_Pay_Code__r.Name,
                             tc9_et__Variation_Type__c, {externalIdField}
                             FROM tc9_et__Interpretation_Breakpoint__c 
                             WHERE tc9_et__Interpretation_Rule__r.RecordType.Name = 'Interpretation Variation Rule'

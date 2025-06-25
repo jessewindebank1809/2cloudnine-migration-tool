@@ -91,7 +91,7 @@ export async function POST(
     }
 
     // Create rollback service and perform rollback
-    const rollbackService = new RollbackService({
+    const rollbackService = await RollbackService.create({
       id: targetOrg.id,
       name: targetOrg.name,
       instanceUrl: targetOrg.instance_url,
