@@ -297,6 +297,55 @@ export class ValidationFormatter {
     }
     
     /**
+     * Groups validation issues by record (recordId/recordName)
+     * Only returns records that have validation issues
+     */
+    public static groupValidationIssuesByRecord(issues: ValidationIssue[]): Map<string, ValidationIssue[]> {
+        const grouped = new Map<string, ValidationIssue[]>();
+        
+        for (const issue of issues) {
+            // Use recordId as primary key, fall back to recordName if no recordId
+            const recordKey = issue.recordId || issue.recordName || 'Unknown Record';
+            const displayKey = issue.recordName 
+                ? `${issue.recordName}${issue.recordId ? ` (${issue.recordId})` : ''}`
+                : recordKey;
+            
+            if (!grouped.has(displayKey)) {
+                grouped.set(displayKey, []);
+            }
+            grouped.get(displayKey)!.push(issue);
+        }
+        
+        return grouped;
+    }
+    
+    /**
+     * Creates a summary message for record-based grouping
+     */
+    public static createRecordGroupSummary(recordName: string, issues: ValidationIssue[]): string {
+        const issueCount = issues.length;
+        const severityCount = {
+            error: issues.filter(i => i.severity === 'error').length,
+            warning: issues.filter(i => i.severity === 'warning').length,
+            info: issues.filter(i => i.severity === 'info').length
+        };
+        
+        let summary = `${recordName} - ${issueCount} issue${issueCount !== 1 ? 's' : ''}`;
+        
+        // Add severity breakdown if there are multiple severities
+        const severities = [];
+        if (severityCount.error > 0) severities.push(`${severityCount.error} error${severityCount.error !== 1 ? 's' : ''}`);
+        if (severityCount.warning > 0) severities.push(`${severityCount.warning} warning${severityCount.warning !== 1 ? 's' : ''}`);
+        if (severityCount.info > 0) severities.push(`${severityCount.info} info`);
+        
+        if (severities.length > 1) {
+            summary += ` (${severities.join(', ')})`;
+        }
+        
+        return summary;
+    }
+    
+    /**
      * Creates a summary message for grouped issues
      */
     public static createGroupSummary(groupName: string, issues: ValidationIssue[]): string {
