@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       }
     };
     if (status) {
-      whereClause.status = status.toUpperCase() as Prisma.EnumScheduled_statusFilter;
+      whereClause.status = status.toUpperCase() as Prisma.Enumscheduled_statusFilter<"scheduled_migrations">;
     }
 
     // Get scheduled migrations

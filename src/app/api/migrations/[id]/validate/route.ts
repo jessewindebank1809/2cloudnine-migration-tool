@@ -72,7 +72,7 @@ export async function POST(
     await prisma.migration_template_usage.update({
       where: { id: templateUsage.id },
       data: {
-        validation_results: validationResult as Prisma.InputJsonValue,
+        validation_results: validationResult as unknown as Prisma.InputJsonValue,
         selected_records: selectedRecords || [],
       }
     });

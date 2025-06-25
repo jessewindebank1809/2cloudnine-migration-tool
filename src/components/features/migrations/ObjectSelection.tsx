@@ -47,6 +47,7 @@ export function ObjectSelection({
 }: ObjectSelectionProps) {
   const [selectedObjects, setSelectedObjects] = useState<Set<string>>(new Set());
   const [recordCounts, setRecordCounts] = useState<Record<string, number>>({});
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Fetch available objects from source org
   const { data: objectsData, isLoading, error } = useQuery({

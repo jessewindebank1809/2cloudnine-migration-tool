@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
         description: description || null,
         source_org_id: sourceOrgId,
         target_org_id: targetOrgId,
-        config: projectConfig,
+        config: projectConfig as unknown as Prisma.InputJsonValue,
         status: 'DRAFT',
         user_id: session.user.id, // Use authenticated user
         updated_at: new Date(),

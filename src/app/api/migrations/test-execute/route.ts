@@ -170,12 +170,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Migration execution error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to execute migration', 
-        details: error.message 
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

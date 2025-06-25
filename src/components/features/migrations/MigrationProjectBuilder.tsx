@@ -96,6 +96,7 @@ export function MigrationProjectBuilder() {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [currentOperation, setCurrentOperation] = useState<'idle' | 'validating' | 'creating' | 'migrating'>('idle');
   const [orgConnectionErrors, setOrgConnectionErrors] = useState<{[key: string]: string}>({});
+  const [isValidating, setIsValidating] = useState<{[key: string]: boolean}>({});
   const validationTimeoutRef = useRef<{[key: string]: NodeJS.Timeout}>({});
   const [projectData, setProjectData] = useState({
     name: '',
@@ -429,7 +430,7 @@ export function MigrationProjectBuilder() {
     
     // Set a debounce timeout
     validationTimeoutRef.current[orgType] = setTimeout(async () => {
-      setIsValidating(prev => ({ ...prev, [orgType]: true }));
+      setIsValidating((prev: {[key: string]: boolean}) => ({ ...prev, [orgType]: true }));
       
       try {
         const response = await fetch(`/api/orgs/${orgId}/health`);
@@ -464,7 +465,7 @@ export function MigrationProjectBuilder() {
           [orgType]: `Unable to connect to ${orgName}. Please try reconnecting.`
         }));
       } finally {
-        setIsValidating(prev => ({ ...prev, [orgType]: false }));
+        setIsValidating((prev: {[key: string]: boolean}) => ({ ...prev, [orgType]: false }));
       }
     }, 300); // 300ms debounce
   }, [connectedOrgs]);

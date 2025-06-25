@@ -301,7 +301,7 @@ export async function POST(
           // Log errors separately if they exist
           if (step.errors && step.errors.length > 0) {
             console.log(`Step ${index + 1} errors (${step.errors.length} total):`);
-            step.errors.forEach((error, errorIndex) => {
+            step.errors.forEach((error: any, errorIndex: number) => {
               console.log(`  Error ${errorIndex + 1}:`, {
                 recordId: error.recordId,
                 error: error.error,
@@ -325,16 +325,18 @@ export async function POST(
         if (selectedRecords.length > 0 && sourceClient && template) {
           try {
             const primaryObjectType = template.etlSteps[0]?.extractConfig?.objectApiName;
-            if (primaryObjectType) {
+            if (primaryObjectType && selectedRecords.length > 0) {
               const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
               const nameResult = await sourceClient.query(nameQuery);
               if (nameResult.success && nameResult.data) {
-                nameResult.data.forEach((record) => {
-                  recordNames.set(record.Id, record.Name);
+                nameResult.data.forEach((record: any) => {
+                  if (record.Id && record.Name) {
+                    recordNames.set(record.Id, record.Name);
+                  }
                 });
               }
             }
-          } catch (error) {
+          } catch (error: unknown) {
             console.warn('Failed to fetch record names for session:', error);
           }
         }
@@ -371,7 +373,7 @@ export async function POST(
               },
               // Include step errors
               ...result.stepResults.flatMap(step => 
-                step.errors?.map((error) => ({
+                step.errors?.map((error: any) => ({
                   stepName: step.stepName,
                   recordId: error.recordId,
                   error: error.error,
@@ -421,7 +423,7 @@ export async function POST(
         ) => {
           console.log('getDetailedRecordResults called with targetOrg:', {
             id: targetOrg.id,
-            name: targetOrg.name,
+            organisationName: targetOrg.organisationName,
             instanceUrl: targetOrg.instanceUrl,
             keys: Object.keys(targetOrg)
           });
@@ -431,12 +433,14 @@ export async function POST(
           if (selectedRecords.length > 0 && sourceClient && template) {
             try {
               const primaryObjectType = template.etlSteps[0]?.extractConfig?.objectApiName;
-              if (primaryObjectType) {
+              if (primaryObjectType && selectedRecords.length > 0) {
                 const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
                 const nameResult = await sourceClient.query(nameQuery);
                 if (nameResult.success && nameResult.data) {
-                  nameResult.data.forEach((record) => {
-                    recordNames.set(record.Id, record.Name);
+                  nameResult.data.forEach((record: any) => {
+                    if (record.Id && record.Name) {
+                      recordNames.set(record.Id, record.Name);
+                    }
                   });
                 }
               }
@@ -570,9 +574,9 @@ export async function POST(
                   } else {
                     console.log(`🔍 DEBUGGING: SOURCE - No results for ${queryConfig.stepName} query`);
                   }
-                } catch (error) {
+                } catch (error: unknown) {
                   console.error(`Error querying SOURCE ${queryConfig.stepName}:`, error);
-                  if (error.message?.includes('No such column') || error.message?.includes('Invalid field')) {
+                  if (error instanceof Error && (error.message?.includes('No such column') || error.message?.includes('Invalid field'))) {
                     console.error('SOURCE field name issue detected. Query:', sourceQuery);
                     console.error('SOURCE error details:', error.message);
                   }
@@ -630,10 +634,10 @@ export async function POST(
                   } else {
                     console.log(`🔍 DEBUGGING: TARGET - No results for ${queryConfig.stepName} query`);
                   }
-                } catch (error) {
+                } catch (error: unknown) {
                   console.error(`Error querying TARGET ${queryConfig.stepName}:`, error);
                   // Log the specific error message which might indicate field name issues
-                  if (error.message?.includes('No such column') || error.message?.includes('Invalid field')) {
+                  if (error instanceof Error && (error.message?.includes('No such column') || error.message?.includes('Invalid field'))) {
                     console.error('TARGET field name issue detected. Query:', query);
                     console.error('TARGET error details:', error.message);
                   }
@@ -665,7 +669,7 @@ export async function POST(
                   console.log(`🔍 DEBUGGING: Missing counts for parent ${sourceParentId} - SOURCE:${!!sourceStepCounts} TARGET:${!!targetStepCounts}`);
                 }
               });
-            } catch (error) {
+            } catch (error: unknown) {
               console.error('Error querying child record counts:', error);
             }
           }
@@ -687,7 +691,7 @@ export async function POST(
             if (step.stepName === 'interpretationRuleMaster') {
               // This is the parent record step
               step.errors?.forEach((error) => {
-                const sourceId = error.sourceRecordId || error.recordId;
+                const sourceId = (error as any).sourceRecordId || error.recordId;
                 if (recordResults.has(sourceId)) {
                   const record = recordResults.get(sourceId)!;
                   record.status = 'failed';
@@ -708,7 +712,6 @@ export async function POST(
                   } else {
                     console.warn('Target organisation instanceUrl is undefined or invalid:', {
                       instanceUrl: targetOrg.instanceUrl,
-                      instance_url: targetOrg.instance_url,
                       targetOrgKeys: Object.keys(targetOrg)
                     });
                     record.targetUrl = undefined;
@@ -744,7 +747,7 @@ export async function POST(
                         successCount: thisParentSuccess,
                         failCount: thisParentFail,
                         errors: step.errors?.filter((error) => 
-                          error.sourceRecordId === parentId || error.recordId === parentId
+                          (error as any).sourceRecordId === parentId || error.recordId === parentId
                         ) || []
                       };
                       
@@ -937,7 +940,7 @@ export async function POST(
           failedRecords: result.failedRecords
         });
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Migration execution error:', error);
         
         // Enhanced error context for Sentry
@@ -1040,7 +1043,7 @@ export async function GET(
       }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Get execution status error:', error);
     
     // Handle authentication errors

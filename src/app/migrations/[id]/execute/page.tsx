@@ -132,7 +132,6 @@ export default function MigrationExecutePage({ params }: PageProps) {
 
               <ObjectSelection
                 sourceOrgId={project.source_org_id}
-                targetOrgId={project.target_org_id}
                 onSelectionChange={setSelectedObjects}
               />
             </CardContent>

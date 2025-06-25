@@ -50,13 +50,14 @@ export async function GET(
         isHealthy: true,
         orgId: orgId
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // Check if it's an authentication error
-      if (error.name === 'INVALID_SESSION_ID' || 
-          error.errorCode === 'INVALID_SESSION_ID' ||
+      if (error instanceof Error && (
+          (error as any).name === 'INVALID_SESSION_ID' || 
+          (error as any).errorCode === 'INVALID_SESSION_ID' ||
           error.message?.includes('expired') ||
           error.message?.includes('authentication') ||
-          error.message?.includes('invalid')) {
+          error.message?.includes('invalid'))) {
         return NextResponse.json({ 
           isHealthy: false, 
           error: 'Access token expired or invalid',
@@ -67,10 +68,10 @@ export async function GET(
       // Other errors (network, etc.)
       return NextResponse.json({ 
         isHealthy: false, 
-        error: error.message || 'Connection failed'
+        error: error instanceof Error ? error.message : 'Connection failed'
       });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Health check error:', error);
     
     // Check if it's a specific connection error
