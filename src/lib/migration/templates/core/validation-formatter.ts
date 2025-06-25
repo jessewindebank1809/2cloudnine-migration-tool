@@ -25,7 +25,6 @@ export class ValidationFormatter {
         sourceSundayPayCodeExternalIdValidation: "Sunday Pay Codes Missing External IDs",
         sourceLeaveRuleExternalIdValidation: "Leave Rules Missing External IDs",
         sourceLeaveHeaderExternalIdValidation: "Leave Headers Missing External IDs",
-        crossEnvironmentExternalIdValidation: "Records Missing External IDs for Migration",
         
         // Data integrity checks
         leaveBreakpointIntegrity: "Leave Breakpoint Missing Required Fields",
@@ -129,8 +128,6 @@ export class ValidationFormatter {
             
             if (originalCheckName === 'sourcePayCodeExternalIdValidation') {
                 return `${count} pay code${count !== '1' ? 's' : ''} missing external IDs.`;
-            } else if (originalCheckName === 'crossEnvironmentExternalIdValidation') {
-                return `${count} record${count !== '1' ? 's' : ''} missing external IDs required for migration.`;
             } else if (originalCheckName === 'sourceLeaveRuleExternalIdValidation') {
                 return `${count} leave rule${count !== '1' ? 's' : ''} missing external IDs.`;
             }
@@ -251,7 +248,6 @@ export class ValidationFormatter {
             'sourcePayCodeExternalIdValidation': 'Pay Code',
             'sourceLeaveRuleExternalIdValidation': 'Leave Rule',
             'sourceLeaveHeaderExternalIdValidation': 'Leave Header',
-            'crossEnvironmentExternalIdValidation': 'Record',
             'sourceCasualLoadingPayCodeExternalIdValidation': 'Casual Loading Pay Code',
             'sourceOvertimePayCodeExternalIdValidation': 'Overtime Pay Code',
         };

@@ -991,15 +991,6 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                         severity: "error",
                     },
                     {
-                        checkName: "crossEnvironmentExternalIdValidation",
-                        description: "Validate external ID fields exist for cross-environment migration",
-                        validationQuery: `SELECT COUNT() FROM tc9_pr__Pay_Code__c WHERE 
-                            {externalIdField} = null`,
-                        expectedResult: "empty",
-                        errorMessage: "Migration cannot proceed: Found pay codes without any external ID values. Cross-environment migration requires external IDs to be populated",
-                        severity: "error",
-                    },
-                    {
                         checkName: "standardHoursValidation",
                         description: "Validate that Active interpretation rules (except Daily_Rates record type) have all standard hours populated",
                         validationQuery: `SELECT Id, Name, tc9_et__Status__c, RecordType.DeveloperName,
