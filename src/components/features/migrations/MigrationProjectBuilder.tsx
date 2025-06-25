@@ -973,6 +973,7 @@ export function MigrationProjectBuilder() {
                     info={validationResult.issues.filter(issue => issue.severity === 'info')}
                     sourceOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId)?.name}
                     targetOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId)?.name}
+                    selectedRecords={projectData.selectedRecords}
                   />
 
                   {/* Connection Error Action Button */}
@@ -1364,6 +1365,14 @@ export function MigrationProjectBuilder() {
               onClick={() => {
                 const command = `curl -X POST http://localhost:3000/api/migrations/validate -H "Content-Type: application/json" -d '{"sourceOrgId": "${projectData.sourceOrgId}", "targetOrgId": "${projectData.targetOrgId}", "templateId": "${projectData.templateId}", "selectedRecords": ${JSON.stringify(projectData.selectedRecords)}}' | jq .`;
                 navigator.clipboard.writeText(command);
+                
+                // Change button text temporarily
+                const button = event.currentTarget as HTMLButtonElement;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                  button.textContent = originalText;
+                }, 2000);
               }}
             >
               Copy to Clipboard

@@ -15,6 +15,8 @@ interface EnhancedValidationReportProps {
     info: any[];
     sourceOrgName?: string;
     targetOrgName?: string;
+    selectedRecords?: string[];
+    interpretationRuleNames?: Record<string, string>; // Map of rule ID to name
 }
 
 export function EnhancedValidationReport({
@@ -23,6 +25,8 @@ export function EnhancedValidationReport({
     info,
     sourceOrgName = 'Source Org',
     targetOrgName = 'Target Org',
+    selectedRecords = [],
+    interpretationRuleNames = {},
 }: EnhancedValidationReportProps) {
     const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
     const [expandedRecords, setExpandedRecords] = React.useState<Set<string>>(new Set());
@@ -92,15 +96,36 @@ export function EnhancedValidationReport({
         // Group issues by source record name
         const issuesByRecord = new Map<string, any[]>();
         
-        issues.forEach(issue => {
-            // The recordName should contain the source record name from the normalization
-            const recordKey = issue.recordName || 'Unknown Record';
+        // For interpretation rule migrations, we want to show the interpretation rule name
+        // as the source record, not the child record names
+        // Since we don't have the mapping of which errors belong to which interpretation rule,
+        // we'll use a generic heading for now
+        
+        // Check if these are interpretation rule related errors
+        const hasInterpretationRuleErrors = issues.some(issue => 
+            issue.recordId?.startsWith('a5X') || // Breakpoints
+            issue.recordId?.startsWith('a5Y') || // Interpretation Rules
+            (issue.message || issue.description || '').includes('Breakpoint') ||
+            (issue.message || issue.description || '').includes('Interpretation Rule')
+        );
+        
+        if (hasInterpretationRuleErrors && selectedRecords.length > 0) {
+            // Group all errors under the selected interpretation rules
+            const groupName = selectedRecords.length === 1 
+                ? 'Selected Interpretation Rule'
+                : `Selected Interpretation Rules (${selectedRecords.length})`;
             
-            if (!issuesByRecord.has(recordKey)) {
-                issuesByRecord.set(recordKey, []);
-            }
-            issuesByRecord.get(recordKey)!.push(issue);
-        });
+            issuesByRecord.set(groupName, issues);
+        } else {
+            // Fallback to grouping by the extracted record names
+            issues.forEach(issue => {
+                const recordKey = issue.recordName || 'Unknown Record';
+                if (!issuesByRecord.has(recordKey)) {
+                    issuesByRecord.set(recordKey, []);
+                }
+                issuesByRecord.get(recordKey)!.push(issue);
+            });
+        }
         
         return (
             <div key={groupName} className={cn('rounded-lg p-4 mb-4', bgClass)}>
