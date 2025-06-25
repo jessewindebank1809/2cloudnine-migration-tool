@@ -64,14 +64,14 @@ export class MultiOrgSessionManager {
     }
 
     // Create Salesforce client with valid tokens
-    const client = new SalesforceClient({
+    const client = await SalesforceClient.create({
       id: org.id,
       organisationId: org.salesforce_org_id || '',
       organisationName: org.name,
       instanceUrl: org.instance_url,
       accessToken: validTokens.accessToken,
       refreshToken: validTokens.refreshToken,
-    });
+    }, org.org_type as 'PRODUCTION' | 'SANDBOX');
 
     // Create supporting services
     const healthMonitor = new ConnectionHealthMonitor();
@@ -245,20 +245,20 @@ export class MultiOrgSessionManager {
         // Instead of updating the existing client, create a new one with fresh tokens
         const org = await this.getOrgFromDatabase(orgId);
         if (org) {
-          const newClient = new SalesforceClient({
+          const newClient = await SalesforceClient.create({
             id: org.id,
             organisationId: org.salesforce_org_id || '',
             organisationName: org.name,
             instanceUrl: org.instance_url,
             accessToken: validTokens.accessToken,
             refreshToken: validTokens.refreshToken,
-          });
+          }, org.org_type as 'PRODUCTION' | 'SANDBOX');
           
           // Replace the session with a new one
           this.sessions.set(orgId, {
             orgId,
             client: newClient,
-            lastAccessed: Date.now()
+            lastAccessed: new Date()
           });
           console.log(`✅ Refreshed session for ${orgId} with new tokens`);
         }
