@@ -207,15 +207,6 @@ export function EnhancedValidationReport({
             );
         
         if (hasInterpretationRuleNames) {
-            // Group all errors under interpretation rule names
-            const interpretationRuleGroups = new Map<string, any[]>();
-            
-            // Get the interpretation rule names
-            selectedRecords.forEach(ruleId => {
-                const ruleName = interpretationRuleNames[ruleId] || `Interpretation Rule (${ruleId})`;
-                interpretationRuleGroups.set(ruleName, []);
-            });
-            
             // First group by error type
             const groupedByType = ValidationFormatter.groupValidationIssues(normalizedIssues);
             
@@ -231,6 +222,18 @@ export function EnhancedValidationReport({
                                 {issues.length}
                             </Badge>
                         </CardTitle>
+                        {/* Show selected interpretation rules */}
+                        {selectedRecords.length > 0 && Object.keys(interpretationRuleNames).length > 0 && (
+                            <div className="mt-2 text-sm text-muted-foreground">
+                                <span className="font-medium">Selected Interpretation Rules: </span>
+                                {selectedRecords.map((ruleId, index) => (
+                                    <span key={ruleId}>
+                                        {interpretationRuleNames[ruleId] || ruleId}
+                                        {index < selectedRecords.length - 1 ? ', ' : ''}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent>
                         {Array.from(groupedByType.entries()).map(([errorType, typeIssues]) => {
@@ -250,6 +253,9 @@ export function EnhancedValidationReport({
                                             <Icon className={cn('w-5 h-5 mt-0.5', colorClass)} />
                                             <div>
                                                 <h4 className="font-medium text-gray-900">{errorType}</h4>
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    {typeIssues.length} {typeIssues.length === 1 ? 'issue' : 'issues'} found in child records
+                                                </p>
                                             </div>
                                         </div>
                                         {isTypeExpanded ? (
@@ -261,65 +267,28 @@ export function EnhancedValidationReport({
                                     
                                     {isTypeExpanded && (
                                         <div className="mt-4 space-y-2">
-                                            {/* Group by interpretation rule */}
-                                            {selectedRecords.map(ruleId => {
-                                                const ruleName = interpretationRuleNames[ruleId] || `Interpretation Rule (${ruleId})`;
-                                                const ruleKey = `${errorType}-${ruleId}`;
-                                                const isRuleExpanded = expandedRecords.has(ruleKey);
-                                                const ruleIssues = typeIssues; // In reality, we'd filter by rule if we could
-                                                
-                                                if (selectedRecords.length === 1 || ruleIssues.length > 0) {
-                                                    return (
-                                                        <div key={ruleId} className="bg-gray-100 rounded-md p-3">
-                                                            <button
-                                                                onClick={() => toggleRecord(ruleKey)}
-                                                                className="w-full flex items-center justify-between text-left"
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <Users className="w-4 h-4 text-gray-600" />
-                                                                    <span className="font-medium text-gray-800">{ruleName}</span>
-                                                                    <Badge variant="outline" className="text-xs">
-                                                                        {ruleIssues.length} issue{ruleIssues.length !== 1 ? 's' : ''}
-                                                                    </Badge>
-                                                                </div>
-                                                                {isRuleExpanded ? (
-                                                                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                                                                ) : (
-                                                                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                                                                )}
-                                                            </button>
-                                                            
-                                                            {isRuleExpanded && (
-                                                                <div className="mt-2 space-y-2">
-                                                                    {ruleIssues.map((issue, index) => (
-                                                                        <div key={index} className="bg-white rounded-md p-3 ml-6 shadow-sm">
-                                                                            <div className="flex items-start justify-between">
-                                                                                <div className="flex-1">
-                                                                                    <p className="text-sm text-gray-700">{issue.message || issue.description}</p>
-                                                                                    {issue.recordId && issue.recordLink && (
-                                                                                        <div className="mt-2">
-                                                                                            <a 
-                                                                                                href={issue.recordLink}
-                                                                                                target="_blank"
-                                                                                                rel="noopener noreferrer"
-                                                                                                className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-                                                                                            >
-                                                                                                View Record
-                                                                                                <ExternalLink className="w-3 h-3" />
-                                                                                            </a>
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
+                                            {typeIssues.map((issue, index) => (
+                                                <div key={index} className="bg-white rounded-md p-3 shadow-sm">
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            <p className="text-sm text-gray-700">{issue.message || issue.description}</p>
+                                                            {issue.recordId && issue.recordLink && (
+                                                                <div className="mt-2">
+                                                                    <a 
+                                                                        href={issue.recordLink}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                                                    >
+                                                                        View Record
+                                                                        <ExternalLink className="w-3 h-3" />
+                                                                    </a>
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    );
-                                                }
-                                                return null;
-                                            })}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
