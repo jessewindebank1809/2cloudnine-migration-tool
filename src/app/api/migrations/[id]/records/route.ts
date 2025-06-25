@@ -86,7 +86,7 @@ export async function GET(
 
     // For now, return records without selection status
     // TODO: Implement record selection tracking once Prisma client is working
-    const enhancedRecords = (result.data || []).map((record: any) => ({
+    const enhancedRecords = (result.data || []).map((record) => ({
       ...record,
       isSelected: false
     }));

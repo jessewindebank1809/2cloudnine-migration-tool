@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
@@ -10,8 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import {
   Select,
@@ -431,7 +430,7 @@ export function MigrationProjectBuilder() {
     
     // Set a debounce timeout
     validationTimeoutRef.current[orgType] = setTimeout(async () => {
-      setIsValidating(prev => ({ ...prev, [orgType]: true }));
+      setIsValidating((prev: {[key: string]: boolean}) => ({ ...prev, [orgType]: true }));
       
       try {
         const response = await fetch(`/api/orgs/${orgId}/health`);
@@ -466,7 +465,7 @@ export function MigrationProjectBuilder() {
           [orgType]: `Unable to connect to ${orgName}. Please try reconnecting.`
         }));
       } finally {
-        setIsValidating(prev => ({ ...prev, [orgType]: false }));
+        setIsValidating((prev: {[key: string]: boolean}) => ({ ...prev, [orgType]: false }));
       }
     }, 300); // 300ms debounce
   }, [connectedOrgs]);

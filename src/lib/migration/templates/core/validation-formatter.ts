@@ -28,7 +28,6 @@ export class ValidationFormatter {
         crossEnvironmentExternalIdValidation: "Records Missing External IDs for Migration",
         
         // Data integrity checks
-        payCodeCapIntegrity: "Pay Code Cap Missing Required Fields",
         leaveBreakpointIntegrity: "Leave Breakpoint Missing Required Fields",
         payCodeExternalIdConsistency: "Pay Code External ID Inconsistency",
         recordTypeMappingCoverage: "Unmapped Record Types",

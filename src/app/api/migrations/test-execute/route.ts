@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ExecutionEngine, DEFAULT_EXECUTION_CONFIG } from '@/lib/migration/templates/core/execution-engine';
+import { ExecutionEngine, DEFAULT_EXECUTION_CONFIG, ExecutionContext } from '@/lib/migration/templates/core/execution-engine';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
 import { registerAllTemplates } from '@/lib/migration/templates/registry';
 import { ExternalIdUtils } from '@/lib/migration/templates/utils/external-id-utils';
@@ -7,6 +7,7 @@ import { prisma } from '@/lib/database/prisma';
 import { sessionManager } from '@/lib/salesforce/session-manager';
 import { TokenManager } from '@/lib/salesforce/token-manager';
 import type { SalesforceOrg } from '@/types';
+import type { Prisma } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +17,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { migrationId, sourceOrgId, targetOrgId, templateId, selectedRecords } = body;
 
-    let config: any;
+    let config: {
+      sourceOrgId: string;
+      targetOrgId: string;
+      templateId: string;
+      selectedRecords: Record<string, string[]>;
+    };
     let testMigrationId: string;
 
     if (migrationId) {
@@ -32,7 +38,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      config = migration.config as any;
+      config = migration.config as Prisma.JsonValue as {
+        sourceOrgId: string;
+        targetOrgId: string;
+        templateId: string;
+        selectedRecords: Record<string, string[]>;
+      };
       testMigrationId = migrationId;
     } else if (sourceOrgId && targetOrgId && templateId && selectedRecords) {
       // Create temporary test configuration
@@ -132,12 +143,11 @@ export async function POST(request: NextRequest) {
     const externalIdConfig = await ExternalIdUtils.detectCrossEnvironmentMapping(sourceExternalIdInfo, targetExternalIdInfo);
 
     // Execute template
-    const executionContext = {
+    const executionContext: ExecutionContext = {
       template,
       sourceOrg: sourceOrgData,
       targetOrg: targetOrgData,
       selectedRecords: selectedRecordIds,
-      selectedRecordIds,
       externalIdField: externalIdConfig.targetField,
       externalIdConfig: externalIdConfig,
       config: DEFAULT_EXECUTION_CONFIG
@@ -160,12 +170,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Migration execution error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to execute migration', 
-        details: error.message 
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

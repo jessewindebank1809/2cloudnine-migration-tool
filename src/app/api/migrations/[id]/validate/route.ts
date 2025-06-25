@@ -3,6 +3,7 @@ import { prisma } from '@/lib/database/prisma';
 import { requireAuth } from '@/lib/auth/session-helper';
 import { ValidationEngine } from '@/lib/migration/templates/core/validation-engine';
 import { TemplateRegistry } from '@/lib/migration/templates/core/template-registry';
+import type { Prisma } from '@prisma/client';
 
 export async function POST(
   request: NextRequest,
@@ -71,7 +72,7 @@ export async function POST(
     await prisma.migration_template_usage.update({
       where: { id: templateUsage.id },
       data: {
-        validation_results: validationResult as any,
+        validation_results: validationResult as unknown as Prisma.InputJsonValue,
         selected_records: selectedRecords || [],
       }
     });

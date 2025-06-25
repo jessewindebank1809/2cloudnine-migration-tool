@@ -4,7 +4,6 @@ import { SalesforceClient } from '@/lib/salesforce/client';
 import { ObjectDiscoveryEngine } from '@/lib/salesforce/object-discovery';
 import { decrypt } from '@/lib/utils/encryption';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
-import { ETLStep } from '@/lib/migration/templates/core/interfaces';
 import '@/lib/migration/templates/registry'; // Ensure templates are registered
 
 export async function POST(request: NextRequest) {

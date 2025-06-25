@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { requireAuth } from '@/lib/auth/session-helper';
+import type { Prisma } from '@prisma/client';
 
 // Force dynamic rendering with optimizations
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(now.getTime() - (daysBack * 24 * 60 * 60 * 1000));
 
     // Build where clause with user filtering
-    const whereClause: any = {
+    const whereClause: Prisma.migration_sessionsWhereInput = {
       created_at: {
         gte: startDate
       },
@@ -80,8 +81,8 @@ export async function GET(request: NextRequest) {
 
     // Calculate analytics
     const totalMigrations = sessions.length;
-    const completedMigrations = sessions.filter((s: any) => s.status === 'COMPLETED').length;
-    const failedMigrations = sessions.filter((s: any) => s.status === 'FAILED').length;
+    const completedMigrations = sessions.filter(s => s.status === 'COMPLETED').length;
+    const failedMigrations = sessions.filter(s => s.status === 'FAILED').length;
     const successRate = totalMigrations > 0 ? (completedMigrations / totalMigrations) * 100 : 0;
 
     const totalRecordsProcessed = sessions.reduce((sum, s) => sum + (s.processed_records || 0), 0);
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
     const recordSuccessRate = totalRecordsProcessed > 0 ? (totalRecordsSuccessful / totalRecordsProcessed) * 100 : 0;
 
     // Calculate average duration for completed migrations
-    const completedSessions = sessions.filter((s: any) => s.status === 'COMPLETED' && s.started_at && s.completed_at);
+    const completedSessions = sessions.filter(s => s.status === 'COMPLETED' && s.started_at && s.completed_at);
     const averageDuration = completedSessions.length > 0 
       ? completedSessions.reduce((sum, s) => {
           const duration = new Date(s.completed_at!).getTime() - new Date(s.started_at!).getTime();
@@ -116,7 +117,14 @@ export async function GET(request: NextRequest) {
       acc[date].recordsProcessed += session.processed_records || 0;
       acc[date].recordsSuccessful += session.successful_records || 0;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, {
+      date: string;
+      total: number;
+      completed: number;
+      failed: number;
+      recordsProcessed: number;
+      recordsSuccessful: number;
+    }>);
 
     // Group by object type
     const objectTypeStats = sessions.reduce((acc, session) => {
@@ -137,7 +145,14 @@ export async function GET(request: NextRequest) {
       acc[objectType].recordsProcessed += session.processed_records || 0;
       acc[objectType].recordsSuccessful += session.successful_records || 0;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, {
+      objectType: string;
+      total: number;
+      completed: number;
+      failed: number;
+      recordsProcessed: number;
+      recordsSuccessful: number;
+    }>);
 
     // Recent migrations for activity feed
     const recentMigrations = sessions.slice(0, 10).map(session => ({
@@ -170,8 +185,8 @@ export async function GET(request: NextRequest) {
           averageDuration: Math.round(averageDuration / 1000), // Convert to seconds
         },
         trends: {
-          daily: Object.values(dailyStats).sort((a: any, b: any) => a.date.localeCompare(b.date)),
-          objectTypes: Object.values(objectTypeStats).sort((a: any, b: any) => b.total - a.total)
+          daily: Object.values(dailyStats).sort((a, b) => a.date.localeCompare(b.date)),
+          objectTypes: Object.values(objectTypeStats).sort((a, b) => b.total - a.total)
         },
         recentActivity: recentMigrations
       },

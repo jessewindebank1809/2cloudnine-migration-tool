@@ -131,7 +131,10 @@ function generateOrgId(): string {
   return `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 }
 
-async function storeConnectedAppCredentials(orgId: string, credentials: any) {
+async function storeConnectedAppCredentials(orgId: string, _credentials: {
+  consumerKey: string;
+  consumerSecretEncrypted: string;
+}) {
   // In production, use a secure key management service
   // For now, we'll store in the database or environment variables
   

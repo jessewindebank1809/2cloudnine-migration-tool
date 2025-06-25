@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         null;
       
       const errors = session.error_log && Array.isArray(session.error_log) ? 
-        session.error_log.filter((e: any) => e.error || e.message) : 
+        session.error_log.filter((e) => (e as { error?: unknown; message?: unknown }).error || (e as { error?: unknown; message?: unknown }).message) : 
         [];
 
       return {

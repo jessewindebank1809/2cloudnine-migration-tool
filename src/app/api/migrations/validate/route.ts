@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
-import { sessionManager } from '@/lib/salesforce/session-manager';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
 import { ValidationEngine } from '@/lib/migration/templates/core/validation-engine';
 import '@/lib/migration/templates/registry';

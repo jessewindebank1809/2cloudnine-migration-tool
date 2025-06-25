@@ -462,7 +462,7 @@ export class ExecutionEngine {
           } else if (fieldMapping.transformationType === 'boolean') {
             // Handle boolean transformation - preserve actual boolean values
             if (sourceValue !== null && sourceValue !== undefined) {
-              transformedRecord[targetField] = sourceValue === true || sourceValue === 'true' || sourceValue === 1 || sourceValue === '1';
+              transformedRecord[targetField] = sourceValue === true || sourceValue === 'true' || sourceValue === 1 || sourceValue === '1' || sourceValue === 'Yes';
             } else {
               transformedRecord[targetField] = sourceValue;
             }
