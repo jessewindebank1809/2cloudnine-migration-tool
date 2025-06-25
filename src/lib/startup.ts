@@ -1,8 +1,11 @@
-import { TokenManager } from './salesforce/token-manager';
-
 let isInitialized = false;
 
-export function initializeApp() {
+export async function initializeApp() {
+  // Only run on server side
+  if (typeof window !== 'undefined') {
+    return;
+  }
+
   if (isInitialized) {
     return;
   }
@@ -16,8 +19,10 @@ export function initializeApp() {
   console.log('🚀 Initializing application...');
   
   // Start the token refresh scheduler asynchronously to not block startup
-  setImmediate(() => {
+  setImmediate(async () => {
     try {
+      // Dynamically import TokenManager to avoid client-side bundling
+      const { TokenManager } = await import('./salesforce/token-manager');
       const tokenManager = TokenManager.getInstance();
       tokenManager.startTokenRefreshScheduler();
       console.log('✅ Token refresh scheduler started');

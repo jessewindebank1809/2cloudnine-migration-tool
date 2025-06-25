@@ -1,12 +1,21 @@
-import * as jsforce from 'jsforce';
 import type { SalesforceOrg } from '@/types';
 import { prisma } from '@/lib/database/prisma';
 import { encrypt } from '@/lib/utils/encryption';
 import { withTokenRefresh } from './token-refresh-helper';
 import { TokenManager } from './token-manager';
 
+// Lazy load jsforce to avoid client-side bundling issues
+let jsforce: typeof import('jsforce') | null = null;
+
+async function getJsforce() {
+  if (!jsforce) {
+    jsforce = await import('jsforce');
+  }
+  return jsforce;
+}
+
 export class SalesforceClient {
-  private connection: jsforce.Connection;
+  private connection: any; // Using any to avoid jsforce type imports
   private orgId: string;
 
   /**
@@ -41,15 +50,30 @@ export class SalesforceClient {
         refreshToken: validTokens.refreshToken
       };
 
-      return new SalesforceClient(salesforceOrg, orgType);
+      return await SalesforceClient.create(salesforceOrg, orgType);
     } catch (error) {
       console.error(`Error creating SalesforceClient for org ${orgId}:`, error);
       return null;
     }
   }
 
-  constructor(org: SalesforceOrg, orgType: 'PRODUCTION' | 'SANDBOX' = 'PRODUCTION') {
+  private constructor(org: SalesforceOrg, orgType: 'PRODUCTION' | 'SANDBOX' = 'PRODUCTION', connection: any) {
     this.orgId = org.id;
+    this.connection = connection;
+
+    // Set up token refresh callback to update database
+    this.connection.on('refresh', async (accessToken: string, res: any) => {
+      console.log('Token refreshed for org:', this.orgId);
+      try {
+        await this.updateTokensInDatabase(accessToken, res.refresh_token);
+      } catch (error) {
+        console.error('Failed to update refreshed tokens in database:', error);
+      }
+    });
+  }
+
+  static async create(org: SalesforceOrg, orgType: 'PRODUCTION' | 'SANDBOX' = 'PRODUCTION'): Promise<SalesforceClient> {
+    const jsf = await getJsforce();
     
     // Select credentials based on org type
     const clientId = orgType === 'PRODUCTION' 
@@ -60,7 +84,7 @@ export class SalesforceClient {
       ? process.env.SALESFORCE_PRODUCTION_CLIENT_SECRET!
       : process.env.SALESFORCE_SANDBOX_CLIENT_SECRET!;
 
-    this.connection = new jsforce.Connection({
+    const connection = new jsf.Connection({
       instanceUrl: org.instanceUrl,
       accessToken: org.accessToken,
       refreshToken: org.refreshToken,
@@ -72,15 +96,7 @@ export class SalesforceClient {
       }
     });
 
-    // Set up token refresh callback to update database
-    this.connection.on('refresh', async (accessToken: string, res: any) => {
-      console.log('Token refreshed for org:', this.orgId);
-      try {
-        await this.updateTokensInDatabase(accessToken, res.refresh_token);
-      } catch (error) {
-        console.error('Failed to update refreshed tokens in database:', error);
-      }
-    });
+    return new SalesforceClient(org, orgType, connection);
   }
 
   private async updateTokensInDatabase(accessToken: string, refreshToken?: string): Promise<void> {
