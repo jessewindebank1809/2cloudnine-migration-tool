@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const orgId = searchParams.get('orgId');
     const instanceUrl = searchParams.get('instanceUrl');
     const background = searchParams.get('background') === 'true';
+    const returnUrl = searchParams.get('returnUrl');
 
     if (!orgId) {
       if (background) {
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
       targetInstanceUrl,
       codeVerifier,
       background,
+      returnUrl,
       timestamp: Date.now(), // Add timestamp for debugging
     };
     
@@ -139,16 +141,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const background = searchParams.get('background') === 'true';
     
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      console.log('🚨 OAuth Initiation - Unauthorized error (no valid session)');
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      console.log('🚨 OAuth Initiation - Unauthorised error (no valid session)');
       if (background) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
       }
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=unauthorized`);
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=unauthorised`);
     }
     
     if (background) {
-      return NextResponse.json({ error: 'OAuth initialization failed' }, { status: 500 });
+      return NextResponse.json({ error: 'OAuth initialisation failed' }, { status: 500 });
     }
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/orgs?error=oauth_init_failed`);
   }

@@ -71,6 +71,18 @@ const nextConfig = {
   },
   // Add webpack optimization for better bundling
   webpack: (config, { dev, isServer }) => {
+    // Add fallbacks for Node.js modules not available in browser
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        stream: require.resolve('stream-browserify'),
+        buffer: require.resolve('buffer/'),
+        util: require.resolve('util/'),
+        process: require.resolve('process/browser'),
+        crypto: require.resolve('crypto-browserify'),
+      };
+    }
+    
     // Optimize chunks for better loading
     if (!dev && !isServer) {
       config.optimization.splitChunks = {

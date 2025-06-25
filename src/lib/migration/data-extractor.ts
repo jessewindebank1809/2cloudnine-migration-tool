@@ -1,6 +1,6 @@
 import { SalesforceClient } from '@/lib/salesforce/client';
 import { sessionManager } from '@/lib/salesforce/session-manager';
-import { ObjectDiscoveryEngine, SalesforceObject } from '@/lib/salesforce/object-discovery';
+import { ObjectDiscoveryEngine } from '@/lib/salesforce/object-discovery';
 
 export interface ExtractionOptions {
   objectName: string;
@@ -304,7 +304,7 @@ export class DataExtractor {
   /**
    * Query more records from a nextRecordsUrl
    */
-  private async queryMore(client: SalesforceClient, nextRecordsUrl: string): Promise<ExtractionResult> {
+  private async queryMore(_client: SalesforceClient, _nextRecordsUrl: string): Promise<ExtractionResult> {
     // This would need to be implemented in the SalesforceClient
     // For now, return empty result
     return {

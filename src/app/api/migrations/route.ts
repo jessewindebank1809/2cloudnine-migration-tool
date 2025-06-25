@@ -3,6 +3,7 @@ import { prisma } from '@/lib/database/prisma';
 import { requireAuth } from '@/lib/auth/session-helper';
 import { z } from 'zod';
 import crypto from 'crypto';
+import type { Prisma } from '@prisma/client';
 
 // Schema for creating a new migration project
 const CreateProjectSchema = z.object({
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
       name: project.name,
       description: project.description,
       status: project.status,
-      templateId: (project.config as any)?.templateId || null,
+      templateId: (project.config as Prisma.JsonValue as { templateId?: string })?.templateId || null,
       sourceOrg: {
         id: project.organisations_migration_projects_source_org_idToorganisations?.id || '',
         name: project.organisations_migration_projects_source_org_idToorganisations?.name || 'Unknown',
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     const { name, description, sourceOrgId, targetOrgId, templateId, selectedRecords, config } = validation.data;
 
-    // Verify organizations exist and belong to the current user
+    // Verify organisations exist and belong to the current user
     const [sourceOrg, targetOrg] = await Promise.all([
       prisma.organisations.findFirst({ 
         where: { 
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
     const projectId = crypto.randomUUID();
     
     // Build the config object with selected records and template
-    const projectConfig: any = {
+    const projectConfig: Record<string, unknown> = {
       ...(config || {}),
       selectedRecords: selectedRecords || [],
     };
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
         description: description || null,
         source_org_id: sourceOrgId,
         target_org_id: targetOrgId,
-        config: projectConfig,
+        config: projectConfig as unknown as Prisma.InputJsonValue,
         status: 'DRAFT',
         user_id: session.user.id, // Use authenticated user
         updated_at: new Date(),
@@ -196,8 +197,8 @@ export async function POST(request: NextRequest) {
     console.error('Error creating migration project:', error);
     
     // Handle authentication errors
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(

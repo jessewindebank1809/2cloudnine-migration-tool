@@ -31,7 +31,7 @@ export interface ExecutionContext {
 
 export interface StepExecutionResult {
   stepName: string;
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'partial';
   totalRecords: number;
   successfulRecords: number;
   failedRecords: number;
@@ -81,8 +81,8 @@ export class ExecutionEngine {
 
     try {
       // Initialize Salesforce clients
-      this.sourceClient = new SalesforceClient(context.sourceOrg);
-      this.targetClient = new SalesforceClient(context.targetOrg);
+      this.sourceClient = await SalesforceClient.create(context.sourceOrg);
+      this.targetClient = await SalesforceClient.create(context.targetOrg);
 
       // Clear caches for fresh execution
       this.clearCaches();
@@ -119,12 +119,14 @@ export class ExecutionEngine {
         // Update lookup cache with successful mappings
         this.updateLookupCache(step.stepName, stepResult.lookupMappings);
 
-        // Stop execution if step failed
+        // Stop execution if step failed completely
         if (stepResult.status === 'failed') {
-          console.log(`Step ${step.stepName} failed (${stepResult.failedRecords} failures vs ${stepResult.successfulRecords} successes), initiating rollback...`);
+          console.log(`Step ${step.stepName} failed completely (${stepResult.failedRecords} failures, ${stepResult.successfulRecords} successes), initiating rollback...`);
           // Perform rollback of successfully inserted records
           await this.performRollback(context);
           break;
+        } else if (stepResult.status === 'partial') {
+          console.log(`Step ${step.stepName} partially succeeded (${stepResult.successfulRecords} successes, ${stepResult.failedRecords} failures). Continuing execution...`);
         }
       }
 
@@ -132,8 +134,10 @@ export class ExecutionEngine {
       
       // Check if any steps failed completely
       const hasFailedSteps = stepResults.some(step => step.status === 'failed');
+      const hasPartialSteps = stepResults.some(step => step.status === 'partial');
       const finalStatus = hasFailedSteps ? 'failed' :
-                         failedRecords === 0 ? 'success' : 'failed';
+                         failedRecords === 0 ? 'success' : 
+                         hasPartialSteps ? 'partial' : 'failed';
 
       this.notifyProgress({
         currentStep: context.template.etlSteps.length,
@@ -238,7 +242,10 @@ export class ExecutionEngine {
         });
       }
 
-      const status = failureCount === 0 ? 'success' : 'failed';
+      // Determine status based on failures and allowPartialSuccess setting
+      const allowPartialSuccess = step.loadConfig?.allowPartialSuccess || false;
+      const status = failureCount === 0 ? 'success' : 
+                     (allowPartialSuccess && successCount > 0) ? 'partial' : 'failed';
 
       return {
         stepName,
@@ -294,6 +301,17 @@ export class ExecutionEngine {
       }
     }
     
+    // Special handling for interpretation rule variation step
+    // When extracting variation rules, include those linked to selected parent rules
+    if (step.stepName === 'interpretationRuleVariation' && objectType === 'tc9_et__Interpretation_Rule__c') {
+      const parentRuleIds = context.selectedRecords['tc9_et__Interpretation_Rule__c'] || [];
+      if (parentRuleIds.length > 0) {
+        console.log(`Including variation rules for parent rule IDs: ${JSON.stringify(parentRuleIds)}`);
+        // Modify the query to get variation rules linked to selected parent rules
+        selectedIds = parentRuleIds; // Will be used with tc9_et__Interpretation_Rule__c field
+      }
+    }
+    
     if (selectedIds.length === 0) {
       console.log('No selected records found, returning empty array');
       return [];
@@ -317,10 +335,20 @@ export class ExecutionEngine {
       query = query.replace(/{selectedRecordIds}/g, `'${selectedIds.join("','")}'`);
     } else {
       // Add WHERE clause for selected records (legacy behavior)
+      // Determine the correct filter field based on step and object type
+      let filterField = 'Id';
+      
+      if (objectType === 'tc9_et__Interpretation_Breakpoint__c') {
+        filterField = 'tc9_et__Interpretation_Rule__c';
+      } else if (step.stepName === 'interpretationRuleVariation' && objectType === 'tc9_et__Interpretation_Rule__c') {
+        // For variation rules, filter by parent interpretation rule
+        filterField = 'tc9_et__Interpretation_Rule__c';
+      }
+      
       if (query.toLowerCase().includes('where')) {
-        query += ` AND Id IN ('${selectedIds.join("','")}')`;
+        query += ` AND ${filterField} IN ('${selectedIds.join("','")}')`;
       } else {
-        query += ` WHERE Id IN ('${selectedIds.join("','")}')`;
+        query += ` WHERE ${filterField} IN ('${selectedIds.join("','")}')`;
       }
     }
 
@@ -345,10 +373,20 @@ export class ExecutionEngine {
         queryWithoutExternalId = queryWithoutExternalId.replace(/{selectedRecordIds}/g, `'${selectedIds.join("','")}'`);
       } else {
         // Add WHERE clause for selected records (legacy behavior)
+        // Determine the correct filter field based on step and object type
+        let filterField = 'Id';
+        
+        if (objectType === 'tc9_et__Interpretation_Breakpoint__c') {
+          filterField = 'tc9_et__Interpretation_Rule__c';
+        } else if (step.stepName === 'interpretationRuleVariation' && objectType === 'tc9_et__Interpretation_Rule__c') {
+          // For variation rules, filter by parent interpretation rule
+          filterField = 'tc9_et__Interpretation_Rule__c';
+        }
+        
         if (queryWithoutExternalId.toLowerCase().includes('where')) {
-          queryWithoutExternalId += ` AND Id IN ('${selectedIds.join("','")}')`;
+          queryWithoutExternalId += ` AND ${filterField} IN ('${selectedIds.join("','")}')`;
         } else {
-          queryWithoutExternalId += ` WHERE Id IN ('${selectedIds.join("','")}')`;
+          queryWithoutExternalId += ` WHERE ${filterField} IN ('${selectedIds.join("','")}')`;
         }
       }
       
@@ -363,11 +401,12 @@ export class ExecutionEngine {
     console.log(`Query returned ${result.data?.length || 0} records`);
     
     // Special validation for breakpoint steps - they should always have records if interpretation rules exist
-    if (objectType === 'tc9_et__Interpretation_Breakpoint__c' && 
-        (result.data?.length || 0) === 0 && 
-        (context.selectedRecords['tc9_et__Interpretation_Rule__c']?.length || 0) > 0) {
-      throw new Error(`No breakpoints found for interpretation rules. Interpretation rules must have associated breakpoints.`);
-    }
+    // TEMPORARILY DISABLED: This validation is now handled in the separate validation step
+    // if (objectType === 'tc9_et__Interpretation_Breakpoint__c' && 
+    //     (result.data?.length || 0) === 0 && 
+    //     (context.selectedRecords['tc9_et__Interpretation_Rule__c']?.length || 0) > 0) {
+    //   throw new Error(`No breakpoints found for interpretation rules. Interpretation rules must have associated breakpoints.`);
+    // }
     
     return result.data || [];
   }
@@ -421,14 +460,23 @@ export class ExecutionEngine {
               console.log(`Transformed picklist value: "${sourceValue}" -> "${transformedValue}" for field ${targetField}`);
             }
           } else if (fieldMapping.transformationType === 'boolean') {
-            // Handle boolean transformation
-            transformedRecord[targetField] = sourceValue === true || sourceValue === 'true' || sourceValue === 1;
+            // Handle boolean transformation - preserve actual boolean values
+            if (sourceValue !== null && sourceValue !== undefined) {
+              transformedRecord[targetField] = sourceValue === true || sourceValue === 'true' || sourceValue === 1 || sourceValue === '1' || sourceValue === 'Yes';
+            } else {
+              transformedRecord[targetField] = sourceValue;
+            }
           } else if (fieldMapping.transformationType === 'number') {
-            // Handle number transformation
-            transformedRecord[targetField] = sourceValue ? parseFloat(sourceValue) : null;
+            // Handle number transformation - preserve zero values
+            if (sourceValue !== null && sourceValue !== undefined && sourceValue !== '') {
+              transformedRecord[targetField] = parseFloat(sourceValue);
+            } else {
+              transformedRecord[targetField] = null;
+            }
           } else {
             // Direct field mapping
             transformedRecord[targetField] = sourceValue;
+            
           }
         }
       }
@@ -468,7 +516,14 @@ export class ExecutionEngine {
             
             if (targetValue) {
               transformedRecord[lookupMapping.targetField] = targetValue;
+            } else if (lookupMapping.allowNull) {
+              // Explicitly set null for failed lookups when allowNull is true
+              transformedRecord[lookupMapping.targetField] = null;
+              console.log(`      Setting ${lookupMapping.targetField} to null (lookup failed but allowNull=true)`);
             }
+          } else if (lookupMapping.allowNull) {
+            // Also set null when source value is empty and allowNull is true
+            transformedRecord[lookupMapping.targetField] = null;
           }
         }
       }
@@ -499,19 +554,9 @@ export class ExecutionEngine {
         }
       }
 
-      // Handle external ID field mapping for cross-environment migrations
-      // Only set external ID field if it exists in the source record
-      // This prevents trying to insert non-existent fields in the target org
-      if (record.hasOwnProperty(sourceExternalIdField)) {
-        // For cross-environment migrations, map from source field to target field
-        if (context.externalIdConfig?.strategy === 'cross-environment' && sourceExternalIdField !== targetExternalIdField) {
-          transformedRecord[targetExternalIdField] = record[sourceExternalIdField];
-          console.log(`Cross-environment external ID mapping: ${sourceExternalIdField} -> ${targetExternalIdField}`);
-        } else {
-          // Same environment migration
-          transformedRecord[targetExternalIdField] = record[sourceExternalIdField];
-        }
-      }
+      // Note: External ID field mapping is handled by the field mappings above
+      // The interpretation rules template maps Id -> {externalIdField}
+      // So we don't need additional external ID handling here
 
       transformed.push(transformedRecord);
     }
@@ -521,6 +566,7 @@ export class ExecutionEngine {
     console.log(`Successfully transformed ${transformed.length} records`);
     if (transformed.length > 0) {
       console.log(`Sample transformed record fields: ${Object.keys(transformed[0]).join(', ')}`);
+      
     }
     console.log(`=== END TRANSFORMATION ===\n`);
 
@@ -608,10 +654,18 @@ export class ExecutionEngine {
             failureCount++;
             // Add error for failed record
             const recordErrors = Array.isArray(recordResult.errors) ? recordResult.errors : [recordResult.errors];
+            const errorMessage = recordErrors.join('; ') || 'Unknown error';
+            
+            // Check if this is a retryable error based on the configuration
+            const retryableErrors = step.loadConfig.retryConfig?.retryableErrors || [];
+            const isRetryable = retryableErrors.some((retryableError: string) => 
+              errorMessage.includes(retryableError)
+            );
+            
             errors.push({
               recordId: records[index] ? (records[index][targetExternalIdField] || records[index].Id || `batch-${batchNumber}-${index}`) : `batch-${batchNumber}-${index}`,
-              error: recordErrors.join('; ') || 'Unknown error',
-              retryable: false
+              error: errorMessage,
+              retryable: isRetryable
             });
           }
         });
@@ -682,6 +736,9 @@ export class ExecutionEngine {
         const isBreakpointLookup = mapping.lookupObject === 'tc9_et__Interpretation_Breakpoint__c' || 
                                   mapping.lookupObject === 'tc9_pr__Pay_Code__c' || 
                                   mapping.lookupObject === 'tc9_pr__Leave_Rule__c';
+        
+        // Special handling for interpretation rule lookups - use source record ID directly
+        const isInterpretationRuleLookup = mapping.lookupObject === 'tc9_et__Interpretation_Rule__c';
 
         console.log(`    Resolving lookup for ${mapping.lookupObject}:`);
         console.log(`      Source value: ${sourceValue}`);
@@ -702,7 +759,11 @@ export class ExecutionEngine {
         console.log(`      Source field pattern: ${mapping.sourceField}`);
         console.log(`      Is direct external ID: ${isDirectExternalId}`);
         
-        if (!isDirectExternalId) {
+        // Special case for interpretation rule lookups - always use source record ID directly
+        if (isInterpretationRuleLookup && !isDirectExternalId) {
+          console.log(`      Using source record ID directly for interpretation rule lookup: ${sourceValue}`);
+          externalId = sourceValue;
+        } else if (!isDirectExternalId) {
           // sourceValue is a record ID, need to get the external ID from source record
           console.log(`      Need to resolve record ID to external ID`);
         
@@ -1015,7 +1076,7 @@ export class ExecutionEngine {
     console.log('Records to rollback:', JSON.stringify(this.insertedRecords, null, 2));
 
     try {
-      const rollbackService = new RollbackService(context.targetOrg);
+      const rollbackService = await RollbackService.create(context.targetOrg);
       const rollbackResult = await rollbackService.rollbackRecords(this.insertedRecords);
 
       if (rollbackResult.success) {

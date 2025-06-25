@@ -4,7 +4,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Play, Settings, Calendar, Database, Users, Plus } from 'lucide-react';
+import { ArrowLeft, Play, Calendar, Database, Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,7 +76,6 @@ const statusLabels = {
 } as const;
 
 export default function MigrationProjectPage({ params }: PageProps) {
-  const router = useRouter();
   const { hasRunningMigration } = useRunningMigrations();
   
   // Unwrap the params promise
@@ -168,20 +167,32 @@ export default function MigrationProjectPage({ params }: PageProps) {
   };
 
   // Extract parent record information from session metadata
-  const getParentRecordInfo = (session: any) => {
+  const getParentRecordInfo = (session: MigrationProject['migration_sessions'][0]) => {
     if (!session.error_log || !Array.isArray(session.error_log)) {
       return { records: [], attempted: 0, successful: 0 };
     }
     
-    const metadata = session.error_log.find((entry: any) => entry.type === 'metadata');
+    const metadata = session.error_log.find((entry) => (entry as { type?: string }).type === 'metadata') as {
+      type: string;
+      successfulParentRecords?: Array<{
+        name: string;
+        sourceId: string;
+        targetId: string;
+      }>;
+      parentRecordStats?: {
+        attempted: number;
+        successful: number;
+      };
+    } | undefined;
+    
     if (!metadata) {
       return { records: [], attempted: 0, successful: 0 };
     }
     
     const records = metadata.successfulParentRecords
-      ?.filter((record: any) => record.name && record.name.trim() !== '')
+      ?.filter((record) => record.name && record.name.trim() !== '')
       .slice(0, 3) // Limit to first 3 records for display
-      .map((record: any) => ({
+      .map((record) => ({
         name: record.name,
         sourceId: record.sourceId,
         targetId: record.targetId,
@@ -217,7 +228,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
               <p className="text-muted-foreground mt-2">{project.description}</p>
             )}
             <div className="flex items-center gap-4 mt-4">
-              <Badge variant={statusColors[project.status] as any}>
+              <Badge variant={statusColors[project.status] as 'draft' | 'info' | 'running' | 'completed' | 'failed'}>
                 {statusLabels[project.status]}
               </Badge>
               <span className="text-sm text-muted-foreground">

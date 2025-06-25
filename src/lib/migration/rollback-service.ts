@@ -20,8 +20,13 @@ export interface RollbackResult {
 export class RollbackService {
   private targetClient: SalesforceClient;
 
-  constructor(targetOrg: SalesforceOrg) {
-    this.targetClient = new SalesforceClient(targetOrg);
+  private constructor(targetClient: SalesforceClient) {
+    this.targetClient = targetClient;
+  }
+
+  static async create(targetOrg: SalesforceOrg): Promise<RollbackService> {
+    const targetClient = await SalesforceClient.create(targetOrg);
+    return new RollbackService(targetClient);
   }
 
   /**

@@ -1,7 +1,5 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
-import { cookies } from 'next/headers'
-import { prisma } from '@/lib/database/prisma'
 import { sessionCache } from './session-cache'
 
 export interface AuthSession {

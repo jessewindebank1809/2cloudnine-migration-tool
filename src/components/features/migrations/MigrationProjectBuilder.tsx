@@ -1,17 +1,16 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
-import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw, ExternalLink } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import {
   Select,
@@ -22,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { TemplateRecordSelection } from './TemplateRecordSelection';
 import { DetailedMigrationResults } from './DetailedMigrationResults';
+import { EnhancedValidationReport } from './templates/EnhancedValidationReport';
 
 interface Organisation {
   id: string;
@@ -70,6 +70,7 @@ interface ValidationIssue {
   title: string;
   description: string;
   recordId?: string;
+  recordLink?: string;
   field?: string;
   suggestion?: string;
 }
@@ -94,6 +95,9 @@ export function MigrationProjectBuilder() {
   const [createdMigrationId, setCreatedMigrationId] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [currentOperation, setCurrentOperation] = useState<'idle' | 'validating' | 'creating' | 'migrating'>('idle');
+  const [orgConnectionErrors, setOrgConnectionErrors] = useState<{[key: string]: string}>({});
+  const [isValidating, setIsValidating] = useState<{[key: string]: boolean}>({});
+  const validationTimeoutRef = useRef<{[key: string]: NodeJS.Timeout}>({});
   const [projectData, setProjectData] = useState({
     name: '',
     templateId: '', // Will be set to interpretation rules template when templates load
@@ -186,20 +190,10 @@ export function MigrationProjectBuilder() {
         const validation = data.validation as ValidationResult;
         setValidationResult(validation);
         
-        // If validation passes completely, skip to migration
-        if (validation.isValid && !validation.hasWarnings) {
-          try {
-            // Don't change step here - createProject will handle moving to view-results
-            await handleCreate();
-          } catch (error) {
-            console.error('Auto-migration after validation failed:', error);
-            setCurrentOperation('idle');
-          }
-        } else {
-          // Show validation review step
-          setCurrentStep('validation-review');
-          setCurrentOperation('idle');
-        }
+        // Always show validation review step, even if validation passes
+        // This ensures users can review what will be migrated before proceeding
+        setCurrentStep('validation-review');
+        setCurrentOperation('idle');
       } catch (error) {
         console.error('Error in validation success handler:', error);
         setCurrentOperation('idle');
@@ -328,7 +322,8 @@ export function MigrationProjectBuilder() {
           projectData.targetOrgId.length > 0 && 
           projectData.targetOrgId !== projectData.sourceOrgId &&
           projectData.templateId.length > 0 &&
-          connectedOrgs.length >= 2
+          connectedOrgs.length >= 2 &&
+          Object.keys(orgConnectionErrors).length === 0
         );
       case 'record-selection':
         return projectData.selectedRecords.length > 0;
@@ -355,7 +350,61 @@ export function MigrationProjectBuilder() {
     }
   };
 
-  const handleValidate = () => {
+  const handleValidate = async () => {
+    // Show loading state
+    setCurrentOperation('validating');
+    
+    // Pre-check: Verify org connections are healthy
+    try {
+      const [sourceOrg, targetOrg] = await Promise.all([
+        fetch(`/api/orgs/${projectData.sourceOrgId}/health`).then(res => res.json()),
+        fetch(`/api/orgs/${projectData.targetOrgId}/health`).then(res => res.json())
+      ]);
+      
+      if (!sourceOrg.isHealthy || !targetOrg.isHealthy) {
+        const failedOrg = !sourceOrg.isHealthy ? 
+          { id: projectData.sourceOrgId, type: 'source', name: connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId)?.name || 'Source' } : 
+          { id: projectData.targetOrgId, type: 'target', name: connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId)?.name || 'Target' };
+        
+        setValidationResult({
+          isValid: false,
+          hasErrors: true,
+          hasWarnings: false,
+          issues: [{
+            id: 'org-connectivity-error',
+            severity: 'error',
+            title: 'Organisation Connection Error',
+            description: `Unable to connect to ${failedOrg.name}. The access token may have expired or been revoked.`,
+            suggestion: 'Click "Reconnect Failed Org" below to re-authenticate with Salesforce.',
+          }],
+          summary: { errors: 1, warnings: 0, info: 0 }
+        });
+        setCurrentStep('validation-review');
+        setCurrentOperation('idle');
+        return;
+      }
+    } catch (error) {
+      console.error('Pre-validation check failed:', error);
+      setCurrentOperation('idle');
+      // Show generic error
+      setValidationResult({
+        isValid: false,
+        hasErrors: true,
+        hasWarnings: false,
+        issues: [{
+          id: 'pre-validation-error',
+          severity: 'error',
+          title: 'Pre-validation Check Failed',
+          description: 'Unable to verify organisation connections. Please check your network connection and try again.',
+          suggestion: 'If the problem persists, try reconnecting to your organisations.',
+        }],
+        summary: { errors: 1, warnings: 0, info: 0 }
+      });
+      setCurrentStep('validation-review');
+      return;
+    }
+    
+    // Proceed with validation if orgs are healthy
     validateMigration.mutate(projectData);
   };
 
@@ -370,6 +419,78 @@ export function MigrationProjectBuilder() {
   const templates = templatesData?.templates || [];
   const selectedTemplate = templates.find((t: MigrationTemplate) => t.id === projectData.templateId);
 
+  // Validate org connection when selected with debouncing
+  const validateOrgConnection = useCallback(async (orgId: string, orgType: 'source' | 'target') => {
+    if (!orgId) return;
+    
+    // Clear any existing timeout for this org type
+    if (validationTimeoutRef.current[orgType]) {
+      clearTimeout(validationTimeoutRef.current[orgType]);
+    }
+    
+    // Set a debounce timeout
+    validationTimeoutRef.current[orgType] = setTimeout(async () => {
+      setIsValidating((prev: {[key: string]: boolean}) => ({ ...prev, [orgType]: true }));
+      
+      try {
+        const response = await fetch(`/api/orgs/${orgId}/health`);
+        const data = await response.json();
+        
+        if (!data.isHealthy) {
+          const errorMsg = data.requiresReauth 
+            ? 'Organisation needs to be reconnected. Click to reconnect.'
+            : data.error || 'Organisation connection is unhealthy';
+          
+          setOrgConnectionErrors(prev => ({
+            ...prev,
+            [orgType]: errorMsg
+          }));
+          
+          // No longer auto-prompting for reconnection - user will use the reconnect button
+        } else {
+          // Clear any existing error for this org type
+          setOrgConnectionErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[orgType];
+            return newErrors;
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to validate ${orgType} org connection:`, error);
+        // More user-friendly error message
+        const org = connectedOrgs.find((o: Organisation) => o.id === orgId);
+        const orgName = org?.name || 'Organisation';
+        setOrgConnectionErrors(prev => ({
+          ...prev,
+          [orgType]: `Unable to connect to ${orgName}. Please try reconnecting.`
+        }));
+      } finally {
+        setIsValidating((prev: {[key: string]: boolean}) => ({ ...prev, [orgType]: false }));
+      }
+    }, 300); // 300ms debounce
+  }, [connectedOrgs]);
+
+  // Validate existing org selections only on initial load
+  React.useEffect(() => {
+    // Only run once when both orgs are selected and connectedOrgs is loaded
+    if (projectData.sourceOrgId && projectData.targetOrgId && connectedOrgs.length > 0) {
+      // Use a flag to ensure we only validate once
+      const hasValidated = sessionStorage.getItem('migration-orgs-validated');
+      if (hasValidated !== `${projectData.sourceOrgId}-${projectData.targetOrgId}`) {
+        validateOrgConnection(projectData.sourceOrgId, 'source');
+        validateOrgConnection(projectData.targetOrgId, 'target');
+        sessionStorage.setItem('migration-orgs-validated', `${projectData.sourceOrgId}-${projectData.targetOrgId}`);
+      }
+    }
+  }, []); // Only run once on mount
+  
+  // Cleanup timeouts on unmount
+  React.useEffect(() => {
+    return () => {
+      Object.values(validationTimeoutRef.current).forEach(timeout => clearTimeout(timeout));
+    };
+  }, []);
+
   // Memoized callback to prevent infinite re-renders
   const handleRecordSelectionChange = useCallback((selectedRecords: string[]) => {
     setProjectData(prev => ({ ...prev, selectedRecords }));
@@ -380,7 +501,10 @@ export function MigrationProjectBuilder() {
     return issues.some(issue => 
       issue.id === 'source-connectivity' || 
       issue.id === 'target-connectivity' ||
-      issue.title.includes('Connection Failed')
+      issue.id === 'org-connectivity-error' ||
+      issue.title.includes('Connection Failed') ||
+      issue.title.includes('Organisation Connection Error') ||
+      issue.title === 'orgConnectivity'
     );
   };
 
@@ -388,6 +512,7 @@ export function MigrationProjectBuilder() {
   const getFailedOrgDetails = (issues: ValidationIssue[]) => {
     const sourceConnError = issues.find(issue => issue.id === 'source-connectivity');
     const targetConnError = issues.find(issue => issue.id === 'target-connectivity');
+    const orgConnError = issues.find(issue => issue.id === 'org-connectivity-error');
     
     if (sourceConnError) {
       const sourceOrg = connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId);
@@ -397,6 +522,16 @@ export function MigrationProjectBuilder() {
     if (targetConnError) {
       const targetOrg = connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId);
       return targetOrg;
+    }
+    
+    // Handle pre-validation org connectivity error
+    if (orgConnError && orgConnError.description) {
+      const isSourceError = orgConnError.description.includes('source organisation');
+      if (isSourceError) {
+        return connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId);
+      } else {
+        return connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId);
+      }
     }
     
     return null;
@@ -412,8 +547,9 @@ export function MigrationProjectBuilder() {
       return;
     }
     
-    // Trigger the OAuth flow for the failed organisation
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}`;
+    // Trigger the OAuth flow for the failed organisation with return URL
+    const returnUrl = '/migrations/new';
+    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(failedOrg.id)}&instanceUrl=${encodeURIComponent(failedOrg.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
     window.location.href = oauthUrl;
   };
 
@@ -471,54 +607,119 @@ export function MigrationProjectBuilder() {
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
-                    <div>
-                      <Label htmlFor="source-org">Source Organisation *</Label>
-                      <Select
-                        value={projectData.sourceOrgId}
-                        onValueChange={(value: string) =>
-                          setProjectData({ ...projectData, sourceOrgId: value })
-                        }
-                        required
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select source organisation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {connectedOrgs.map((org: Organisation) => (
-                            <SelectItem key={org.id} value={org.id}>
-                              <span className="font-medium">{org.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex justify-center pb-2">
-                      <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <Label htmlFor="target-org">Target Organisation *</Label>
-                      <Select
-                        value={projectData.targetOrgId}
-                        onValueChange={(value: string) =>
-                          setProjectData({ ...projectData, targetOrgId: value })
-                        }
-                        required
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select target organisation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {connectedOrgs
-                            .filter((org: Organisation) => org.id !== projectData.sourceOrgId)
-                            .map((org: Organisation) => (
+                  <div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
+                      <div>
+                        <Label htmlFor="source-org">Source Organisation *</Label>
+                        <Select
+                          value={projectData.sourceOrgId}
+                          onValueChange={(value: string) => {
+                            setProjectData({ ...projectData, sourceOrgId: value });
+                            validateOrgConnection(value, 'source');
+                          }}
+                          required
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select source organisation" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {connectedOrgs.map((org: Organisation) => (
                               <SelectItem key={org.id} value={org.id}>
                                 <span className="font-medium">{org.name}</span>
                               </SelectItem>
                             ))}
-                        </SelectContent>
-                      </Select>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex justify-center pb-2">
+                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <Label htmlFor="target-org">Target Organisation *</Label>
+                        <Select
+                          value={projectData.targetOrgId}
+                          onValueChange={(value: string) => {
+                            setProjectData({ ...projectData, targetOrgId: value });
+                            validateOrgConnection(value, 'target');
+                          }}
+                          required
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select target organisation" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {connectedOrgs
+                              .filter((org: Organisation) => org.id !== projectData.sourceOrgId)
+                              .map((org: Organisation) => (
+                                <SelectItem key={org.id} value={org.id}>
+                                  <span className="font-medium">{org.name}</span>
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
+                    
+                    {/* Error messages below the grid */}
+                    {(orgConnectionErrors.source || orgConnectionErrors.target) && (
+                      <div className="grid grid-cols-[1fr_auto_1fr] gap-4 mt-2">
+                        <div>
+                          {orgConnectionErrors.source && (
+                            <Alert variant="destructive">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription className="text-xs flex items-center justify-between">
+                                <span>{orgConnectionErrors.source}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 ml-2"
+                                  onClick={() => {
+                                    const org = connectedOrgs.find((o: Organisation) => o.id === projectData.sourceOrgId);
+                                    if (org) {
+                                      // Include return URL to come back to migration setup
+                                      const returnUrl = '/migrations/new';
+                                      const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+                                      window.location.href = oauthUrl;
+                                    }
+                                  }}
+                                >
+                                  Reconnect
+                                  <ExternalLink className="h-3 w-3 ml-1" />
+                                </Button>
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                        <div></div>
+                        <div>
+                          {orgConnectionErrors.target && (
+                            <Alert variant="destructive">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription className="text-xs flex items-center justify-between">
+                                <span>{orgConnectionErrors.target}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 ml-2"
+                                  onClick={() => {
+                                    const org = connectedOrgs.find((o: Organisation) => o.id === projectData.targetOrgId);
+                                    if (org) {
+                                      // Include return URL to come back to migration setup
+                                      const returnUrl = '/migrations/new';
+                                      const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+                                      window.location.href = oauthUrl;
+                                    }
+                                  }}
+                                >
+                                  Reconnect
+                                  <ExternalLink className="h-3 w-3 ml-1" />
+                                </Button>
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="template">Migration Template *</Label>
@@ -765,47 +966,26 @@ export function MigrationProjectBuilder() {
                     </Card>
                   </div>
 
-                  {/* Issues List */}
-                  {validationResult.issues.length > 0 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">Validation Issues</h3>
-                        {hasConnectionErrors(validationResult.issues) && (
-                          <Button 
-                            variant="outline" 
-                            onClick={handleReconnectOrgs}
-                            className="flex items-center gap-2"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                            Reconnect Failed Org
-                          </Button>
-                        )}
-                      </div>
-                      {validationResult.issues.map((issue) => (
-                        <Alert 
-                          key={issue.id} 
-                          variant={issue.severity === 'error' ? 'destructive' : 'default'}
-                          className={
-                            issue.severity === 'warning' ? 'border-yellow-500 bg-yellow-50' :
-                            issue.severity === 'info' ? 'border-blue-500 bg-blue-50' : ''
-                          }
-                        >
-                          {issue.severity === 'error' && <AlertCircle className="h-4 w-4" />}
-                          {issue.severity === 'warning' && <AlertTriangle className="h-4 w-4 text-yellow-600" />}
-                          {issue.severity === 'info' && <Info className="h-4 w-4 text-blue-600" />}
-                          <div>
-                            <AlertTitle>{issue.title}</AlertTitle>
-                            <AlertDescription className="mt-2">
-                              {issue.description}
-                              {issue.suggestion && (
-                                <div className="mt-2 p-2 bg-muted rounded text-sm">
-                                  <strong>Suggestion:</strong> {issue.suggestion}
-                                </div>
-                              )}
-                            </AlertDescription>
-                          </div>
-                        </Alert>
-                      ))}
+                  {/* Enhanced Validation Report */}
+                  <EnhancedValidationReport
+                    errors={validationResult.issues.filter(issue => issue.severity === 'error')}
+                    warnings={validationResult.issues.filter(issue => issue.severity === 'warning')}
+                    info={validationResult.issues.filter(issue => issue.severity === 'info')}
+                    sourceOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId)?.name}
+                    targetOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId)?.name}
+                  />
+
+                  {/* Connection Error Action Button */}
+                  {hasConnectionErrors(validationResult.issues) && (
+                    <div className="flex justify-end">
+                      <Button 
+                        variant="outline" 
+                        onClick={handleReconnectOrgs}
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Reconnect Failed Org
+                      </Button>
                     </div>
                   )}
 
@@ -1099,7 +1279,7 @@ export function MigrationProjectBuilder() {
                     Migrating...
                   </>
                 ) : (
-                  'Validate & Migrate'
+                  'Validate Selection'
                 )}
               </Button>
             )}
@@ -1131,9 +1311,14 @@ export function MigrationProjectBuilder() {
                   View All Migrations
                 </Button>
                 <Button
-                  onClick={() => router.push('/migrations/new')}
+                  onClick={() => {
+                    if (!hasRunningMigration) {
+                      router.push('/migrations/new');
+                    }
+                  }}
                   variant="default"
                   disabled={hasRunningMigration}
+                  className={hasRunningMigration ? 'opacity-50 cursor-not-allowed' : ''}
                   title={hasRunningMigration ? 'Cannot start new migration while another is in progress' : 'Create a new migration'}
                 >
                   New Migration
@@ -1153,6 +1338,39 @@ export function MigrationProjectBuilder() {
           </div>
         </CardFooter>
       </Card>
+
+      {/* Debug Section - Only show on localhost */}
+      {typeof window !== 'undefined' && window.location.hostname === 'localhost' && projectData.sourceOrgId && projectData.targetOrgId && projectData.templateId && projectData.selectedRecords.length > 0 && (
+        <Card className="mt-8 border-dashed border-2 border-muted">
+          <CardHeader>
+            <CardTitle className="text-sm font-mono">Debug: Copy cURL Command</CardTitle>
+            <CardDescription className="text-xs">For testing validation endpoint in terminal</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted p-4 rounded-md overflow-x-auto">
+              <pre className="text-xs font-mono whitespace-pre-wrap break-all">{`curl -X POST http://localhost:3000/api/migrations/validate \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "sourceOrgId": "${projectData.sourceOrgId}",
+    "targetOrgId": "${projectData.targetOrgId}",
+    "templateId": "${projectData.templateId}",
+    "selectedRecords": ${JSON.stringify(projectData.selectedRecords)}
+  }' | jq .`}</pre>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => {
+                const command = `curl -X POST http://localhost:3000/api/migrations/validate -H "Content-Type: application/json" -d '{"sourceOrgId": "${projectData.sourceOrgId}", "targetOrgId": "${projectData.targetOrgId}", "templateId": "${projectData.templateId}", "selectedRecords": ${JSON.stringify(projectData.selectedRecords)}}' | jq .`;
+                navigator.clipboard.writeText(command);
+              }}
+            >
+              Copy to Clipboard
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 } 

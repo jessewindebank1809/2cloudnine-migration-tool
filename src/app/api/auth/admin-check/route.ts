@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/session-helper';
+import { requireAuth, type AuthSession } from '@/lib/auth/session-helper';
 import { isUserAdmin } from '@/lib/auth/admin-check';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       return { session, isAdmin };
     })();
 
-    const { session, isAdmin } = await Promise.race([authPromise, timeoutPromise]) as any;
+    const { session, isAdmin } = await Promise.race([authPromise, timeoutPromise]) as { session: AuthSession; isAdmin: boolean };
     
     return NextResponse.json({
       success: true,
@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error instanceof Error && error.message === 'Unauthorised') {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     
     return NextResponse.json(

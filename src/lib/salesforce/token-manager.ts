@@ -117,13 +117,13 @@ export class TokenManager {
       // Create temporary client for refresh using already-decrypted tokens from cache
       const salesforceOrg: SalesforceOrg = {
         id: org.id,
-        organizationId: org.salesforce_org_id || '',
-        organizationName: org.name,
+        organisationId: org.salesforce_org_id || '',
+        organisationName: org.name,
         instanceUrl: org.instance_url,
         accessToken: currentTokenInfo.accessToken,
         refreshToken: currentTokenInfo.refreshToken
       };
-      const tempClient = new SalesforceClient(salesforceOrg);
+      const tempClient = await SalesforceClient.create(salesforceOrg, org.org_type as 'PRODUCTION' | 'SANDBOX');
       const refreshResult = await tempClient.refreshAccessToken();
       
       if (!refreshResult.success) {

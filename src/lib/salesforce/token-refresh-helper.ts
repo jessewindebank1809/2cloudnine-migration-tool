@@ -12,14 +12,7 @@ export async function withTokenRefresh<T>(
     return await operation();
   } catch (error) {
     // Check if it's a token-related error
-    if (error instanceof Error && (
-      error.message.includes('invalid_grant') ||
-      error.message.includes('expired') ||
-      error.message.includes('INVALID_SESSION_ID') ||
-      error.message.includes('expired access/refresh token') ||
-      error.message.includes('Connection failed: expired access/refresh token') ||
-      error.message.includes('Authentication token has expired')
-    )) {
+    if (error instanceof Error && isTokenError(error)) {
       console.log(`Token expired during ${operationName}, attempting automatic refresh...`);
       
       // Attempt token refresh
@@ -30,8 +23,16 @@ export async function withTokenRefresh<T>(
         return await operation();
       } else {
         console.error(`Token refresh failed for ${operationName}:`, refreshResult.error);
-        // If refresh failed, throw a more descriptive error
-        throw new Error(refreshResult.error || 'Authentication token has expired. Please reconnect the organisation.');
+        
+        // Create an error that includes reconnection requirement
+        const errorMessage = refreshResult.error || 'Authentication token has expired. Please reconnect the organisation.';
+        const tokenError = new Error(errorMessage);
+        
+        // Add custom properties to the error for better handling upstream
+        (tokenError as any).requiresReconnect = refreshResult.requiresReconnect;
+        (tokenError as any).code = refreshResult.requiresReconnect ? 'TOKEN_EXPIRED' : 'TOKEN_REFRESH_FAILED';
+        
+        throw tokenError;
       }
     } else {
       // Not a token error, re-throw the original error

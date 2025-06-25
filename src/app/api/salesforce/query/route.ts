@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { SalesforceClient } from '@/lib/salesforce/client';
 import { validateSoqlQuery } from '@/lib/security/soql-sanitizer';
+import { handleApiError, createTokenErrorResponse } from '@/lib/salesforce/api-error-handler';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orgId, query } = body;
+    const { orgId, query, returnUrl } = body;
 
     if (!orgId || !query) {
       return NextResponse.json(
@@ -28,9 +29,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (!org.access_token_encrypted) {
-      return NextResponse.json(
-        { error: 'Organisation not connected' },
-        { status: 401 }
+      return createTokenErrorResponse(
+        new Error('Organisation not connected'),
+        orgId,
+        returnUrl
       );
     }
 
@@ -38,13 +40,10 @@ export async function POST(request: NextRequest) {
     const client = await SalesforceClient.createWithValidTokens(orgId, org.org_type === 'PRODUCTION' ? 'PRODUCTION' : 'SANDBOX');
     
     if (!client) {
-      return NextResponse.json(
-        { 
-          error: 'Organisation needs to be reconnected. Please reconnect your Salesforce organisation.',
-          code: 'RECONNECT_REQUIRED',
-          reconnectUrl: `/orgs?reconnect=${orgId}`
-        },
-        { status: 401 }
+      return createTokenErrorResponse(
+        new Error('Organisation needs to be reconnected. Please reconnect your Salesforce organisation.'),
+        orgId,
+        returnUrl
       );
     }
 
@@ -64,6 +63,19 @@ export async function POST(request: NextRequest) {
     // Execute SOQL query
     const result = await client.query(query);
     if (!result.success) {
+      // Check if the error is token-related
+      if (result.error && (
+        result.error.includes('expired') ||
+        result.error.includes('invalid_grant') ||
+        result.error.includes('INVALID_SESSION_ID')
+      )) {
+        return createTokenErrorResponse(
+          new Error(result.error),
+          orgId,
+          returnUrl
+        );
+      }
+      
       return NextResponse.json(
         { error: 'Failed to execute query', details: result.error },
         { status: 500 }
@@ -77,27 +89,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Salesforce query error:', error);
-    
-    // Check if it's a token-related error
-    if (error instanceof Error && (
-      error.message.includes('invalid_grant') || 
-      error.message.includes('expired') ||
-      error.message.includes('INVALID_SESSION_ID') ||
-      error.message.includes('Authentication token has expired')
-    )) {
-      return NextResponse.json(
-        { 
-          error: 'Authentication token has expired. Please reconnect the organisation.',
-          code: 'TOKEN_EXPIRED'
-        },
-        { status: 401 }
-      );
-    }
-    
-    return NextResponse.json(
-      { error: 'Failed to execute query' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to execute query');
   }
 } 

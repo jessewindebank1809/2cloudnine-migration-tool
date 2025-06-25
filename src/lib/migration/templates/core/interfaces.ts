@@ -71,6 +71,7 @@ export interface LookupMapping {
     sourceExternalIdField?: string;  // Override for source external ID field
     targetExternalIdField?: string;  // Override for target external ID field
     crossEnvironmentMapping?: boolean; // Flag for cross-environment scenarios
+    allowNull?: boolean; // Allow null values for failed lookups (useful for self-referential fields)
 }
 
 // Record Type Mapping
@@ -129,6 +130,7 @@ export interface RetryConfig {
 export interface ValidationConfig {
     dependencyChecks: DependencyCheck[];
     dataIntegrityChecks: DataIntegrityCheck[];
+    picklistValidationChecks: PicklistValidationCheck[];
     preValidationQueries: PreValidationQuery[];
 }
 
@@ -154,6 +156,34 @@ export interface DataIntegrityCheck {
     severity: "error" | "warning" | "info";
 }
 
+// Picklist Validation Check
+export interface PicklistValidationCheck {
+    checkName: string;
+    description: string;
+    fieldName: string;
+    objectName: string;
+    validateAgainstTarget: boolean;
+    allowedValues?: string[];
+    crossEnvironmentMapping?: boolean;
+    errorMessage: string;
+    severity: "error" | "warning" | "info";
+}
+
+// Picklist Field Metadata
+export interface PicklistFieldMetadata {
+    fieldName: string;
+    values: PicklistValue[];
+    restricted: boolean;
+    defaultValue?: string;
+}
+
+// Picklist Value
+export interface PicklistValue {
+    value: string;
+    label: string;
+    active: boolean;
+}
+
 // Pre-validation Query
 export interface PreValidationQuery {
     queryName: string;
@@ -177,7 +207,16 @@ export interface ValidationIssue {
     severity: "error" | "warning" | "info";
     recordId: string | null;
     recordName: string | null;
+    recordLink?: string;
+    field?: string;
     suggestedAction?: string;
+    context?: {
+        sourceValue?: string;
+        targetObject?: string;
+        missingTargetName?: string | null;
+        missingTargetExternalId?: string;
+        sourceRecordType?: string | null;
+    };
 }
 
 export interface ValidationSummary {
@@ -215,7 +254,7 @@ export interface ConditionalTransform {
 
 // Execution interfaces for Phase 4
 export interface ExecutionResult {
-    status: 'success' | 'failed';
+    status: 'success' | 'failed' | 'partial';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;
@@ -229,7 +268,7 @@ export interface ExecutionProgress {
     currentStep: number;
     totalSteps: number;
     stepName: string;
-    status: 'running' | 'success' | 'failed';
+    status: 'running' | 'success' | 'failed' | 'partial';
     totalRecords: number;
     successfulRecords: number;
     failedRecords: number;

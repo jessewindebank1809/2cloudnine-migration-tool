@@ -1,12 +1,21 @@
-import * as jsforce from 'jsforce';
 import type { SalesforceOrg } from '@/types';
 import { prisma } from '@/lib/database/prisma';
 import { encrypt } from '@/lib/utils/encryption';
 import { withTokenRefresh } from './token-refresh-helper';
 import { TokenManager } from './token-manager';
 
+// Lazy load jsforce to avoid client-side bundling issues
+let jsforce: typeof import('jsforce') | null = null;
+
+async function getJsforce() {
+  if (!jsforce) {
+    jsforce = await import('jsforce');
+  }
+  return jsforce;
+}
+
 export class SalesforceClient {
-  private connection: jsforce.Connection;
+  private connection: any; // Using any to avoid jsforce type imports
   private orgId: string;
 
   /**
@@ -34,22 +43,37 @@ export class SalesforceClient {
 
       const salesforceOrg: SalesforceOrg = {
         id: org.id,
-        organizationId: org.salesforce_org_id || '',
-        organizationName: org.name,
+        organisationId: org.salesforce_org_id || '',
+        organisationName: org.name,
         instanceUrl: org.instance_url,
         accessToken: validTokens.accessToken,
         refreshToken: validTokens.refreshToken
       };
 
-      return new SalesforceClient(salesforceOrg, orgType);
+      return await SalesforceClient.create(salesforceOrg, orgType);
     } catch (error) {
       console.error(`Error creating SalesforceClient for org ${orgId}:`, error);
       return null;
     }
   }
 
-  constructor(org: SalesforceOrg, orgType: 'PRODUCTION' | 'SANDBOX' = 'PRODUCTION') {
+  private constructor(org: SalesforceOrg, orgType: 'PRODUCTION' | 'SANDBOX' = 'PRODUCTION', connection: any) {
     this.orgId = org.id;
+    this.connection = connection;
+
+    // Set up token refresh callback to update database
+    this.connection.on('refresh', async (accessToken: string, res: any) => {
+      console.log('Token refreshed for org:', this.orgId);
+      try {
+        await this.updateTokensInDatabase(accessToken, res.refresh_token);
+      } catch (error) {
+        console.error('Failed to update refreshed tokens in database:', error);
+      }
+    });
+  }
+
+  static async create(org: SalesforceOrg, orgType: 'PRODUCTION' | 'SANDBOX' = 'PRODUCTION'): Promise<SalesforceClient> {
+    const jsf = await getJsforce();
     
     // Select credentials based on org type
     const clientId = orgType === 'PRODUCTION' 
@@ -60,7 +84,7 @@ export class SalesforceClient {
       ? process.env.SALESFORCE_PRODUCTION_CLIENT_SECRET!
       : process.env.SALESFORCE_SANDBOX_CLIENT_SECRET!;
 
-    this.connection = new jsforce.Connection({
+    const connection = new jsf.Connection({
       instanceUrl: org.instanceUrl,
       accessToken: org.accessToken,
       refreshToken: org.refreshToken,
@@ -72,15 +96,7 @@ export class SalesforceClient {
       }
     });
 
-    // Set up token refresh callback to update database
-    this.connection.on('refresh', async (accessToken: string, res: any) => {
-      console.log('Token refreshed for org:', this.orgId);
-      try {
-        await this.updateTokensInDatabase(accessToken, res.refresh_token);
-      } catch (error) {
-        console.error('Failed to update refreshed tokens in database:', error);
-      }
-    });
+    return new SalesforceClient(org, orgType, connection);
   }
 
   private async updateTokensInDatabase(accessToken: string, refreshToken?: string): Promise<void> {
@@ -116,10 +132,15 @@ export class SalesforceClient {
     return this.connection.refreshToken || undefined;
   }
 
-  async refreshAccessToken(): Promise<{ success: boolean; error?: string }> {
+  async refreshAccessToken(): Promise<{ success: boolean; error?: string; requiresReconnect?: boolean }> {
     try {
       if (!this.connection.refreshToken) {
-        return { success: false, error: 'No refresh token available' };
+        console.warn('No refresh token available for org:', this.orgId);
+        return { 
+          success: false, 
+          error: 'No refresh token available. Please reconnect the organisation.',
+          requiresReconnect: true
+        };
       }
 
       console.log('Attempting to refresh access token for org:', this.orgId);
@@ -141,13 +162,33 @@ export class SalesforceClient {
     } catch (error) {
       console.error('Token refresh failed for org:', this.orgId, error);
       
-      // Check if refresh token itself is expired
-      if (error instanceof Error && (
-        error.message.includes('invalid_grant') ||
-        error.message.includes('expired') ||
-        error.message.includes('refresh token')
-      )) {
-        // Mark org as disconnected in database to prevent infinite retry loops
+      // Extract more detailed error information
+      let errorMessage = 'Token refresh failed';
+      let requiresReconnect = false;
+      
+      if (error instanceof Error) {
+        // Check for various OAuth2 error scenarios
+        if (error.message.includes('invalid_grant')) {
+          errorMessage = 'Refresh token is invalid or expired. Please reconnect the organisation.';
+          requiresReconnect = true;
+        } else if (error.message.includes('invalid_client')) {
+          errorMessage = 'OAuth client configuration error. Please contact support.';
+        } else if (error.message.includes('unauthorized_client')) {
+          errorMessage = 'OAuth client not authorised. Please reconnect the organisation.';
+          requiresReconnect = true;
+        } else if (error.message.includes('refresh token') || error.message.includes('expired')) {
+          errorMessage = 'Refresh token expired. Please reconnect the organisation.';
+          requiresReconnect = true;
+        } else if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
+          errorMessage = 'Network error while refreshing token. Please check your connection.';
+        } else {
+          // Include the actual error message for debugging
+          errorMessage = `Token refresh failed: ${error.message}`;
+        }
+      }
+      
+      // If reconnection is required, mark org as needing reconnection (but don't clear org ID)
+      if (requiresReconnect) {
         try {
           await prisma.organisations.update({
             where: { id: this.orgId },
@@ -155,24 +196,20 @@ export class SalesforceClient {
               access_token_encrypted: null,
               refresh_token_encrypted: null,
               token_expires_at: null,
-              salesforce_org_id: null,
+              // Keep salesforce_org_id to maintain the connection identity
               updated_at: new Date()
             }
           });
-          console.log(`Marked org ${this.orgId} as disconnected due to expired refresh token`);
+          console.log(`Marked org ${this.orgId} as needing reconnection due to: ${errorMessage}`);
         } catch (dbError) {
-          console.error('Failed to mark org as disconnected:', dbError);
+          console.error('Failed to update org status:', dbError);
         }
-        
-        return { 
-          success: false, 
-          error: 'Refresh token expired. Please reconnect the organisation.'
-        };
       }
       
       return { 
         success: false, 
-        error: 'Token refresh failed'
+        error: errorMessage,
+        requiresReconnect
       };
     }
   }
@@ -248,6 +285,8 @@ export class SalesforceClient {
             isAutoNumber: field.autoNumber,
             length: field.length,
             referenceTo: field.referenceTo,
+            picklistValues: field.picklistValues || [],
+            restrictedPicklist: field.restrictedPicklist || false,
           })),
           relationships: describe.childRelationships.map((rel: any) => ({
             name: rel.field,
@@ -261,6 +300,46 @@ export class SalesforceClient {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get object metadata'
+      };
+    }
+  }
+
+  async getPicklistValues(objectName: string, fieldName: string) {
+    try {
+      const describe = await withTokenRefresh(
+        this,
+        async () => await this.connection.sobject(objectName).describe(),
+        `picklist values for ${objectName}.${fieldName}`
+      );
+      
+      const field = describe.fields.find((f: any) => f.name === fieldName);
+      if (!field) {
+        return {
+          success: false,
+          error: `Field ${fieldName} not found on object ${objectName}`
+        };
+      }
+
+      if (field.type !== 'picklist' && field.type !== 'multipicklist') {
+        return {
+          success: false,
+          error: `Field ${fieldName} is not a picklist field (type: ${field.type})`
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          fieldName,
+          values: field.picklistValues || [],
+          restricted: field.restrictedPicklist || false,
+          defaultValue: field.defaultValue || undefined
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get picklist values'
       };
     }
   }

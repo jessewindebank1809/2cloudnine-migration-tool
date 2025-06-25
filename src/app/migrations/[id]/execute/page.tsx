@@ -121,18 +121,17 @@ export default function MigrationExecutePage({ params }: PageProps) {
             <CardContent>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
-                  <p className="text-sm font-medium">Source Organization</p>
+                  <p className="text-sm font-medium">Source Organisation</p>
                   <p className="text-sm text-muted-foreground">{project.sourceOrg.name}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Target Organization</p>
+                  <p className="text-sm font-medium">Target Organisation</p>
                   <p className="text-sm text-muted-foreground">{project.targetOrg.name}</p>
                 </div>
               </div>
 
               <ObjectSelection
                 sourceOrgId={project.source_org_id}
-                targetOrgId={project.target_org_id}
                 onSelectionChange={setSelectedObjects}
               />
             </CardContent>
@@ -181,13 +180,13 @@ export default function MigrationExecutePage({ params }: PageProps) {
                   </div>
                   
                   {/* Show step-by-step errors if available */}
-                  {(executeMigration.error as any)?.details && (
+                  {(executeMigration.error as Error & { details?: Array<{ stepName: string; errors?: Array<{ error: string }> }> })?.details && (
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm">Step Failures:</h4>
-                      {(executeMigration.error as any).details.map((detail: any, index: number) => (
+                      {(executeMigration.error as Error & { details: Array<{ stepName: string; errors?: Array<{ error: string }> }> }).details.map((detail, index) => (
                         <div key={index} className="p-2 bg-red-50 border border-red-200 rounded text-sm">
                           <div className="font-medium text-red-800">{detail.stepName}</div>
-                          {detail.errors?.map((error: any, errorIndex: number) => (
+                          {detail.errors?.map((error, errorIndex) => (
                             <div key={errorIndex} className="text-red-700 mt-1 font-mono text-xs">
                               {error.error}
                             </div>

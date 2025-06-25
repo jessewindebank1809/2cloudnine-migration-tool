@@ -40,6 +40,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Create a directory for logs with proper permissions
+RUN mkdir -p /tmp/logs && chown nextjs:nodejs /tmp/logs
+ENV LOG_DIR=/tmp/logs
+
 # Copy built application
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

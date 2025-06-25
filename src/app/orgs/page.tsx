@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { cn } from '@/lib/utils';
 
 interface Organisation {
   id: string;
@@ -76,7 +77,7 @@ export default function OrganisationsPage() {
       case 'oauth_failed':
         return 'OAuth authentication failed. Please try again.';
       case 'token_exchange_failed':
-        return 'Failed to exchange authorization code for tokens. Please try again.';
+        return 'Failed to exchange authorisation code for tokens. Please try again.';
       case 'callback_failed':
         return 'OAuth callback failed. Please try again.';
       case 'userinfo_failed':
@@ -87,7 +88,7 @@ export default function OrganisationsPage() {
         return 'Invalid OAuth state parameter. Please try again.';
       case 'missing_params':
         return 'Missing required OAuth parameters. Please try again.';
-      case 'unauthorized':
+      case 'unauthorised':
         return 'You are not authorised to perform this action. Please sign in again.';
       case 'oauth_init_failed':
         return 'Failed to initiate OAuth authentication. Please try again.';
@@ -168,7 +169,17 @@ export default function OrganisationsPage() {
 
   const handleReconnect = async (org: Organisation) => {
     // Trigger the OAuth flow for the selected organisation
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(org.instance_url)}`;
+    const returnUrl = searchParams.get('returnUrl');
+    const params = new URLSearchParams({
+      orgId: org.id,
+      instanceUrl: org.instance_url
+    });
+    
+    if (returnUrl) {
+      params.append('returnUrl', returnUrl);
+    }
+    
+    const oauthUrl = `/api/auth/oauth2/salesforce?${params.toString()}`;
     window.location.href = oauthUrl;
   };
 
@@ -178,7 +189,17 @@ export default function OrganisationsPage() {
       ? 'https://login.salesforce.com'
       : 'https://test.salesforce.com';
     
-    const oauthUrl = `/api/auth/oauth2/salesforce?orgId=${encodeURIComponent(org.id)}&instanceUrl=${encodeURIComponent(defaultInstanceUrl)}`;
+    const returnUrl = searchParams.get('returnUrl');
+    const params = new URLSearchParams({
+      orgId: org.id,
+      instanceUrl: defaultInstanceUrl
+    });
+    
+    if (returnUrl) {
+      params.append('returnUrl', returnUrl);
+    }
+    
+    const oauthUrl = `/api/auth/oauth2/salesforce?${params.toString()}`;
     window.location.href = oauthUrl;
   };
 
@@ -388,7 +409,7 @@ export default function OrganisationsPage() {
               </TableHeader>
               <TableBody>
                 {organisations.map((org: Organisation) => (
-                  <TableRow key={org.id}>
+                  <TableRow key={org.id} className={cn("group")}>
                     <TableCell>
                       {editingOrgId === org.id ? (
                         <div className="flex items-center gap-1">

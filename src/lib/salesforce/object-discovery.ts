@@ -154,9 +154,9 @@ export class ObjectDiscoveryEngine {
   }
 
   /**
-   * Analyze relationships between objects
+   * Analyse relationships between objects
    */
-  async analyzeRelationships(objectNames: string[]): Promise<Map<string, Set<string>>> {
+  async analyseRelationships(objectNames: string[]): Promise<Map<string, Set<string>>> {
     const relationships = new Map<string, Set<string>>();
 
     for (const objectName of objectNames) {
@@ -165,14 +165,14 @@ export class ObjectDiscoveryEngine {
 
       const relatedObjects = new Set<string>();
 
-      // Analyze lookup and master-detail relationships
+      // Analyse lookup and master-detail relationships
       for (const field of object.fields) {
         if (field.type === 'reference' && field.referenceTo) {
           field.referenceTo.forEach(ref => relatedObjects.add(ref));
         }
       }
 
-      // Analyze child relationships
+      // Analyse child relationships
       for (const child of object.childRelationships) {
         relatedObjects.add(child.childSObject);
       }

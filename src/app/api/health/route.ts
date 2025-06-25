@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 
-export async function GET(_: NextRequest) {
+export async function GET(_request: NextRequest) {
   // Skip database operations during build time or development for faster response
   if (!process.env.DATABASE_URL || process.env.NODE_ENV === 'development') {
     const health = {
