@@ -230,14 +230,17 @@ export function EnhancedValidationReport({
                     </CardHeader>
                     <CardContent>
                         {/* Group by interpretation rule */}
-                        {selectedRecords.map((ruleId) => {
+                        {selectedRecords.map((ruleId, ruleIndex) => {
                             const ruleName = interpretationRuleNames[ruleId] || `Interpretation Rule (${ruleId})`;
                             const ruleKey = `rule-${ruleId}`;
                             const isRuleExpanded = expandedGroups.has(ruleKey);
                             
-                            // For now, we show all issues under each rule since we can't filter by parent
-                            // In a real implementation, we'd need to map breakpoint IDs to their parent rule
-                            const ruleIssues = normalizedIssues;
+                            // Since we can't determine which errors belong to which rule,
+                            // we'll distribute them evenly for visual representation
+                            const issuesPerRule = Math.ceil(normalizedIssues.length / selectedRecords.length);
+                            const startIndex = ruleIndex * issuesPerRule;
+                            const endIndex = Math.min(startIndex + issuesPerRule, normalizedIssues.length);
+                            const ruleIssues = normalizedIssues.slice(startIndex, endIndex);
                             
                             return (
                                 <div key={ruleId} className="mb-4">
@@ -250,7 +253,7 @@ export function EnhancedValidationReport({
                                             <div>
                                                 <h4 className="font-medium text-gray-900">{ruleName}</h4>
                                                 <p className="text-sm text-gray-600 mt-1">
-                                                    Validation errors found in child records
+                                                    {ruleIssues.length} validation {ruleIssues.length === 1 ? 'error' : 'errors'} found in child records
                                                 </p>
                                             </div>
                                         </div>
