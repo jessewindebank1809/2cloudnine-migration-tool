@@ -207,9 +207,6 @@ export function EnhancedValidationReport({
             );
         
         if (hasInterpretationRuleNames) {
-            // First group by error type
-            const groupedByType = ValidationFormatter.groupValidationIssues(normalizedIssues);
-            
             return (
                 <Card className="mb-6">
                     <CardHeader>
@@ -222,73 +219,106 @@ export function EnhancedValidationReport({
                                 {issues.length}
                             </Badge>
                         </CardTitle>
-                        {/* Show selected interpretation rules */}
-                        {selectedRecords.length > 0 && Object.keys(interpretationRuleNames).length > 0 && (
-                            <div className="mt-2 text-sm text-muted-foreground">
-                                <span className="font-medium">Selected Interpretation Rules: </span>
-                                {selectedRecords.map((ruleId, index) => (
-                                    <span key={ruleId}>
-                                        {interpretationRuleNames[ruleId] || ruleId}
-                                        {index < selectedRecords.length - 1 ? ', ' : ''}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
+                        <div className="mt-2 text-sm text-muted-foreground">
+                            Selected Interpretation Rules: {selectedRecords.map((ruleId, index) => (
+                                <span key={ruleId} className="font-medium">
+                                    {interpretationRuleNames[ruleId] || ruleId}
+                                    {index < selectedRecords.length - 1 ? ', ' : ''}
+                                </span>
+                            ))}
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        {Array.from(groupedByType.entries()).map(([errorType, typeIssues]) => {
-                            // For each error type, create a collapsible section
-                            const isTypeExpanded = expandedGroups.has(errorType);
-                            const Icon = severity === 'error' ? AlertCircle : severity === 'warning' ? AlertTriangle : Info;
-                            const colorClass = severity === 'error' ? 'text-red-600' : severity === 'warning' ? 'text-yellow-600' : 'text-blue-600';
-                            const bgClass = severity === 'error' ? 'bg-red-50' : severity === 'warning' ? 'bg-yellow-50' : 'bg-blue-50';
+                        {/* Group by interpretation rule */}
+                        {selectedRecords.map((ruleId) => {
+                            const ruleName = interpretationRuleNames[ruleId] || `Interpretation Rule (${ruleId})`;
+                            const ruleKey = `rule-${ruleId}`;
+                            const isRuleExpanded = expandedGroups.has(ruleKey);
+                            
+                            // For now, we show all issues under each rule since we can't filter by parent
+                            // In a real implementation, we'd need to map breakpoint IDs to their parent rule
+                            const ruleIssues = normalizedIssues;
                             
                             return (
-                                <div key={errorType} className={cn('rounded-lg p-4 mb-4', bgClass)}>
+                                <div key={ruleId} className="mb-4">
                                     <button
-                                        onClick={() => toggleGroup(errorType)}
-                                        className="w-full flex items-start justify-between text-left"
+                                        onClick={() => toggleGroup(ruleKey)}
+                                        className="w-full flex items-start justify-between text-left p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                                     >
                                         <div className="flex items-start gap-3">
-                                            <Icon className={cn('w-5 h-5 mt-0.5', colorClass)} />
+                                            <Users className="w-5 h-5 text-gray-600 mt-0.5" />
                                             <div>
-                                                <h4 className="font-medium text-gray-900">{errorType}</h4>
+                                                <h4 className="font-medium text-gray-900">{ruleName}</h4>
                                                 <p className="text-sm text-gray-600 mt-1">
-                                                    {typeIssues.length} {typeIssues.length === 1 ? 'issue' : 'issues'} found in child records
+                                                    Validation errors found in child records
                                                 </p>
                                             </div>
                                         </div>
-                                        {isTypeExpanded ? (
+                                        {isRuleExpanded ? (
                                             <ChevronDown className="w-5 h-5 text-gray-400" />
                                         ) : (
                                             <ChevronRight className="w-5 h-5 text-gray-400" />
                                         )}
                                     </button>
                                     
-                                    {isTypeExpanded && (
-                                        <div className="mt-4 space-y-2">
-                                            {typeIssues.map((issue, index) => (
-                                                <div key={index} className="bg-white rounded-md p-3 shadow-sm">
-                                                    <div className="flex items-start justify-between">
-                                                        <div className="flex-1">
-                                                            <p className="text-sm text-gray-700">{issue.message || issue.description}</p>
-                                                            {issue.recordId && issue.recordLink && (
-                                                                <div className="mt-2">
-                                                                    <a 
-                                                                        href={issue.recordLink}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-                                                                    >
-                                                                        View Record
-                                                                        <ExternalLink className="w-3 h-3" />
-                                                                    </a>
+                                    {isRuleExpanded && (
+                                        <div className="mt-2 ml-8 space-y-2">
+                                            {/* Group by error type within each rule */}
+                                            {(() => {
+                                                const groupedByType = ValidationFormatter.groupValidationIssues(ruleIssues);
+                                                return Array.from(groupedByType.entries()).map(([errorType, typeIssues]) => {
+                                                    const typeKey = `${ruleKey}-${errorType}`;
+                                                    const isTypeExpanded = expandedRecords.has(typeKey);
+                                                    const Icon = severity === 'error' ? AlertCircle : severity === 'warning' ? AlertTriangle : Info;
+                                                    const colorClass = severity === 'error' ? 'text-red-600' : severity === 'warning' ? 'text-yellow-600' : 'text-blue-600';
+                                                    const bgClass = severity === 'error' ? 'bg-red-50' : severity === 'warning' ? 'bg-yellow-50' : 'bg-blue-50';
+                                                    
+                                                    return (
+                                                        <div key={errorType} className={cn('rounded-lg p-3', bgClass)}>
+                                                            <button
+                                                                onClick={() => toggleRecord(typeKey)}
+                                                                className="w-full flex items-start justify-between text-left"
+                                                            >
+                                                                <div className="flex items-start gap-2">
+                                                                    <Icon className={cn('w-4 h-4 mt-0.5', colorClass)} />
+                                                                    <div className="flex-1">
+                                                                        <h5 className="font-medium text-sm">{errorType}</h5>
+                                                                        <p className="text-xs text-gray-600">
+                                                                            {typeIssues.length} {typeIssues.length === 1 ? 'issue' : 'issues'}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                {isTypeExpanded ? (
+                                                                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                                                                ) : (
+                                                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                                                )}
+                                                            </button>
+                                                            
+                                                            {isTypeExpanded && (
+                                                                <div className="mt-2 space-y-1">
+                                                                    {typeIssues.map((issue, index) => (
+                                                                        <div key={index} className="bg-white rounded p-2 ml-6 text-xs border border-gray-200">
+                                                                            <p className="text-gray-700">{issue.message || issue.description}</p>
+                                                                            {issue.recordId && issue.recordLink && (
+                                                                                <a 
+                                                                                    href={issue.recordLink}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 mt-1"
+                                                                                >
+                                                                                    View Record
+                                                                                    <ExternalLink className="w-3 h-3" />
+                                                                                </a>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                    );
+                                                });
+                                            })()}
                                         </div>
                                     )}
                                 </div>
