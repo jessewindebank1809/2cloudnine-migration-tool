@@ -254,10 +254,23 @@ export class MultiOrgSessionManager {
             refreshToken: validTokens.refreshToken,
           }, org.org_type as 'PRODUCTION' | 'SANDBOX');
           
+          // Create supporting services for the new client
+          const healthMonitor = new ConnectionHealthMonitor();
+          const capabilityDetector = new OrgCapabilityDetector(newClient);
+          const rateLimiter = new SalesforceRateLimiter({
+            maxRequestsPerSecond: 10,
+            maxConcurrent: 5,
+            retryAttempts: 3,
+            retryDelay: 1000,
+          });
+          
           // Replace the session with a new one
           this.sessions.set(orgId, {
             orgId,
             client: newClient,
+            healthMonitor,
+            capabilityDetector,
+            rateLimiter,
             lastAccessed: new Date()
           });
           console.log(`✅ Refreshed session for ${orgId} with new tokens`);

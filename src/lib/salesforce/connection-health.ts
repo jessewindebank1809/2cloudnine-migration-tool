@@ -45,14 +45,14 @@ export class ConnectionHealthMonitor {
       const refreshToken = org.refresh_token_encrypted ? decrypt(org.refresh_token_encrypted) : undefined;
 
       // Create client
-      const client = new SalesforceClient({
+      const client = await SalesforceClient.create({
         id: org.id,
         organisationId: org.salesforce_org_id || '',
         organisationName: org.name,
         instanceUrl: org.instance_url,
         accessToken,
         refreshToken,
-      });
+      }, org.org_type as 'PRODUCTION' | 'SANDBOX');
 
       // Test connection
       const connectionTest = await client.testConnection();
@@ -167,14 +167,14 @@ export class ConnectionHealthMonitor {
       }
 
       // Create client and refresh token
-      const client = new SalesforceClient({
+      const client = await SalesforceClient.create({
         id: org.id,
         organisationId: org.salesforce_org_id || '',
         organisationName: org.name,
         instanceUrl: org.instance_url,
         accessToken: decrypt(org.access_token_encrypted!),
         refreshToken,
-      });
+      }, org.org_type as 'PRODUCTION' | 'SANDBOX');
 
       // TODO: Implement token refresh in SalesforceClient
       // const newTokens = await client.refreshAccessToken();

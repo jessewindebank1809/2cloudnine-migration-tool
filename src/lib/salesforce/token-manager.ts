@@ -123,7 +123,7 @@ export class TokenManager {
         accessToken: currentTokenInfo.accessToken,
         refreshToken: currentTokenInfo.refreshToken
       };
-      const tempClient = new SalesforceClient(salesforceOrg);
+      const tempClient = await SalesforceClient.create(salesforceOrg, org.org_type as 'PRODUCTION' | 'SANDBOX');
       const refreshResult = await tempClient.refreshAccessToken();
       
       if (!refreshResult.success) {
