@@ -1363,7 +1363,7 @@ export function MigrationProjectBuilder() {
               variant="outline"
               size="sm"
               className="mt-2"
-              onClick={() => {
+              onClick={(event) => {
                 const command = `curl -X POST http://localhost:3000/api/migrations/validate -H "Content-Type: application/json" -d '{"sourceOrgId": "${projectData.sourceOrgId}", "targetOrgId": "${projectData.targetOrgId}", "templateId": "${projectData.templateId}", "selectedRecords": ${JSON.stringify(projectData.selectedRecords)}}' | jq .`;
                 navigator.clipboard.writeText(command);
                 
