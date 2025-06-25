@@ -85,6 +85,7 @@ interface ValidationResult {
     warnings: number;
     info: number;
   };
+  selectedRecordNames?: Record<string, string>;
 }
 
 export function MigrationProjectBuilder() {
@@ -104,6 +105,7 @@ export function MigrationProjectBuilder() {
     sourceOrgId: '',
     targetOrgId: '',
     selectedRecords: [] as string[],
+    selectedRecordNames: {} as Record<string, string>, // Map of record ID to name
   });
 
   // Fetch available organisations
@@ -173,6 +175,7 @@ export function MigrationProjectBuilder() {
           targetOrgId: data.targetOrgId,
           templateId: data.templateId,
           selectedRecords: data.selectedRecords,
+          selectedRecordNames: data.selectedRecordNames,
         }),
       });
       
@@ -492,8 +495,12 @@ export function MigrationProjectBuilder() {
   }, []);
 
   // Memoized callback to prevent infinite re-renders
-  const handleRecordSelectionChange = useCallback((selectedRecords: string[]) => {
-    setProjectData(prev => ({ ...prev, selectedRecords }));
+  const handleRecordSelectionChange = useCallback((selectedRecords: string[], recordNames?: Record<string, string>) => {
+    setProjectData(prev => ({ 
+      ...prev, 
+      selectedRecords,
+      selectedRecordNames: recordNames || prev.selectedRecordNames 
+    }));
   }, []);
 
   // Helper function to check if there are connection-related errors
@@ -974,7 +981,7 @@ export function MigrationProjectBuilder() {
                     sourceOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId)?.name}
                     targetOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId)?.name}
                     selectedRecords={projectData.selectedRecords}
-                    interpretationRuleNames={validationResult.selectedRecordNames || {}}
+                    interpretationRuleNames={validationResult.selectedRecordNames || projectData.selectedRecordNames}
                   />
 
                   {/* Connection Error Action Button */}

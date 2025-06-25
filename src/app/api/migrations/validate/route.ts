@@ -30,7 +30,7 @@ interface ValidationResult {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sourceOrgId, targetOrgId, templateId, selectedRecords } = body;
+    const { sourceOrgId, targetOrgId, templateId, selectedRecords, selectedRecordNames } = body;
 
     if (!sourceOrgId || !targetOrgId || !templateId || !selectedRecords?.length) {
       return NextResponse.json(
@@ -59,27 +59,6 @@ export async function POST(request: NextRequest) {
         { error: 'Template not found' },
         { status: 404 }
       );
-    }
-
-    // Fetch names of selected records if they are interpretation rules
-    let selectedRecordNames: Record<string, string> = {};
-    if (templateId === 'payroll-interpretation-rules' && selectedRecords.length > 0) {
-      try {
-        const session = await sessionManager.getSession(sourceOrgId);
-        if (session) {
-          const recordIds = selectedRecords.map(id => `'${id}'`).join(',');
-          const query = `SELECT Id, Name FROM tc9_et__Interpretation_Rule__c WHERE Id IN (${recordIds})`;
-          const result = await session.query(query);
-          
-          if (result.records) {
-            result.records.forEach((record: any) => {
-              selectedRecordNames[record.Id] = record.Name;
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch interpretation rule names:', error);
-      }
     }
 
     // Use the template's validation engine
@@ -160,7 +139,7 @@ export async function POST(request: NextRequest) {
       hasWarnings: summary.warnings > 0,
       issues,
       summary,
-      selectedRecordNames
+      selectedRecordNames: selectedRecordNames || {}
     };
 
     return NextResponse.json({

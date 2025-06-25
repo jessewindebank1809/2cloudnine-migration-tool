@@ -46,7 +46,7 @@ interface PaginationInfo {
 interface TemplateRecordSelectionProps {
   sourceOrgId: string;
   templateId: string;
-  onSelectionChange: (selectedRecords: string[]) => void;
+  onSelectionChange: (selectedRecords: string[], recordNames?: Record<string, string>) => void;
   selectedRecords?: string[];
 }
 
@@ -59,6 +59,7 @@ export function TemplateRecordSelection({
   const router = useRouter();
   const { apiCall } = useAutoReconnect();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(selectedRecords));
+  const [selectedRecordNames, setSelectedRecordNames] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState(''); // Separate state for input field
@@ -222,14 +223,22 @@ export function TemplateRecordSelection({
   });
 
   // Handle individual record selection
-  const handleRecordToggle = useCallback((recordId: string, isSelected: boolean) => {
+  const handleRecordToggle = useCallback((recordId: string, isSelected: boolean, recordName?: string) => {
     setSelectedIds(prevSelectedIds => {
       const newSelectedIds = new Set(prevSelectedIds);
       
       if (isSelected) {
         newSelectedIds.add(recordId);
+        if (recordName) {
+          setSelectedRecordNames(prev => ({ ...prev, [recordId]: recordName }));
+        }
       } else {
         newSelectedIds.delete(recordId);
+        setSelectedRecordNames(prev => {
+          const updated = { ...prev };
+          delete updated[recordId];
+          return updated;
+        });
       }
       
       // Only call onSelectionChange after component is initialized
@@ -237,7 +246,13 @@ export function TemplateRecordSelection({
         // Use setTimeout to ensure this runs after the current render cycle
         setTimeout(() => {
           try {
-            onSelectionChange(Array.from(newSelectedIds));
+            const currentNames = { ...selectedRecordNames };
+            if (isSelected && recordName) {
+              currentNames[recordId] = recordName;
+            } else if (!isSelected) {
+              delete currentNames[recordId];
+            }
+            onSelectionChange(Array.from(newSelectedIds), currentNames);
           } catch (error) {
             console.error('Error in onSelectionChange callback:', error);
           }
@@ -245,7 +260,7 @@ export function TemplateRecordSelection({
       }
       return newSelectedIds;
     });
-  }, [onSelectionChange]);
+  }, [onSelectionChange, selectedRecordNames]);
 
   // Handle select all/none for current page
   const handleSelectAll = useCallback((selectAll: boolean) => {
@@ -255,8 +270,20 @@ export function TemplateRecordSelection({
       
       if (selectAll) {
         recordIds.forEach(id => newSelectedIds.add(id));
+        // Add record names
+        const newNames = { ...selectedRecordNames };
+        filteredRecords.forEach(record => {
+          newNames[record.Id] = record.Name;
+        });
+        setSelectedRecordNames(newNames);
       } else {
         recordIds.forEach(id => newSelectedIds.delete(id));
+        // Remove record names
+        setSelectedRecordNames(prev => {
+          const updated = { ...prev };
+          recordIds.forEach(id => delete updated[id]);
+          return updated;
+        });
       }
       
       // Only call onSelectionChange after component is initialized
@@ -264,7 +291,15 @@ export function TemplateRecordSelection({
         // Use setTimeout to ensure this runs after the current render cycle
         setTimeout(() => {
           try {
-            onSelectionChange(Array.from(newSelectedIds));
+            const currentNames = { ...selectedRecordNames };
+            if (selectAll) {
+              filteredRecords.forEach(record => {
+                currentNames[record.Id] = record.Name;
+              });
+            } else {
+              recordIds.forEach(id => delete currentNames[id]);
+            }
+            onSelectionChange(Array.from(newSelectedIds), currentNames);
           } catch (error) {
             console.error('Error in onSelectionChange callback:', error);
           }
@@ -272,7 +307,7 @@ export function TemplateRecordSelection({
       }
       return newSelectedIds;
     });
-  }, [onSelectionChange, filteredRecords]);
+  }, [onSelectionChange, filteredRecords, selectedRecordNames]);
 
   const allCurrentPageSelected = filteredRecords.length > 0 && 
     filteredRecords.every(record => selectedIds.has(record.Id));
@@ -288,12 +323,13 @@ export function TemplateRecordSelection({
       if (totalCount === 0) return;
 
       const allRecordIds = new Set<string>();
+      const allRecordNames: Record<string, string> = {};
       const chunkSize = 200; // Fetch in chunks for better performance
       const totalChunks = Math.ceil(totalCount / chunkSize);
 
       for (let chunk = 0; chunk < totalChunks; chunk++) {
         const offset = chunk * chunkSize;
-        let query = `SELECT Id FROM ${primaryObjectType}`;
+        let query = `SELECT Id, Name FROM ${primaryObjectType}`;
         let whereClause = '';
         
         // For interpretation rules, exclude variation rules
@@ -323,7 +359,10 @@ export function TemplateRecordSelection({
         }));
 
         if (result?.records) {
-          result.records.forEach((record: any) => allRecordIds.add(record.Id));
+          result.records.forEach((record: any) => {
+            allRecordIds.add(record.Id);
+            allRecordNames[record.Id] = record.Name;
+          });
         }
 
         // If we got fewer records than expected, we've reached the end
@@ -334,11 +373,12 @@ export function TemplateRecordSelection({
 
       // Update selected records
       setSelectedIds(allRecordIds);
+      setSelectedRecordNames(allRecordNames);
       
       if (isInitializedRef.current) {
         setTimeout(() => {
           try {
-            onSelectionChange(Array.from(allRecordIds));
+            onSelectionChange(Array.from(allRecordIds), allRecordNames);
           } catch (error) {
             console.error('Error in onSelectionChange callback:', error);
           }
@@ -493,13 +533,13 @@ export function TemplateRecordSelection({
             className={`cursor-pointer transition-colors ${
               selectedIds.has(record.Id) ? 'border-primary bg-primary/5' : 'hover:border-gray-300'
             }`}
-            onClick={() => handleRecordToggle(record.Id, !selectedIds.has(record.Id))}
+            onClick={() => handleRecordToggle(record.Id, !selectedIds.has(record.Id), record.Name)}
           >
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
                 <Checkbox
                   checked={selectedIds.has(record.Id)}
-                  onCheckedChange={(checked) => handleRecordToggle(record.Id, checked === true)}
+                  onCheckedChange={(checked) => handleRecordToggle(record.Id, checked === true, record.Name)}
                   onClick={(e) => e.stopPropagation()}
                 />
                 <div className="flex-1">
