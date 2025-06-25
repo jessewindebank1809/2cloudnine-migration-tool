@@ -1311,9 +1311,14 @@ export function MigrationProjectBuilder() {
                   View All Migrations
                 </Button>
                 <Button
-                  onClick={() => router.push('/migrations/new')}
+                  onClick={() => {
+                    if (!hasRunningMigration) {
+                      router.push('/migrations/new');
+                    }
+                  }}
                   variant="default"
                   disabled={hasRunningMigration}
+                  className={hasRunningMigration ? 'opacity-50 cursor-not-allowed' : ''}
                   title={hasRunningMigration ? 'Cannot start new migration while another is in progress' : 'Create a new migration'}
                 >
                   New Migration
@@ -1333,6 +1338,39 @@ export function MigrationProjectBuilder() {
           </div>
         </CardFooter>
       </Card>
+
+      {/* Debug Section - Only show on localhost */}
+      {typeof window !== 'undefined' && window.location.hostname === 'localhost' && projectData.sourceOrgId && projectData.targetOrgId && projectData.templateId && projectData.selectedRecords.length > 0 && (
+        <Card className="mt-8 border-dashed border-2 border-muted">
+          <CardHeader>
+            <CardTitle className="text-sm font-mono">Debug: Copy cURL Command</CardTitle>
+            <CardDescription className="text-xs">For testing validation endpoint in terminal</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted p-4 rounded-md overflow-x-auto">
+              <pre className="text-xs font-mono whitespace-pre-wrap break-all">{`curl -X POST http://localhost:3000/api/migrations/validate \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "sourceOrgId": "${projectData.sourceOrgId}",
+    "targetOrgId": "${projectData.targetOrgId}",
+    "templateId": "${projectData.templateId}",
+    "selectedRecords": ${JSON.stringify(projectData.selectedRecords)}
+  }' | jq .`}</pre>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => {
+                const command = `curl -X POST http://localhost:3000/api/migrations/validate -H "Content-Type: application/json" -d '{"sourceOrgId": "${projectData.sourceOrgId}", "targetOrgId": "${projectData.targetOrgId}", "templateId": "${projectData.templateId}", "selectedRecords": ${JSON.stringify(projectData.selectedRecords)}}' | jq .`;
+                navigator.clipboard.writeText(command);
+              }}
+            >
+              Copy to Clipboard
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 } 
