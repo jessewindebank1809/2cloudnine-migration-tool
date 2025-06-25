@@ -221,8 +221,10 @@ export class ValidationEngine {
                 soqlQuery = ExternalIdUtils.replaceExternalIdPlaceholders(soqlQuery, externalIdField);
                 
                 const results = await this.executeSoqlQuery(soqlQuery, this.targetOrgId);
-                this.validationCache.set(query.cacheKey, results);
-                console.log(`Cached ${results.length} records for ${query.cacheKey}`);
+                // Ensure we always cache arrays for consistency
+                const resultsArray = Array.isArray(results) ? results : [];
+                this.validationCache.set(query.cacheKey, resultsArray);
+                console.log(`Cached ${resultsArray.length} records for ${query.cacheKey}`);
             } catch (error) {
                 console.error(`Failed to execute pre-validation query ${query.queryName}:`, error);
                 this.validationCache.set(query.cacheKey, []);
@@ -271,7 +273,9 @@ export class ValidationEngine {
 
         console.log(`Extracting source data for validation: ${extractConfig.objectApiName}`);
         console.log(`Final query: ${query}`);
-        return await this.executeSoqlQuery(query, this.sourceOrgId);
+        const result = await this.executeSoqlQuery(query, this.sourceOrgId);
+        // Ensure we always return an array for source data
+        return Array.isArray(result) ? result : [];
     }
 
     private async runDependencyChecks(
@@ -420,7 +424,7 @@ export class ValidationEngine {
                 
                 console.log(`Executing query: ${query}`);
                 const queryResult = await this.executeSoqlQuery(query, this.sourceOrgId);
-                const count = Array.isArray(queryResult) ? queryResult.length : queryResult;
+                const count = typeof queryResult === 'number' ? queryResult : queryResult.length;
 
                 console.log(`Query returned ${count} records for check: ${check.checkName}`);
                 if (Array.isArray(queryResult) && queryResult.length > 0) {
@@ -472,7 +476,9 @@ export class ValidationEngine {
                             severity: check.severity,
                             recordId: null,
                             recordName: null,
-                            suggestedAction: "Review data quality and fix issues before migration",
+                            suggestedAction: check.checkName === 'dailyHoursBreakpointPayCodeNotNull'
+                                ? "Update all Daily Hours Breakpoints to have a valid pay code with 'Payment' record type"
+                                : "Review data quality and fix issues before migration",
                         };
                         this.addFormattedIssue(results, issue, check.severity);
                     }
@@ -568,13 +574,21 @@ export class ValidationEngine {
         return cacheKeyMap[objectName] || `target_${objectName.toLowerCase().replace('__c', '').replace('tc9_et__', '')}`;
     }
 
-    private async executeSoqlQuery(query: string, orgId: string): Promise<any[]> {
+    private async executeSoqlQuery(query: string, orgId: string): Promise<any[] | number> {
         try {
             const client = await sessionManager.getClient(orgId);
             const result = await client.query(query);
             
             if (!result.success) {
                 throw new Error(result.error || 'Query failed');
+            }
+            
+            // Check if this is an aggregate query (COUNT, SUM, etc.)
+            if (query.toUpperCase().includes('COUNT()')) {
+                // For COUNT queries, Salesforce returns totalSize with the count
+                // The client returns { success, data, totalSize }
+                console.log(`COUNT query result:`, { totalSize: result.totalSize, data: result.data });
+                return result.totalSize || 0;
             }
             
             return result.data || [];
@@ -782,7 +796,9 @@ export class ValidationEngine {
                     const uniqueResults = await this.executeSoqlQuery(uniqueValuesQuery, this.sourceOrgId);
                     
                     const values = new Set<string>();
-                    uniqueResults.forEach((row: any) => {
+                    // Ensure we have an array to iterate over
+                    const resultsArray = Array.isArray(uniqueResults) ? uniqueResults : [];
+                    resultsArray.forEach((row: any) => {
                         if (row[check.fieldName]) {
                             values.add(row[check.fieldName]);
                         }
@@ -807,7 +823,9 @@ export class ValidationEngine {
                             const fallbackResults = await this.executeSoqlQuery(fallbackQuery, this.sourceOrgId);
                             const values = new Set<string>();
                             
-                            fallbackResults.forEach((row: any) => {
+                            // Ensure we have an array to iterate over
+                            const fallbackArray = Array.isArray(fallbackResults) ? fallbackResults : [];
+                            fallbackArray.forEach((row: any) => {
                                 const fieldValue = row[check.fieldName];
                                 if (fieldValue) {
                                     // For multipicklist, split by semicolon

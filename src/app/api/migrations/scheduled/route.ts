@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { requireAuth } from '@/lib/auth/session-helper';
 import crypto from 'crypto';
+import type { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,13 +15,13 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Build where clause with user filtering
-    const whereClause: any = {
+    const whereClause: Prisma.scheduled_migrationsWhereInput = {
       migration_projects: {
         user_id: session.user.id // Only show scheduled migrations for user's projects
       }
     };
     if (status) {
-      whereClause.status = status.toUpperCase();
+      whereClause.status = status.toUpperCase() as Prisma.EnumScheduled_statusFilter;
     }
 
     // Get scheduled migrations
@@ -216,7 +217,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Simplified next run calculation - in production would use a proper cron library
-function calculateNextRun(cronExpression: string, timezone: string): Date {
+function calculateNextRun(_cronExpression: string, _timezone: string): Date {
   // For now, just schedule for next hour as a placeholder
   // In production, would use libraries like 'node-cron' or 'cron-parser'
   const nextRun = new Date();

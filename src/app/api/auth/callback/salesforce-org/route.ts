@@ -28,7 +28,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Decode the state to get the organisation connection data
-    let stateData;
+    let stateData: {
+      orgId: string;
+      userId: string;
+      orgType: 'PRODUCTION' | 'SANDBOX' | 'SCRATCH';
+      targetInstanceUrl: string;
+      codeVerifier: string;
+      background?: boolean;
+      returnUrl?: string;
+      timestamp?: number;
+    };
     try {
       console.log('🟢 OAuth Callback - Decoding state parameter...');
       stateData = JSON.parse(Buffer.from(state, 'base64').toString());
@@ -119,7 +128,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${baseUrl}/orgs?error=token_exchange_failed`);
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenResponse.json() as {
+      access_token: string;
+      refresh_token: string;
+      instance_url: string;
+      issued_at?: string;
+      [key: string]: unknown;
+    };
 
     // Get user info to retrieve the org ID
     const userInfoResponse = await fetch(`${tokenData.instance_url}/services/oauth2/userinfo`, {
@@ -133,7 +148,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${baseUrl}/orgs?error=userinfo_failed`);
     }
 
-    const userInfo = await userInfoResponse.json();
+    const userInfo = await userInfoResponse.json() as {
+      organization_id: string;
+      user_id: string;
+      [key: string]: unknown;
+    };
 
     console.log('🟢 OAuth Callback - Retrieved Salesforce org info:', {
       organisationId: userInfo.organization_id,
@@ -195,15 +214,15 @@ export async function GET(request: NextRequest) {
       });
       
       console.log('✅ OAuth Callback - Organisation updated successfully');
-    } catch (dbError: unknown) {
+    } catch (dbError) {
       // Handle database constraint violations (e.g., duplicate salesforce_org_id for same user)
       if (dbError && typeof dbError === 'object' && 'code' in dbError && dbError.code === 'P2002' && 
           'meta' in dbError && dbError.meta && typeof dbError.meta === 'object' && 
           'target' in dbError.meta && Array.isArray(dbError.meta.target) && 
           dbError.meta.target.includes('salesforce_org_id')) {
         console.error('💥 Database constraint violation:', {
-          code: (dbError as any).code,
-          constraint: (dbError as any).meta?.target,
+          code: dbError.code,
+          constraint: dbError.meta?.target,
           salesforceOrgId: userInfo.organization_id,
           userId: userId,
         });
@@ -254,7 +273,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Traditional redirect for manual OAuth
       // If returnUrl is provided, redirect there, otherwise go to orgs page
-      let redirectUrl = returnUrl || '/orgs';
+      let redirectUrl = returnUrl ?? '/orgs';
       
       // Ensure the URL is absolute
       if (!redirectUrl.startsWith('http')) {
@@ -279,7 +298,7 @@ export async function GET(request: NextRequest) {
         const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
         isBackground = stateData.background;
       }
-    } catch (_e) {
+    } catch {
       // Ignore state parsing errors in error handler
     }
     

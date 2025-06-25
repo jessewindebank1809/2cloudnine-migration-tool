@@ -1,11 +1,1 @@
-{
-  "phase": 6,
-  "primary_issue": "#68",
-  "tracking_id": "cc064fd0",
-  "investigation_complete": true,
-  "pr_created": {
-    "number": "#69",
-    "url": "https://github.com/jessewindebank1809/2cloudnine-migration-tool/pull/69"
-  },
-  "complete": true
-}
+{"phase": 1, "primary_issue": "#82", "tracking_id": "2af242bf"}

@@ -50,7 +50,7 @@ export async function GET(
         isHealthy: true,
         orgId: orgId
       });
-    } catch (error: any) {
+    } catch (error) {
       // Check if it's an authentication error
       if (error.name === 'INVALID_SESSION_ID' || 
           error.errorCode === 'INVALID_SESSION_ID' ||

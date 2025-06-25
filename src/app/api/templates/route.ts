@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 export const revalidate = 3600; // Cache templates for 1 hour as they don't change frequently
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Ensure templates are registered (registry now handles redundancy checking)
     registerAllTemplates();

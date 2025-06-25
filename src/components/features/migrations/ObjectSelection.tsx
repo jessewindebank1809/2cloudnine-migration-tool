@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Search, Loader2, AlertCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Check, AlertCircle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +27,6 @@ interface SalesforceObject {
 
 interface ObjectSelectionProps {
   sourceOrgId: string;
-  targetOrgId: string;
   onSelectionChange: (objects: string[]) => void;
   templateId?: string;
 }
@@ -44,12 +42,10 @@ const RECOMMENDED_OBJECTS = [
 
 export function ObjectSelection({
   sourceOrgId,
-  targetOrgId,
   onSelectionChange,
   templateId,
 }: ObjectSelectionProps) {
   const [selectedObjects, setSelectedObjects] = useState<Set<string>>(new Set());
-  const [searchTerm, setSearchTerm] = useState('');
   const [recordCounts, setRecordCounts] = useState<Record<string, number>>({});
 
   // Fetch available objects from source org

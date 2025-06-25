@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from "@sentry/nextjs";
-import { ExecutionEngine, DEFAULT_EXECUTION_CONFIG, ExecutionContext } from '@/lib/migration/templates/core/execution-engine';
+import { ExecutionEngine, DEFAULT_EXECUTION_CONFIG, ExecutionContext, StepExecutionResult } from '@/lib/migration/templates/core/execution-engine';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
 import { registerAllTemplates } from '@/lib/migration/templates/registry'; // Ensure templates are registered
 import { ExternalIdUtils } from '@/lib/migration/templates/utils/external-id-utils';
@@ -8,7 +8,9 @@ import { prisma } from '@/lib/database/prisma';
 import { sessionManager } from '@/lib/salesforce/session-manager';
 import type { SalesforceOrg } from '@/types';
 import { requireAuth } from '@/lib/auth/session-helper';
-import { migrationSessionManager } from '@/lib/migration/migration-session-manager';
+import type { ExecutionProgress, MigrationTemplate } from '@/lib/migration/templates/core/interfaces';
+import type { Prisma } from '@prisma/client';
+import { SalesforceClient } from '@/lib/salesforce/client';
 
 export async function POST(
   request: NextRequest,
@@ -63,7 +65,7 @@ export async function POST(
         }
 
         // Extract templateId and selectedRecords from project config
-        const projectConfig = migration.config as any;
+        const projectConfig = migration.config as Prisma.JsonValue as { templateId: string; selectedRecords: string[] };
         const templateId = projectConfig.templateId;
         const selectedRecords = projectConfig.selectedRecords || [];
 
@@ -135,7 +137,7 @@ export async function POST(
         try {
           sourceClient = await sessionManager.getClient(sourceOrg.id);
           targetClient = await sessionManager.getClient(targetOrg.id);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Failed to get authenticated clients:', error);
           
           // Enhanced error context for Sentry
@@ -214,7 +216,7 @@ export async function POST(
             crossEnvironment: externalIdConfig.crossEnvironmentMapping
           });
           
-        } catch (error) {
+        } catch (error: unknown) {
           console.warn(`Failed to detect cross-environment external ID configuration:`, error);
           
           // Fallback to legacy detection
@@ -265,12 +267,9 @@ export async function POST(
         const executionEngine = new ExecutionEngine();
 
         // Set up progress tracking
-        const progressUpdates: any[] = [];
+        const progressUpdates: ExecutionProgress[] = [];
         executionEngine.onProgress((progress) => {
-          progressUpdates.push({
-            timestamp: new Date(),
-            ...progress
-          });
+          progressUpdates.push(progress);
         });
 
         // Execute the template
@@ -302,7 +301,7 @@ export async function POST(
           // Log errors separately if they exist
           if (step.errors && step.errors.length > 0) {
             console.log(`Step ${index + 1} errors (${step.errors.length} total):`);
-            step.errors.forEach((error: any, errorIndex: number) => {
+            step.errors.forEach((error, errorIndex) => {
               console.log(`  Error ${errorIndex + 1}:`, {
                 recordId: error.recordId,
                 error: error.error,
@@ -330,7 +329,7 @@ export async function POST(
               const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
               const nameResult = await sourceClient.query(nameQuery);
               if (nameResult.success && nameResult.data) {
-                nameResult.data.forEach((record: any) => {
+                nameResult.data.forEach((record) => {
                   recordNames.set(record.Id, record.Name);
                 });
               }
@@ -358,7 +357,7 @@ export async function POST(
                 type: 'metadata',
                 parentRecordNames: Object.fromEntries(recordNames),
                 successfulParentRecords: Object.entries(result.lookupMappings)
-                  .filter(([sourceId, targetId]) => recordNames.has(sourceId))
+                  .filter(([sourceId]) => recordNames.has(sourceId))
                   .map(([sourceId, targetId]) => ({
                     sourceId,
                     targetId,
@@ -367,12 +366,12 @@ export async function POST(
                 parentRecordStats: {
                   attempted: selectedRecords.length,
                   successful: Object.entries(result.lookupMappings)
-                    .filter(([sourceId, targetId]) => recordNames.has(sourceId)).length
+                    .filter(([sourceId]) => recordNames.has(sourceId)).length
                 }
               },
               // Include step errors
               ...result.stepResults.flatMap(step => 
-                step.errors?.map((error: any) => ({
+                step.errors?.map((error) => ({
                   stepName: step.stepName,
                   recordId: error.recordId,
                   error: error.error,
@@ -412,7 +411,14 @@ export async function POST(
         });
 
         // Helper function to get detailed record results grouped by parent records
-        const getDetailedRecordResults = async (stepResults: any[], lookupMappings: Record<string, string>, selectedRecords: string[], targetOrg: any, sourceClient: any, template: any) => {
+        const getDetailedRecordResults = async (
+          stepResults: StepExecutionResult[], 
+          lookupMappings: Record<string, string>, 
+          selectedRecords: string[], 
+          targetOrg: SalesforceOrg, 
+          sourceClient: SalesforceClient, 
+          template: MigrationTemplate
+        ) => {
           console.log('getDetailedRecordResults called with targetOrg:', {
             id: targetOrg.id,
             name: targetOrg.name,
@@ -429,7 +435,7 @@ export async function POST(
                 const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
                 const nameResult = await sourceClient.query(nameQuery);
                 if (nameResult.success && nameResult.data) {
-                  nameResult.data.forEach((record: any) => {
+                  nameResult.data.forEach((record) => {
                     recordNames.set(record.Id, record.Name);
                   });
                 }
@@ -449,12 +455,22 @@ export async function POST(
             successfulChildRecords: number;
             failedChildRecords: number;
             totalChildRecords: number;
-            errors: any[];
+            errors: Array<{
+              recordId: string;
+              error: string;
+              retryable: boolean;
+              sourceRecordId?: string;
+            }>;
             childRecordDetails: {
               stepName: string;
               successCount: number;
               failCount: number;
-              errors: any[];
+              errors: Array<{
+                recordId: string;
+                error: string;
+                retryable: boolean;
+                sourceRecordId?: string;
+              }>;
             }[];
           }>();
 
@@ -535,7 +551,7 @@ export async function POST(
                   const result = await sourceClient.query(sourceQuery);
                   
                   if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
-                    result.data.forEach((record: any) => {
+                    result.data.forEach((record) => {
                       const sourceParentId = record[queryConfig.parentField];
                       const count = record.expr0 || 0;
                       
@@ -554,7 +570,7 @@ export async function POST(
                   } else {
                     console.log(`🔍 DEBUGGING: SOURCE - No results for ${queryConfig.stepName} query`);
                   }
-                } catch (error: any) {
+                } catch (error) {
                   console.error(`Error querying SOURCE ${queryConfig.stepName}:`, error);
                   if (error.message?.includes('No such column') || error.message?.includes('Invalid field')) {
                     console.error('SOURCE field name issue detected. Query:', sourceQuery);
@@ -587,7 +603,7 @@ export async function POST(
                   const result = await targetClient.query(query);
                   
                   if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
-                    result.data.forEach((record: any) => {
+                    result.data.forEach((record) => {
                       const targetParentId = record[queryConfig.parentField];
                       const count = record.expr0 || 0;
                       
@@ -614,7 +630,7 @@ export async function POST(
                   } else {
                     console.log(`🔍 DEBUGGING: TARGET - No results for ${queryConfig.stepName} query`);
                   }
-                } catch (error: any) {
+                } catch (error) {
                   console.error(`Error querying TARGET ${queryConfig.stepName}:`, error);
                   // Log the specific error message which might indicate field name issues
                   if (error.message?.includes('No such column') || error.message?.includes('Invalid field')) {
@@ -670,7 +686,7 @@ export async function POST(
             // Update record results based on step outcomes
             if (step.stepName === 'interpretationRuleMaster') {
               // This is the parent record step
-              step.errors?.forEach((error: any) => {
+              step.errors?.forEach((error) => {
                 const sourceId = error.sourceRecordId || error.recordId;
                 if (recordResults.has(sourceId)) {
                   const record = recordResults.get(sourceId)!;
@@ -727,7 +743,7 @@ export async function POST(
                         stepName: step.stepName,
                         successCount: thisParentSuccess,
                         failCount: thisParentFail,
-                        errors: step.errors?.filter((error: any) => 
+                        errors: step.errors?.filter((error) => 
                           error.sourceRecordId === parentId || error.recordId === parentId
                         ) || []
                       };
@@ -748,7 +764,7 @@ export async function POST(
         };
 
         // Helper function to get unique errors with improved pattern matching and parent record grouping
-        const getUniqueErrors = (stepResults: any[]) => {
+        const getUniqueErrors = (stepResults: StepExecutionResult[]) => {
           const errorMap = new Map<string, { 
             count: number; 
             examples: string[]; 
@@ -772,7 +788,7 @@ export async function POST(
           };
           
           stepResults.forEach(step => {
-            step.errors?.forEach((error: any) => {
+            step.errors?.forEach((error) => {
               const { normalized, interpretationRule } = normalizeErrorMessage(error.error);
               
               if (errorMap.has(normalized)) {
@@ -875,7 +891,6 @@ export async function POST(
         }
 
         // If the migration has any errors, treat as failure
-        const failureRate = result.totalRecords > 0 ? (result.failedRecords / result.totalRecords) : 0;
         const hasSignificantErrors = result.failedRecords > 0;
 
         const detailedRecordResults = await getDetailedRecordResults(

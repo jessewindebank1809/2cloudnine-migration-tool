@@ -44,7 +44,7 @@ export default function SignUpPage() {
     
     try {
       console.log('Starting Salesforce OAuth flow...');
-      console.log('Auth client baseURL:', (authClient as any).options?.baseURL);
+      console.log('Auth client baseURL:', 'client-info');
       console.log('Current window origin:', typeof window !== 'undefined' ? window.location.origin : 'N/A');
       
       const result = await authClient.signIn.oauth2({

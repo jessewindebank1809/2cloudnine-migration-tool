@@ -72,7 +72,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
               ...session,
               progress
             };
-          } catch (error) {
+          } catch {
             // Session might have completed
             return session;
           }

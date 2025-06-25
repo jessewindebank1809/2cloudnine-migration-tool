@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prisma';
 import { requireAuth } from '@/lib/auth/session-helper';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 
 // Schema for updating a migration project
 const UpdateProjectSchema = z.object({
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Transform the response to use friendly field names
     const transformedProject = {
       ...project,
-      templateId: (project.config as any)?.templateId || null,
+      templateId: (project.config as Prisma.JsonValue as { templateId?: string })?.templateId || null,
       sourceOrg: project.organisations_migration_projects_source_org_idToorganisations,
       targetOrg: project.organisations_migration_projects_target_org_idToorganisations,
       // Remove the long field names
@@ -185,7 +186,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Transform the response to use friendly field names
     const transformedUpdated = {
       ...updated,
-      templateId: (updated.config as any)?.templateId || null,
+      templateId: (updated.config as Prisma.JsonValue as { templateId?: string })?.templateId || null,
       sourceOrg: updated.organisations_migration_projects_source_org_idToorganisations,
       targetOrg: updated.organisations_migration_projects_target_org_idToorganisations,
       // Remove the long field names
