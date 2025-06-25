@@ -242,10 +242,26 @@ export class MultiOrgSessionManager {
       const validTokens = await tokenManager.getValidToken(orgId);
       
       if (validTokens) {
-        // Update the client with new tokens
-        session.client.accessToken = validTokens.accessToken;
-        session.client.refreshToken = validTokens.refreshToken;
-        console.log(`✅ Refreshed tokens for session ${orgId}`);
+        // Instead of updating the existing client, create a new one with fresh tokens
+        const org = await this.getOrgFromDatabase(orgId);
+        if (org) {
+          const newClient = new SalesforceClient({
+            id: org.id,
+            organisationId: org.salesforce_org_id || '',
+            organisationName: org.name,
+            instanceUrl: org.instance_url,
+            accessToken: validTokens.accessToken,
+            refreshToken: validTokens.refreshToken,
+          });
+          
+          // Replace the session with a new one
+          this.sessions.set(orgId, {
+            orgId,
+            client: newClient,
+            lastAccessed: Date.now()
+          });
+          console.log(`✅ Refreshed session for ${orgId} with new tokens`);
+        }
       } else {
         console.error(`❌ Failed to refresh tokens for session ${orgId}, removing session`);
         this.removeSession(orgId);
@@ -254,6 +270,17 @@ export class MultiOrgSessionManager {
       console.error(`Error refreshing tokens for session ${orgId}:`, error);
       // Don't remove session on error - let it fail on next use
     }
+  }
+
+  /**
+   * Get org from database
+   */
+  private async getOrgFromDatabase(orgId: string) {
+    const org = await prisma.organisations.findUnique({
+      where: { id: orgId }
+    });
+    
+    return org;
   }
 
   /**
