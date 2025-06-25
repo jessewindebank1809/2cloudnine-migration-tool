@@ -73,6 +73,7 @@ interface ValidationIssue {
   recordLink?: string;
   field?: string;
   suggestion?: string;
+  parentRecordId?: string;
 }
 
 interface ValidationResult {

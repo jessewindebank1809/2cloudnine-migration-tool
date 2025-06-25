@@ -60,6 +60,7 @@ export function EnhancedValidationReport({
             recordName: sourceRecordName || issue.recordId,
             recordId: issue.recordId,
             recordLink: issue.recordLink,
+            parentRecordId: issue.parentRecordId,
         };
     };
     
@@ -235,12 +236,17 @@ export function EnhancedValidationReport({
                             const ruleKey = `rule-${ruleId}`;
                             const isRuleExpanded = expandedGroups.has(ruleKey);
                             
-                            // Since we can't determine which errors belong to which rule,
-                            // we'll distribute them evenly for visual representation
-                            const issuesPerRule = Math.ceil(normalizedIssues.length / selectedRecords.length);
-                            const startIndex = ruleIndex * issuesPerRule;
-                            const endIndex = Math.min(startIndex + issuesPerRule, normalizedIssues.length);
-                            const ruleIssues = normalizedIssues.slice(startIndex, endIndex);
+                            // Filter issues that belong to this interpretation rule
+                            const ruleIssues = normalizedIssues.filter(issue => 
+                                issue.parentRecordId === ruleId || 
+                                // If no parentRecordId, include issues for the interpretation rule itself
+                                (!issue.parentRecordId && issue.recordId === ruleId)
+                            );
+                            
+                            // Only show the rule if it has errors
+                            if (ruleIssues.length === 0) {
+                                return null;
+                            }
                             
                             return (
                                 <div key={ruleId} className="mb-4">
