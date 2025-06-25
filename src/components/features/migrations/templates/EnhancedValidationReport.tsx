@@ -110,12 +110,23 @@ export function EnhancedValidationReport({
         );
         
         if (hasInterpretationRuleErrors && selectedRecords.length > 0) {
-            // Group all errors under the selected interpretation rules
-            const groupName = selectedRecords.length === 1 
-                ? 'Selected Interpretation Rule'
-                : `Selected Interpretation Rules (${selectedRecords.length})`;
-            
-            issuesByRecord.set(groupName, issues);
+            // Group errors by their interpretation rule names
+            if (selectedRecords.length === 1) {
+                // Single interpretation rule - use its name
+                const ruleId = selectedRecords[0];
+                const ruleName = interpretationRuleNames[ruleId] || `Interpretation Rule (${ruleId})`;
+                issuesByRecord.set(ruleName, issues);
+            } else {
+                // Multiple interpretation rules - group by each rule name
+                // For now, we'll group all under a combined heading since we can't
+                // determine which error belongs to which rule without more context
+                const ruleNames = selectedRecords
+                    .map(id => interpretationRuleNames[id] || id)
+                    .filter(name => name)
+                    .join(', ');
+                const groupName = ruleNames || 'Selected Interpretation Rules';
+                issuesByRecord.set(groupName, issues);
+            }
         } else {
             // Fallback to grouping by the extracted record names
             issues.forEach(issue => {

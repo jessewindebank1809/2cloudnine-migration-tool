@@ -61,6 +61,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch names of selected records if they are interpretation rules
+    let selectedRecordNames: Record<string, string> = {};
+    if (templateId === 'payroll-interpretation-rules' && selectedRecords.length > 0) {
+      try {
+        const session = await sessionManager.getSession(sourceOrgId);
+        if (session) {
+          const recordIds = selectedRecords.map(id => `'${id}'`).join(',');
+          const query = `SELECT Id, Name FROM tc9_et__Interpretation_Rule__c WHERE Id IN (${recordIds})`;
+          const result = await session.query(query);
+          
+          if (result.records) {
+            result.records.forEach((record: any) => {
+              selectedRecordNames[record.Id] = record.Name;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch interpretation rule names:', error);
+      }
+    }
+
     // Use the template's validation engine
     const validationEngine = new ValidationEngine();
     const engineValidationResult = await validationEngine.validateTemplate(
@@ -138,7 +159,8 @@ export async function POST(request: NextRequest) {
       hasErrors: summary.errors > 0,
       hasWarnings: summary.warnings > 0,
       issues,
-      summary
+      summary,
+      selectedRecordNames
     };
 
     return NextResponse.json({

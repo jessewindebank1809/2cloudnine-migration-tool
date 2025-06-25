@@ -974,6 +974,7 @@ export function MigrationProjectBuilder() {
                     sourceOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId)?.name}
                     targetOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId)?.name}
                     selectedRecords={projectData.selectedRecords}
+                    interpretationRuleNames={validationResult.selectedRecordNames || {}}
                   />
 
                   {/* Connection Error Action Button */}
