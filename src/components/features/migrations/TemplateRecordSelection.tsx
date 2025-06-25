@@ -61,6 +61,7 @@ export function TemplateRecordSelection({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(selectedRecords));
   const [currentPage, setCurrentPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // Separate state for input field
   const [primaryObjectType, setPrimaryObjectType] = useState<string>('');
   const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
   const isInitializedRef = useRef(false);
@@ -97,6 +98,16 @@ export function TemplateRecordSelection({
       setPrimaryObjectType(templateData.template.etlSteps[0].objectApiName);
     }
   }, [templateData]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(0); // Reset to first page when search changes
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // First, get the total count of records
   const { data: totalCountData, isLoading: isLoadingCount } = useQuery({
@@ -446,11 +457,8 @@ export function TemplateRecordSelection({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search records..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(0); // Reset to first page when searching
-            }}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9"
           />
         </div>
