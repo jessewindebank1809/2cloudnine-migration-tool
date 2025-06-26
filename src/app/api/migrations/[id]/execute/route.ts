@@ -11,6 +11,7 @@ import { requireAuth } from '@/lib/auth/session-helper';
 import type { ExecutionProgress, MigrationTemplate } from '@/lib/migration/templates/core/interfaces';
 import type { Prisma } from '@prisma/client';
 import { SalesforceClient } from '@/lib/salesforce/client';
+import { usageTracker } from '@/lib/usage-tracker';
 
 export async function POST(
   request: NextRequest,
@@ -132,6 +133,17 @@ export async function POST(
           );
         }
 
+        // Create session ID early for tracking
+        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Track migration start with full context
+        await usageTracker.trackMigrationStart(
+          migrationId,
+          sessionId,
+          authSession.user.id,
+          { source: sourceOrg.id, target: targetOrg.id }
+        );
+
         // Get authenticated clients from session manager
         let sourceClient, targetClient;
         try {
@@ -152,6 +164,22 @@ export async function POST(
             error.message.includes('not connected') ||
             error.message.includes('not found')
           )) {
+            // Track authentication failure with detailed context
+            await usageTracker.trackMigrationFailure(
+              migrationId,
+              sessionId,
+              authSession.user.id,
+              error.message,
+              {
+                templateId,
+                sourceOrgId: sourceOrg.id,
+                targetOrgId: targetOrg.id,
+                selectedRecords,
+                failedAtStep: 'authentication',
+                errorCode: 'RECONNECT_REQUIRED',
+              }
+            );
+            
             Sentry.captureException(error);
             return NextResponse.json(
               { 
@@ -287,6 +315,98 @@ export async function POST(
           lookupMappingsCount: Object.keys(result.lookupMappings).length
         });
         
+        // Track detailed execution results
+        if (result.status === 'failed' || result.failedRecords > 0) {
+          // Collect all error details for comprehensive tracking
+          const allErrors: Array<{
+            stepName: string;
+            recordId: string;
+            error: string;
+            errorCode?: string;
+            retryable: boolean;
+            technicalDetails?: any;
+          }> = [];
+          
+          result.stepResults.forEach(step => {
+            if (step.errors && step.errors.length > 0) {
+              step.errors.forEach((error: any) => {
+                // Extract technical error details
+                const errorDetails: any = {
+                  stepName: step.stepName,
+                  recordId: error.recordId,
+                  error: error.error,
+                  retryable: error.retryable
+                };
+                
+                // Parse Salesforce error codes and details
+                if (error.error.includes('INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST')) {
+                  errorDetails.errorCode = 'INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST';
+                  const fieldMatch = error.error.match(/\[([^\]]+)\]/);
+                  if (fieldMatch) {
+                    errorDetails.field = fieldMatch[1];
+                  }
+                  const valueMatch = error.error.match(/Picklist value: ([^:]+):/);
+                  if (valueMatch) {
+                    errorDetails.invalidValue = valueMatch[1].trim();
+                  }
+                } else if (error.error.includes('REQUIRED_FIELD_MISSING')) {
+                  errorDetails.errorCode = 'REQUIRED_FIELD_MISSING';
+                  const fieldsMatch = error.error.match(/Required fields are missing: \[([^\]]+)\]/);
+                  if (fieldsMatch) {
+                    errorDetails.missingFields = fieldsMatch[1].split(',').map((f: string) => f.trim());
+                  }
+                } else if (error.error.includes('DUPLICATE_VALUE')) {
+                  errorDetails.errorCode = 'DUPLICATE_VALUE';
+                } else if (error.error.includes('FIELD_CUSTOM_VALIDATION_EXCEPTION')) {
+                  errorDetails.errorCode = 'FIELD_CUSTOM_VALIDATION_EXCEPTION';
+                  errorDetails.validationRule = error.error.split(':')[1]?.trim();
+                } else if (error.error.includes('INSUFFICIENT_ACCESS')) {
+                  errorDetails.errorCode = 'INSUFFICIENT_ACCESS';
+                } else if (error.error.includes('INVALID_SESSION_ID')) {
+                  errorDetails.errorCode = 'INVALID_SESSION_ID';
+                } else if (error.error.includes('Breakpoint:')) {
+                  errorDetails.errorCode = 'BREAKPOINT_ERROR';
+                  const breakpointMatch = error.error.match(/Breakpoint: ([^:]+):/);
+                  if (breakpointMatch) {
+                    errorDetails.breakpointName = breakpointMatch[1];
+                  }
+                }
+                
+                allErrors.push(errorDetails);
+              });
+            }
+          });
+          
+          // Track migration failure with comprehensive error details
+          await usageTracker.trackMigrationFailure(
+            migrationId,
+            sessionId,
+            authSession.user.id,
+            result.failedRecords > 0 ? `Migration failed with ${result.failedRecords} errors` : 'Migration execution failed',
+            {
+              templateId,
+              sourceOrgId: sourceOrg.id,
+              targetOrgId: targetOrg.id,
+              selectedRecords,
+              failedAtStep: 'execution',
+              errorCode: result.status === 'failed' ? 'EXECUTION_FAILED' : 'PARTIAL_FAILURE',
+              validationErrors: allErrors,
+            }
+          );
+        } else {
+          // Track successful migration
+          await usageTracker.trackMigrationComplete(
+            migrationId,
+            sessionId,
+            authSession.user.id,
+            {
+              success: true,
+              recordsProcessed: result.totalRecords,
+              duration: result.executionTimeMs
+            }
+          );
+        }
+        
         // Log each step result separately to avoid truncation
         result.stepResults.forEach((step, index) => {
           console.log(`Step ${index + 1} (${step.stepName}):`, {
@@ -342,7 +462,6 @@ export async function POST(
         }
 
         // Create migration session record
-        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const session = await prisma.migration_sessions.create({
           data: {
             id: sessionId,
@@ -952,14 +1071,53 @@ export async function POST(
         
         Sentry.captureException(error);
         
+        // Track unexpected execution errors
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let errorCode = 'UNKNOWN_ERROR';
+        let errorType = 'unknown';
+        
+        // Categorize the error
+        if (error instanceof Error) {
+          if (error.message.includes('invalid_grant') || 
+              error.message.includes('expired') ||
+              error.message.includes('INVALID_SESSION_ID') ||
+              error.message.includes('Authentication token has expired') ||
+              error.message.includes('not connected')) {
+            errorCode = 'TOKEN_EXPIRED';
+            errorType = 'authentication';
+          } else if (error.message.includes('ECONNRESET') || 
+                     error.message.includes('ETIMEDOUT') ||
+                     error.message.includes('network')) {
+            errorCode = 'NETWORK_ERROR';
+            errorType = 'network';
+          } else if (error.message.includes('permission') ||
+                     error.message.includes('access')) {
+            errorCode = 'PERMISSION_ERROR';
+            errorType = 'permission';
+          }
+        }
+        
+        // Track the failure if we're authenticated
+        try {
+          const authSession = await requireAuth(request);
+          const sessionId = `session_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          await usageTracker.trackMigrationFailure(
+            migrationId,
+            sessionId,
+            authSession.user.id,
+            errorMessage,
+            {
+              failedAtStep: 'execution_error',
+              errorCode,
+              stackTrace: error instanceof Error ? error.stack : undefined
+            }
+          );
+        } catch (trackErr) {
+          console.error('Failed to track error:', trackErr);
+        }
+        
         // Check if it's a token-related error
-        if (error instanceof Error && (
-          error.message.includes('invalid_grant') || 
-          error.message.includes('expired') ||
-          error.message.includes('INVALID_SESSION_ID') ||
-          error.message.includes('Authentication token has expired') ||
-          error.message.includes('not connected')
-        )) {
+        if (errorCode === 'TOKEN_EXPIRED') {
           return NextResponse.json(
             { 
               error: 'Authentication token has expired. Please reconnect the organisation.',
