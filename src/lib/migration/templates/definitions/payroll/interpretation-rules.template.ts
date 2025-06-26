@@ -2456,7 +2456,7 @@ export const interpretationRulesTemplate: MigrationTemplate = {
                             {
                                 checkName: "dailyHoursBreakpointPayCodeNotNull",
                                 description: "Check for Daily Hours Breakpoints with null pay codes",
-                                validationQuery: `SELECT Id, Name FROM tc9_et__Interpretation_Breakpoint__c 
+                                validationQuery: `SELECT Id, Name, tc9_et__Interpretation_Rule__c FROM tc9_et__Interpretation_Breakpoint__c 
                                     WHERE RecordType.Name = 'Daily Hours Breakpoint' 
                                     AND tc9_et__Pay_Code__c = null 
                                     AND tc9_et__Interpretation_Rule__c IN ({selectedRecordIds})`,
