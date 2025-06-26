@@ -90,3 +90,4 @@ scripts/
 .cache/
 .parcel-cache/
 __mocks__/
+.env

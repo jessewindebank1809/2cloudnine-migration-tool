@@ -3,6 +3,8 @@ import { prisma } from '@/lib/database/prisma';
 import { templateRegistry } from '@/lib/migration/templates/core/template-registry';
 import { ValidationEngine } from '@/lib/migration/templates/core/validation-engine';
 import '@/lib/migration/templates/registry';
+import { usageTracker } from '@/lib/usage-tracker';
+import { requireAuth } from '@/lib/auth/session-helper';
 
 interface ValidationIssue {
   id: string;
@@ -146,6 +148,36 @@ export async function POST(request: NextRequest) {
       summary,
       selectedRecordNames: selectedRecordNames || {}
     };
+
+    // Track validation event
+    try {
+      const authSession = await requireAuth(request);
+      await usageTracker.trackEvent({
+        eventType: 'migration_validated',
+        userId: authSession.user.id,
+        metadata: {
+          templateId,
+          sourceOrgId,
+          targetOrgId,
+          recordCount: selectedRecords.length,
+          validationResult: {
+            isValid: validationResult.isValid,
+            errorCount: validationResult.summary.errors,
+            warningCount: validationResult.summary.warnings,
+            errorTypes: issues
+              .filter(i => i.severity === 'error')
+              .map(i => i.title)
+              .reduce((acc, title) => {
+                acc[title] = (acc[title] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>)
+          }
+        }
+      });
+    } catch (trackingError) {
+      // Don't fail validation if tracking fails
+      console.error('Failed to track validation event:', trackingError);
+    }
 
     return NextResponse.json({
       success: true,
