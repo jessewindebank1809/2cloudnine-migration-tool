@@ -1,0 +1,18 @@
+{
+  "phase": 2,
+  "primary_issue": "#88",
+  "tracking_id": "5d020f29",
+  "investigation_complete": true,
+  "pipeline_context": {
+    "issue_detail": "Consolidate validation errors by unique error type instead of record ID",
+    "replication_steps": "curl -X POST http://localhost:3000/api/migrations/validate with specific payload",
+    "pass_criteria": "Errors grouped by type, show count, example record linked, messages adjusted",
+    "priority": "high",
+    "scope": "investigate_dependencies"
+  },
+  "investigation_summary": "The EnhancedValidationReport component currently implements hierarchical grouping. Need to simplify to always group by error type.",
+  "files_to_modify": ["src/components/features/migrations/templates/EnhancedValidationReport.tsx"],
+  "related_issues_found": [],
+  "status": "investigation_complete",
+  "next_action": "implement"
+}
