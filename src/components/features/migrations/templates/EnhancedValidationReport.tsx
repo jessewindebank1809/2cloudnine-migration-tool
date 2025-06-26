@@ -119,7 +119,7 @@ export function EnhancedValidationReport({
                         <div key={index} className="bg-white rounded-md p-4 shadow-sm">
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                    <p className="text-sm text-gray-700">{issue.message || issue.description}</p>
+                                    <p className="text-sm text-gray-700">{issue.message}</p>
                                     {issue.fieldName && issue.fieldValue && (
                                         <div className="mt-2 text-sm">
                                             <span className="text-gray-600">Field: </span>
@@ -309,7 +309,7 @@ export function EnhancedValidationReport({
                                                                 <div className="mt-2 space-y-1">
                                                                     {typeIssues.map((issue, index) => (
                                                                         <div key={index} className="bg-white rounded p-2 ml-6 text-xs border border-gray-200">
-                                                                            <p className="text-gray-700">{issue.message || issue.description}</p>
+                                                                            <p className="text-gray-700">{issue.message}</p>
                                                                             {issue.recordId && issue.recordLink && (
                                                                                 <a 
                                                                                     href={issue.recordLink}
@@ -407,7 +407,7 @@ export function EnhancedValidationReport({
                                                                 <div className="mt-2 space-y-1">
                                                                     {typeIssues.map((issue, index) => (
                                                                         <div key={index} className="bg-white rounded p-2 ml-6 text-xs border border-gray-200">
-                                                                            <p className="text-gray-700">{issue.message || issue.description}</p>
+                                                                            <p className="text-gray-700">{issue.message}</p>
                                                                             {issue.recordId && issue.recordLink && (
                                                                                 <a 
                                                                                     href={issue.recordLink}

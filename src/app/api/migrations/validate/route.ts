@@ -26,6 +26,7 @@ interface ValidationResult {
     warnings: number;
     info: number;
   };
+  selectedRecordNames?: Record<string, string>;
 }
 
 export async function POST(request: NextRequest) {
