@@ -243,11 +243,7 @@ export function EnhancedValidationReport({
                                 (!issue.parentRecordId && issue.recordId === ruleId)
                             );
                             
-                            // Only show the rule if it has errors
-                            if (ruleIssues.length === 0) {
-                                return null;
-                            }
-                            
+                            // Always show all selected interpretation rules, even if they have no errors
                             return (
                                 <div key={ruleId} className="mb-4">
                                     <button
@@ -272,11 +268,114 @@ export function EnhancedValidationReport({
                                     
                                     {isRuleExpanded && (
                                         <div className="mt-2 ml-8 space-y-2">
-                                            {/* Group by error type within each rule */}
-                                            {(() => {
-                                                const groupedByType = ValidationFormatter.groupValidationIssues(ruleIssues);
-                                                return Array.from(groupedByType.entries()).map(([errorType, typeIssues]) => {
+                                            {ruleIssues.length === 0 ? (
+                                                <div className="bg-green-50 rounded-lg p-3 text-green-700 text-sm">
+                                                    No validation errors found for this interpretation rule.
+                                                </div>
+                                            ) : (
+                                                /* Group by error type within each rule */
+                                                (() => {
+                                                    const groupedByType = ValidationFormatter.groupValidationIssues(ruleIssues);
+                                                    return Array.from(groupedByType.entries()).map(([errorType, typeIssues]) => {
                                                     const typeKey = `${ruleKey}-${errorType}`;
+                                                    const isTypeExpanded = expandedRecords.has(typeKey);
+                                                    const Icon = severity === 'error' ? AlertCircle : severity === 'warning' ? AlertTriangle : Info;
+                                                    const colorClass = severity === 'error' ? 'text-red-600' : severity === 'warning' ? 'text-yellow-600' : 'text-blue-600';
+                                                    const bgClass = severity === 'error' ? 'bg-red-50' : severity === 'warning' ? 'bg-yellow-50' : 'bg-blue-50';
+                                                    
+                                                    return (
+                                                        <div key={errorType} className={cn('rounded-lg p-3', bgClass)}>
+                                                            <button
+                                                                onClick={() => toggleRecord(typeKey)}
+                                                                className="w-full flex items-start justify-between text-left"
+                                                            >
+                                                                <div className="flex items-start gap-2">
+                                                                    <Icon className={cn('w-4 h-4 mt-0.5', colorClass)} />
+                                                                    <div className="flex-1">
+                                                                        <h5 className="font-medium text-sm">{errorType}</h5>
+                                                                        <p className="text-xs text-gray-600">
+                                                                            {typeIssues.length} {typeIssues.length === 1 ? 'issue' : 'issues'}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                {isTypeExpanded ? (
+                                                                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                                                                ) : (
+                                                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                                                )}
+                                                            </button>
+                                                            
+                                                            {isTypeExpanded && (
+                                                                <div className="mt-2 space-y-1">
+                                                                    {typeIssues.map((issue, index) => (
+                                                                        <div key={index} className="bg-white rounded p-2 ml-6 text-xs border border-gray-200">
+                                                                            <p className="text-gray-700">{issue.message || issue.description}</p>
+                                                                            {issue.recordId && issue.recordLink && (
+                                                                                <a 
+                                                                                    href={issue.recordLink}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 mt-1"
+                                                                                >
+                                                                                    View Record
+                                                                                    <ExternalLink className="w-3 h-3" />
+                                                                                </a>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                });
+                                                })()
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                        
+                        {/* Show errors with no parent record ID */}
+                        {(() => {
+                            const orphanIssues = normalizedIssues.filter(issue => 
+                                !issue.parentRecordId && 
+                                !selectedRecords.includes(issue.recordId || '')
+                            );
+                            
+                            if (orphanIssues.length === 0) return null;
+                            
+                            const orphanKey = 'orphan-errors';
+                            const isOrphanExpanded = expandedGroups.has(orphanKey);
+                            
+                            return (
+                                <div className="mb-4 mt-6">
+                                    <button
+                                        onClick={() => toggleGroup(orphanKey)}
+                                        className="w-full flex items-start justify-between text-left p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <AlertCircle className="w-5 h-5 text-gray-600 mt-0.5" />
+                                            <div>
+                                                <h4 className="font-medium text-gray-900">Other Validation Errors</h4>
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    {orphanIssues.length} validation {orphanIssues.length === 1 ? 'error' : 'errors'} not specific to any interpretation rule
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {isOrphanExpanded ? (
+                                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                                        ) : (
+                                            <ChevronRight className="w-5 h-5 text-gray-400" />
+                                        )}
+                                    </button>
+                                    
+                                    {isOrphanExpanded && (
+                                        <div className="mt-2 ml-8 space-y-2">
+                                            {(() => {
+                                                const groupedByType = ValidationFormatter.groupValidationIssues(orphanIssues);
+                                                return Array.from(groupedByType.entries()).map(([errorType, typeIssues]) => {
+                                                    const typeKey = `${orphanKey}-${errorType}`;
                                                     const isTypeExpanded = expandedRecords.has(typeKey);
                                                     const Icon = severity === 'error' ? AlertCircle : severity === 'warning' ? AlertTriangle : Info;
                                                     const colorClass = severity === 'error' ? 'text-red-600' : severity === 'warning' ? 'text-yellow-600' : 'text-blue-600';
@@ -332,7 +431,7 @@ export function EnhancedValidationReport({
                                     )}
                                 </div>
                             );
-                        })}
+                        })()}
                     </CardContent>
                 </Card>
             );
