@@ -104,9 +104,24 @@ export class UsageTracker {
   }
 
   /**
-   * Track migration failure event
+   * Track migration failure event with enhanced error context
    */
-  async trackMigrationFailure(migrationId: string, sessionId: string, userId: string, error: string): Promise<void> {
+  async trackMigrationFailure(
+    migrationId: string, 
+    sessionId: string, 
+    userId: string, 
+    error: string,
+    errorContext?: {
+      templateId?: string;
+      sourceOrgId?: string;
+      targetOrgId?: string;
+      selectedRecords?: string[];
+      failedAtStep?: string;
+      stackTrace?: string;
+      errorCode?: string;
+      validationErrors?: any[];
+    }
+  ): Promise<void> {
     await this.trackEvent({
       eventType: 'migration_failed',
       userId,
@@ -114,6 +129,23 @@ export class UsageTracker {
       sessionId,
       metadata: {
         error,
+        errorType: error.includes('Validation') ? 'validation' : 
+                   error.includes('Network') ? 'network' :
+                   error.includes('Permission') ? 'permission' :
+                   error.includes('Timeout') ? 'timeout' : 'unknown',
+        ...errorContext,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    // Track error metrics for analysis
+    await this.recordMetric({
+      metricName: 'migration_error',
+      metricValue: 1,
+      tags: {
+        errorType: errorContext?.errorCode || 'unknown',
+        templateId: errorContext?.templateId || 'unknown',
+        failedAtStep: errorContext?.failedAtStep || 'unknown',
       },
     });
   }
@@ -321,6 +353,172 @@ export class UsageTracker {
       totalRecordsProcessed,
       averageSuccessRate,
       topFeatures,
+    };
+  }
+
+  /**
+   * Get migration error analysis
+   */
+  async getMigrationErrorAnalysis(days: number = 30): Promise<{
+    totalErrors: number;
+    errorsByType: Record<string, number>;
+    errorsByTemplate: Record<string, number>;
+    errorsByStep: Record<string, number>;
+    commonErrors: Array<{ error: string; count: number; lastOccurred: Date }>;
+    recentErrors: Array<{
+      migrationId: string;
+      userId: string;
+      error: string;
+      context: any;
+      timestamp: Date;
+    }>;
+  }> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const errorEvents = await prisma.usage_events.findMany({
+      where: {
+        event_type: 'migration_failed',
+        created_at: {
+          gte: startDate,
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    const totalErrors = errorEvents.length;
+
+    // Analyze errors by type
+    const errorsByType = errorEvents.reduce((acc, event) => {
+      const errorType = (event.metadata as any)?.errorType || 'unknown';
+      acc[errorType] = (acc[errorType] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Analyze errors by template
+    const errorsByTemplate = errorEvents.reduce((acc, event) => {
+      const templateId = (event.metadata as any)?.templateId || 'unknown';
+      acc[templateId] = (acc[templateId] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Analyze errors by step
+    const errorsByStep = errorEvents.reduce((acc, event) => {
+      const failedAtStep = (event.metadata as any)?.failedAtStep || 'unknown';
+      acc[failedAtStep] = (acc[failedAtStep] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Find common errors
+    const errorCounts = errorEvents.reduce((acc, event) => {
+      const error = (event.metadata as any)?.error || 'unknown';
+      if (!acc[error]) {
+        acc[error] = { count: 0, lastOccurred: event.created_at };
+      }
+      acc[error].count++;
+      if (event.created_at > acc[error].lastOccurred) {
+        acc[error].lastOccurred = event.created_at;
+      }
+      return acc;
+    }, {} as Record<string, { count: number; lastOccurred: Date }>);
+
+    const commonErrors = Object.entries(errorCounts)
+      .map(([error, data]) => ({ error, ...data }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // Get recent errors with full context
+    const recentErrors = errorEvents.slice(0, 20).map(event => ({
+      migrationId: event.migration_id || 'unknown',
+      userId: event.user_id || 'unknown',
+      error: (event.metadata as any)?.error || 'unknown',
+      context: {
+        templateId: (event.metadata as any)?.templateId,
+        sourceOrgId: (event.metadata as any)?.sourceOrgId,
+        targetOrgId: (event.metadata as any)?.targetOrgId,
+        selectedRecords: (event.metadata as any)?.selectedRecords,
+        failedAtStep: (event.metadata as any)?.failedAtStep,
+        errorCode: (event.metadata as any)?.errorCode,
+        validationErrors: (event.metadata as any)?.validationErrors,
+      },
+      timestamp: event.created_at,
+    }));
+
+    return {
+      totalErrors,
+      errorsByType,
+      errorsByTemplate,
+      errorsByStep,
+      commonErrors,
+      recentErrors,
+    };
+  }
+
+  /**
+   * Get error replication data for a specific migration
+   */
+  async getErrorReplicationData(migrationId: string): Promise<{
+    migrationId: string;
+    error: string;
+    replicationSteps: {
+      templateId: string;
+      sourceOrgId: string;
+      targetOrgId: string;
+      selectedRecords: string[];
+      configuration: any;
+    };
+    errorContext: any;
+    relatedErrors: Array<{ migrationId: string; error: string; timestamp: Date }>;
+  } | null> {
+    const errorEvent = await prisma.usage_events.findFirst({
+      where: {
+        migration_id: migrationId,
+        event_type: 'migration_failed',
+      },
+    });
+
+    if (!errorEvent) {
+      return null;
+    }
+
+    const metadata = errorEvent.metadata as any;
+
+    // Find related errors with similar context
+    const relatedErrors = await prisma.usage_events.findMany({
+      where: {
+        event_type: 'migration_failed',
+        migration_id: { not: migrationId },
+        OR: [
+          { metadata: { path: ['templateId'], equals: metadata.templateId } },
+          { metadata: { path: ['error'], equals: metadata.error } },
+          { metadata: { path: ['errorCode'], equals: metadata.errorCode } },
+        ],
+      },
+      take: 5,
+      orderBy: { created_at: 'desc' },
+    });
+
+    return {
+      migrationId,
+      error: metadata.error || 'Unknown error',
+      replicationSteps: {
+        templateId: metadata.templateId || '',
+        sourceOrgId: metadata.sourceOrgId || '',
+        targetOrgId: metadata.targetOrgId || '',
+        selectedRecords: metadata.selectedRecords || [],
+        configuration: {
+          failedAtStep: metadata.failedAtStep,
+          validationErrors: metadata.validationErrors,
+        },
+      },
+      errorContext: metadata,
+      relatedErrors: relatedErrors.map(e => ({
+        migrationId: e.migration_id || 'unknown',
+        error: (e.metadata as any)?.error || 'unknown',
+        timestamp: e.created_at,
+      })),
     };
   }
 }
