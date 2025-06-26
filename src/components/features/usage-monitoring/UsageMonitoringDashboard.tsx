@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useRouter } from 'next/navigation';
 import { 
   Users, 
   Activity, 
@@ -14,7 +17,9 @@ import {
   XCircle,
   BarChart3,
   RefreshCw,
-  Download
+  Download,
+  Search,
+  ExternalLink
 } from 'lucide-react';
 
 interface UsageSummary {
@@ -35,16 +40,31 @@ interface SystemStats {
   topFeatures: Array<{ feature: string; count: number }>;
 }
 
+interface UserListItem {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  migrationCount: number;
+  successRate: number;
+  lastActive: string | null;
+}
+
 interface UsageMonitoringDashboardProps {
   isAdmin?: boolean;
 }
 
 export function UsageMonitoringDashboard({ isAdmin = false }: UsageMonitoringDashboardProps) {
+  const router = useRouter();
   const [data, setData] = useState<UsageSummary | SystemStats | null>(null);
   const [timeRange, setTimeRange] = useState('30');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataType, setDataType] = useState<'user' | 'system'>('user');
+  const [showUserList, setShowUserList] = useState(false);
+  const [userList, setUserList] = useState<UserListItem[]>([]);
+  const [userListLoading, setUserListLoading] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   const fetchUsageData = useCallback(async () => {
     try {
@@ -74,6 +94,34 @@ export function UsageMonitoringDashboard({ isAdmin = false }: UsageMonitoringDas
   useEffect(() => {
     fetchUsageData();
   }, [fetchUsageData]);
+
+  const fetchUserList = async () => {
+    try {
+      setUserListLoading(true);
+      const response = await fetch('/api/usage/users');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch user list');
+      }
+
+      setUserList(result.users);
+    } catch (err) {
+      console.error('Failed to fetch user list:', err);
+    } finally {
+      setUserListLoading(false);
+    }
+  };
+
+  const handleViewUserDetails = () => {
+    setShowUserList(true);
+    fetchUserList();
+  };
+
+  const filteredUsers = userList.filter(user => 
+    user.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+    (user.name && user.name.toLowerCase().includes(userSearchQuery.toLowerCase()))
+  );
 
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -353,7 +401,11 @@ export function UsageMonitoringDashboard({ isAdmin = false }: UsageMonitoringDas
                 Refresh Data
               </Button>
               {isAdmin && (
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handleViewUserDetails}
+                >
                   <Users className="h-4 w-4 mr-2" />
                   View User Details
                 </Button>
@@ -362,6 +414,78 @@ export function UsageMonitoringDashboard({ isAdmin = false }: UsageMonitoringDas
           </CardContent>
         </Card>
       </div>
+
+      {/* User List Dialog */}
+      <Dialog open={showUserList} onOpenChange={setShowUserList}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Click on a user to view their detailed migration history and error patterns
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search users by name or email..."
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="overflow-y-auto max-h-[50vh] space-y-2">
+              {userListLoading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Loading users...
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No users found
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <Card 
+                    key={user.id} 
+                    className="cursor-pointer hover:bg-accent transition-colors"
+                    onClick={() => router.push(`/usage/users/${user.id}`)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{user.name || user.email}</p>
+                            {user.role === 'ADMIN' && <Badge>Admin</Badge>}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                          {user.lastActive && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Last active: {new Date(user.lastActive).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="text-center">
+                            <p className="font-medium">{user.migrationCount}</p>
+                            <p className="text-muted-foreground">Migrations</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="font-medium">{user.successRate}%</p>
+                            <p className="text-muted-foreground">Success</p>
+                          </div>
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
