@@ -61,15 +61,38 @@ export function shouldBeAdmin(email: string): boolean {
   const adminEmails = getAdminEmails();
   const normalizedEmail = email.toLowerCase();
   
+  // Log for debugging admin access
+  console.log('Checking admin access for:', normalizedEmail);
+  console.log('Admin emails configured:', adminEmails);
+  
   // Check direct match first
-  if (adminEmails.includes(normalizedEmail)) {
+  if (adminEmails.some(adminEmail => normalizedEmail === adminEmail.toLowerCase())) {
+    console.log('Direct email match found');
     return true;
   }
   
   // Check if it's a Salesforce-formatted email (email+orgid@salesforce.local)
   // Extract the original email part before the '+'
   const originalEmail = normalizedEmail.split('+')[0];
-  return adminEmails.includes(originalEmail);
+  
+  // Check if original email matches any admin email
+  if (adminEmails.some(adminEmail => originalEmail === adminEmail.toLowerCase())) {
+    console.log('Original email match found:', originalEmail);
+    return true;
+  }
+  
+  // Also check if any admin email is contained within the normalized email
+  // This handles cases where the email might have additional suffixes
+  const adminMatched = adminEmails.some(adminEmail => {
+    const adminLower = adminEmail.toLowerCase();
+    return normalizedEmail.includes(adminLower) || originalEmail.includes(adminLower);
+  });
+  
+  if (adminMatched) {
+    console.log('Partial email match found');
+  }
+  
+  return adminMatched;
 }
 
 /**
