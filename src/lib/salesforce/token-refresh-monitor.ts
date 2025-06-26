@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/database/prisma';
-import type { Organisations } from '@prisma/client';
 
 interface TokenHealthStatus {
   orgId: string;
