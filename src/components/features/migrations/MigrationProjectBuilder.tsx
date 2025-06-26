@@ -73,6 +73,7 @@ interface ValidationIssue {
   recordLink?: string;
   field?: string;
   suggestion?: string;
+  parentRecordId?: string;
 }
 
 interface ValidationResult {
@@ -85,6 +86,7 @@ interface ValidationResult {
     warnings: number;
     info: number;
   };
+  selectedRecordNames?: Record<string, string>;
 }
 
 export function MigrationProjectBuilder() {
@@ -104,6 +106,7 @@ export function MigrationProjectBuilder() {
     sourceOrgId: '',
     targetOrgId: '',
     selectedRecords: [] as string[],
+    selectedRecordNames: {} as Record<string, string>, // Map of record ID to name
   });
 
   // Fetch available organisations
@@ -173,6 +176,7 @@ export function MigrationProjectBuilder() {
           targetOrgId: data.targetOrgId,
           templateId: data.templateId,
           selectedRecords: data.selectedRecords,
+          selectedRecordNames: data.selectedRecordNames,
         }),
       });
       
@@ -492,8 +496,12 @@ export function MigrationProjectBuilder() {
   }, []);
 
   // Memoized callback to prevent infinite re-renders
-  const handleRecordSelectionChange = useCallback((selectedRecords: string[]) => {
-    setProjectData(prev => ({ ...prev, selectedRecords }));
+  const handleRecordSelectionChange = useCallback((selectedRecords: string[], recordNames?: Record<string, string>) => {
+    setProjectData(prev => ({ 
+      ...prev, 
+      selectedRecords,
+      selectedRecordNames: recordNames || prev.selectedRecordNames 
+    }));
   }, []);
 
   // Helper function to check if there are connection-related errors
@@ -973,6 +981,8 @@ export function MigrationProjectBuilder() {
                     info={validationResult.issues.filter(issue => issue.severity === 'info')}
                     sourceOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId)?.name}
                     targetOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId)?.name}
+                    selectedRecords={projectData.selectedRecords}
+                    interpretationRuleNames={validationResult.selectedRecordNames || projectData.selectedRecordNames}
                   />
 
                   {/* Connection Error Action Button */}
@@ -1361,9 +1371,17 @@ export function MigrationProjectBuilder() {
               variant="outline"
               size="sm"
               className="mt-2"
-              onClick={() => {
+              onClick={(event) => {
                 const command = `curl -X POST http://localhost:3000/api/migrations/validate -H "Content-Type: application/json" -d '{"sourceOrgId": "${projectData.sourceOrgId}", "targetOrgId": "${projectData.targetOrgId}", "templateId": "${projectData.templateId}", "selectedRecords": ${JSON.stringify(projectData.selectedRecords)}}' | jq .`;
                 navigator.clipboard.writeText(command);
+                
+                // Change button text temporarily
+                const button = event.currentTarget as HTMLButtonElement;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                  button.textContent = originalText;
+                }, 2000);
               }}
             >
               Copy to Clipboard

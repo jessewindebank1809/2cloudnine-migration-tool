@@ -210,6 +210,7 @@ export interface ValidationIssue {
     recordLink?: string;
     field?: string;
     suggestedAction?: string;
+    parentRecordId?: string | null;
     context?: {
         sourceValue?: string;
         targetObject?: string;

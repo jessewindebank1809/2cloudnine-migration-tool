@@ -13,6 +13,7 @@ interface ValidationIssue {
   recordLink?: string;
   field?: string;
   suggestion?: string;
+  parentRecordId?: string;
 }
 
 interface ValidationResult {
@@ -25,12 +26,13 @@ interface ValidationResult {
     warnings: number;
     info: number;
   };
+  selectedRecordNames?: Record<string, string>;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sourceOrgId, targetOrgId, templateId, selectedRecords } = body;
+    const { sourceOrgId, targetOrgId, templateId, selectedRecords, selectedRecordNames } = body;
 
     if (!sourceOrgId || !targetOrgId || !templateId || !selectedRecords?.length) {
       return NextResponse.json(
@@ -85,7 +87,8 @@ export async function POST(request: NextRequest) {
         recordLink: error.recordLink || undefined,
         field: error.checkName.includes('Invalid') && error.checkName.includes('Values') ? 
           error.checkName.replace('Invalid ', '').replace(' Values', '') : undefined,
-        suggestion: error.suggestedAction || undefined
+        suggestion: error.suggestedAction || undefined,
+        parentRecordId: error.parentRecordId || undefined
       });
     });
 
@@ -98,7 +101,8 @@ export async function POST(request: NextRequest) {
         description: warning.message,
         recordId: warning.recordId || undefined,
         recordLink: warning.recordLink || undefined,
-        suggestion: warning.suggestedAction || undefined
+        suggestion: warning.suggestedAction || undefined,
+        parentRecordId: warning.parentRecordId || undefined
       });
     });
 
@@ -111,7 +115,8 @@ export async function POST(request: NextRequest) {
         description: info.message,
         recordId: info.recordId || undefined,
         recordLink: info.recordLink || undefined,
-        suggestion: info.suggestedAction || undefined
+        suggestion: info.suggestedAction || undefined,
+        parentRecordId: info.parentRecordId || undefined
       });
     });
 
@@ -138,7 +143,8 @@ export async function POST(request: NextRequest) {
       hasErrors: summary.errors > 0,
       hasWarnings: summary.warnings > 0,
       issues,
-      summary
+      summary,
+      selectedRecordNames: selectedRecordNames || {}
     };
 
     return NextResponse.json({

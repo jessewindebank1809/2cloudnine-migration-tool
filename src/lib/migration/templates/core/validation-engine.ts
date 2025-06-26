@@ -402,6 +402,7 @@ export class ValidationEngine {
                             severity: "error",
                             recordId: record.Id,
                             recordName: record.Name,
+                            parentRecordId: record.tc9_et__Interpretation_Rule__c || null,
                             field: resolvedSourceField,
                             // Pass additional context for better error formatting
                             context: {
@@ -421,6 +422,7 @@ export class ValidationEngine {
                             severity: "warning",
                             recordId: record.Id,
                             recordName: record.Name,
+                            parentRecordId: record.tc9_et__Interpretation_Rule__c || null,
                             field: resolvedSourceField,
                         }, "warning");
                     }
@@ -501,6 +503,7 @@ export class ValidationEngine {
                                 severity: check.severity,
                                 recordId: record.Id || null,
                                 recordName: record.Name || null,
+                                parentRecordId: record.tc9_et__Interpretation_Rule__c || null,
                                 suggestedAction: check.checkName.includes('ExternalIdValidation') 
                                     ? "Populate external IDs before migration"
                                     : "Review data quality and fix issues before migration",
