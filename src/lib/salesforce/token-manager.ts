@@ -2,6 +2,7 @@ import { prisma } from '@/lib/database/prisma';
 import { SalesforceClient } from './client';
 import { decrypt } from '@/lib/utils/encryption';
 import type { SalesforceOrg } from '@/types';
+import { TokenRefreshMonitor } from './token-refresh-monitor';
 
 interface TokenInfo {
   accessToken: string;
@@ -14,6 +15,7 @@ export class TokenManager {
   private static instance: TokenManager;
   private tokenCache = new Map<string, TokenInfo>();
   private refreshPromises = new Map<string, Promise<boolean>>();
+  private monitor = TokenRefreshMonitor.getInstance();
 
   static getInstance(): TokenManager {
     if (!TokenManager.instance) {
@@ -98,11 +100,14 @@ export class TokenManager {
   }
 
   /**
-   * Refresh token for org
+   * Refresh token for org with retry logic
    */
-  private async refreshToken(orgId: string, currentTokenInfo: TokenInfo): Promise<boolean> {
+  private async refreshToken(orgId: string, currentTokenInfo: TokenInfo, retryCount = 0): Promise<boolean> {
+    const maxRetries = 3;
+    const retryDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+    
     try {
-      console.log(`Refreshing token for org ${orgId}`);
+      console.log(`Refreshing token for org ${orgId}${retryCount > 0 ? ` (retry ${retryCount}/${maxRetries})` : ''}`);
       
       // Get org details
       const org = await prisma.organisations.findUnique({
@@ -111,6 +116,7 @@ export class TokenManager {
       
       if (!org) {
         console.error(`Org ${orgId} not found`);
+        await this.monitor.recordRefreshAttempt(orgId, false, 'Org not found');
         return false;
       }
 
@@ -130,14 +136,22 @@ export class TokenManager {
         console.error(`Token refresh failed for org ${orgId}: ${refreshResult.error}`);
         
         // Check if it's a permanent failure (expired refresh token)
-        if (refreshResult.error?.includes('Refresh token expired')) {
+        if (refreshResult.error?.includes('Refresh token expired') || refreshResult.error?.includes('invalid_grant')) {
           console.log(`Refresh token expired for org ${orgId}, clearing cache`);
           this.tokenCache.delete(orgId);
+          await this.monitor.recordRefreshAttempt(orgId, false, refreshResult.error);
           return false;
         }
         
-        // For other failures, treat as temporary
-        console.warn(`Temporary token refresh failure for org ${orgId}, keeping tokens for retry`);
+        // For temporary failures, retry with exponential backoff
+        if (retryCount < maxRetries) {
+          console.warn(`Temporary token refresh failure for org ${orgId}, retrying in ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return this.refreshToken(orgId, currentTokenInfo, retryCount + 1);
+        }
+        
+        console.error(`Token refresh failed after ${maxRetries} retries for org ${orgId}`);
+        await this.monitor.recordRefreshAttempt(orgId, false, refreshResult.error);
         return false;
       }
 
@@ -152,6 +166,7 @@ export class TokenManager {
       this.tokenCache.set(orgId, newTokenInfo);
       
       console.log(`Successfully refreshed token for org ${orgId}`);
+      await this.monitor.recordRefreshAttempt(orgId, true);
       return true;
     } catch (error) {
       console.error(`Error refreshing token for org ${orgId}:`, error);
@@ -164,11 +179,19 @@ export class TokenManager {
       )) {
         console.log(`Permanent token failure for org ${orgId}, clearing cache`);
         this.tokenCache.delete(orgId);
+        await this.monitor.recordRefreshAttempt(orgId, false, error.message);
         return false;
       }
       
-      // For other errors, treat as temporary
-      console.warn(`Keeping tokens for org ${orgId} due to refresh error, will retry later`);
+      // For other errors, retry if we haven't exceeded max retries
+      if (retryCount < maxRetries) {
+        console.warn(`Error refreshing token for org ${orgId}, retrying in ${retryDelay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return this.refreshToken(orgId, currentTokenInfo, retryCount + 1);
+      }
+      
+      console.error(`Token refresh error after ${maxRetries} retries for org ${orgId}`);
+      await this.monitor.recordRefreshAttempt(orgId, false, error instanceof Error ? error.message : 'Unknown error');
       return false;
     }
   }
@@ -203,11 +226,26 @@ export class TokenManager {
   }
 
   /**
+   * Get token health report
+   */
+  async getTokenHealthReport() {
+    return this.monitor.generateHealthReport();
+  }
+  
+  /**
+   * Get unhealthy orgs that need attention
+   */
+  getUnhealthyOrgs() {
+    return this.monitor.getUnhealthyOrgs();
+  }
+  
+  /**
    * Clear token cache for org (useful when org is reconnected)
    */
   clearTokenCache(orgId: string): void {
     this.tokenCache.delete(orgId);
     this.refreshPromises.delete(orgId);
+    this.monitor.clearOrgHealth(orgId);
   }
 
   /**
@@ -220,7 +258,36 @@ export class TokenManager {
         console.error('Error in scheduled token refresh:', error);
       });
     }, 30 * 60 * 1000); // 30 minutes
+    
+    // Log health status every hour
+    setInterval(async () => {
+      try {
+        const report = await this.getTokenHealthReport();
+        if (report.unhealthyOrgs > 0) {
+          console.warn(`⚠️  Token Health Alert: ${report.unhealthyOrgs} orgs need attention`);
+          console.warn(`  - ${report.requireReconnect} orgs require reconnection`);
+          report.details.forEach(detail => {
+            console.warn(`  - ${detail.orgName}: ${detail.error || 'Unknown error'}`);
+          });
+        } else {
+          console.log(`✅ Token Health: All ${report.totalOrgs} orgs are healthy`);
+        }
+      } catch (error) {
+        console.error('Error generating health report:', error);
+      }
+    }, 60 * 60 * 1000); // 1 hour
 
     console.log('Started background token refresh scheduler (every 30 minutes)');
+    console.log('Started token health monitoring (every 60 minutes)');
+    
+    // Run initial health check after 5 seconds
+    setTimeout(async () => {
+      try {
+        const report = await this.getTokenHealthReport();
+        console.log(`Initial token health check: ${report.healthyOrgs}/${report.totalOrgs} orgs healthy`);
+      } catch (error) {
+        console.error('Error in initial health check:', error);
+      }
+    }, 5000);
   }
 } 
