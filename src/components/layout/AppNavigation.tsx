@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, User } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { LogOut, User } from "lucide-react";
 import Link from "next/link";
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { authClient } from '@/lib/auth/client';
-import { motion } from 'framer-motion';
-import { useAdminStatus } from '@/hooks/useAdminStatus';
-
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth/client";
+import { motion } from "framer-motion";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
+import { FeedbackButton } from "@/components/features/feedback";
 
 interface AppNavigationProps {
   children: React.ReactNode;
@@ -24,27 +24,28 @@ export function AppNavigation({ children }: AppNavigationProps) {
   const { isAdmin } = useAdminStatus();
 
   // Detect if we're in staging environment
-  const isStaging = typeof window !== 'undefined' 
-    ? window.location.hostname.includes('staging')
-    : process.env.FLY_APP_NAME?.includes('staging');
+  const isStaging =
+    typeof window !== "undefined"
+      ? window.location.hostname.includes("staging")
+      : process.env.FLY_APP_NAME?.includes("staging");
 
   // Detect if we're in local development environment
-  const isLocal = typeof window !== 'undefined'
-    ? window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    : process.env.NODE_ENV === 'development';
+  const isLocal =
+    typeof window !== "undefined"
+      ? window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1"
+      : process.env.NODE_ENV === "development";
 
   // Navigation items configuration
   const baseNavItems = [
-    { id: 'home', label: 'Home', href: '/home' },
-    { id: 'orgs', label: 'Organisations', href: '/orgs' },
-    { id: 'migrations', label: 'Migrations', href: '/migrations' },
-    { id: 'templates', label: 'Templates', href: '/templates' },
-    { id: 'analytics', label: 'Analytics', href: '/analytics' },
+    { id: "home", label: "Home", href: "/home" },
+    { id: "orgs", label: "Organisations", href: "/orgs" },
+    { id: "migrations", label: "Migrations", href: "/migrations" },
+    { id: "templates", label: "Templates", href: "/templates" },
+    { id: "analytics", label: "Analytics", href: "/analytics" },
   ];
 
-  const adminNavItems = [
-    { id: 'usage', label: 'Usage', href: '/usage' },
-  ];
+  const adminNavItems = [{ id: "usage", label: "Usage", href: "/usage" }];
 
   const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
 
@@ -57,10 +58,10 @@ export function AppNavigation({ children }: AppNavigationProps) {
         if (sessionData?.data?.user) {
           setSession(sessionData.data);
         } else {
-          router.replace('/auth/signin');
+          router.replace("/auth/signin");
         }
       } catch (error) {
-        router.replace('/auth/signin');
+        router.replace("/auth/signin");
       } finally {
         setIsLoading(false);
       }
@@ -76,35 +77,39 @@ export function AppNavigation({ children }: AppNavigationProps) {
         fetchOptions: {
           onSuccess: () => {
             // Redirect to signin page after successful logout
-            router.replace('/auth/signin');
+            router.replace("/auth/signin");
           },
           onError: (error) => {
             // Ignore session deletion errors during development
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (errorMessage.includes('Record to delete does not exist')) {
-              console.warn('Session already deleted (normal in development)');
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes("Record to delete does not exist")) {
+              console.warn("Session already deleted (normal in development)");
             } else {
-              console.error('Sign out error:', error);
+              console.error("Sign out error:", error);
             }
             // Force redirect even if logout fails
-            router.replace('/auth/signin');
-          }
-        }
+            router.replace("/auth/signin");
+          },
+        },
       });
     } catch (error) {
       // Ignore session deletion errors during development
-      if (error instanceof Error && error.message.includes('Record to delete does not exist')) {
-        console.warn('Session already deleted (normal in development)');
+      if (
+        error instanceof Error &&
+        error.message.includes("Record to delete does not exist")
+      ) {
+        console.warn("Session already deleted (normal in development)");
       } else {
-        console.error('Sign out error:', error);
+        console.error("Sign out error:", error);
       }
       // Force redirect even if logout fails
-      router.replace('/auth/signin');
+      router.replace("/auth/signin");
     }
   };
 
   // Public routes that don't need navigation
-  const publicRoutes = ['/auth/signin', '/auth/signup', '/auth/error'];
+  const publicRoutes = ["/auth/signin", "/auth/signup", "/auth/error"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
   if (isPublicRoute) {
@@ -123,7 +128,8 @@ export function AppNavigation({ children }: AppNavigationProps) {
     return null; // Will redirect
   }
 
-  const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
+  const isActive = (path: string) =>
+    pathname === path || pathname.startsWith(path + "/");
 
   const handleNavItemHover = (navId: string) => {
     setHoveredNavItem(navId);
@@ -140,16 +146,17 @@ export function AppNavigation({ children }: AppNavigationProps) {
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="h-12 w-auto flex items-center justify-center">
-              <Image 
-                src="/Cloudnine Reversed Standard 2.png" 
-                alt="2cloudnine Logo" 
+              <Image
+                src="/Cloudnine Reversed Standard 2.png"
+                alt="2cloudnine Logo"
                 width={120}
                 height={40}
                 className="h-10 w-auto"
               />
             </div>
             <span className="font-bold text-xl text-white">
-              Migration Tool{isLocal && ' (Local)'}{isStaging && ' (Staging)'}
+              Migration Tool{isLocal && " (Local)"}
+              {isStaging && " (Staging)"}
             </span>
           </div>
           <nav className="flex items-center space-x-1">
@@ -160,12 +167,12 @@ export function AppNavigation({ children }: AppNavigationProps) {
                 onMouseEnter={() => handleNavItemHover(nav.id)}
                 onMouseLeave={handleNavItemMouseLeave}
               >
-                <Link 
+                <Link
                   href={nav.href}
                   className={`relative z-10 px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
                     isActive(nav.href)
-                      ? 'text-white font-semibold' 
-                      : 'text-white/80 hover:text-white'
+                      ? "text-white font-semibold"
+                      : "text-white/80 hover:text-white"
                   }`}
                 >
                   {nav.label}
@@ -182,7 +189,7 @@ export function AppNavigation({ children }: AppNavigationProps) {
                       type: "spring",
                       stiffness: 400,
                       damping: 30,
-                      duration: 0.15
+                      duration: 0.15,
                     }}
                   />
                 )}
@@ -195,7 +202,7 @@ export function AppNavigation({ children }: AppNavigationProps) {
                       type: "spring",
                       stiffness: 400,
                       damping: 30,
-                      duration: 0.2
+                      duration: 0.2,
                     }}
                   />
                 )}
@@ -204,11 +211,13 @@ export function AppNavigation({ children }: AppNavigationProps) {
             <div className="flex items-center space-x-4 ml-6 pl-6 border-l border-white/20">
               <div className="flex items-center space-x-2 text-white">
                 <User className="h-4 w-4" />
-                <span className="text-sm">{session.user.name || session.user.email}</span>
+                <span className="text-sm">
+                  {session.user.name || session.user.email}
+                </span>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleSignOut}
                 className="text-white/80 hover:text-white hover:bg-white/10"
               >
@@ -219,9 +228,10 @@ export function AppNavigation({ children }: AppNavigationProps) {
         </div>
       </header>
 
-      <main>
-        {children}
-      </main>
+      <main>{children}</main>
+
+      {/* Feedback Button - shown on all authenticated pages */}
+      <FeedbackButton />
     </div>
   );
-} 
+}
