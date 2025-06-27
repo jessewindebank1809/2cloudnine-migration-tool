@@ -1323,7 +1323,25 @@ export function MigrationProjectBuilder() {
                 <Button
                   onClick={() => {
                     if (!hasRunningMigration) {
-                      router.push('/migrations/new');
+                      if (currentStep === 'view-results') {
+                        // Reset component state to start a fresh migration
+                        setCurrentStep('project-setup');
+                        setProjectData({
+                          name: '',
+                          templateId: templatesData?.templates?.[0]?.id || '',
+                          sourceOrgId: '',
+                          targetOrgId: '',
+                          selectedRecords: [],
+                          selectedRecordNames: {},
+                        });
+                        setCreatedMigrationId(null);
+                        setValidationResult(null);
+                        setCurrentOperation('idle');
+                        setOrgConnectionErrors({});
+                        setIsValidating({});
+                      } else {
+                        router.push('/migrations/new');
+                      }
                     }
                   }}
                   variant="default"
