@@ -5,6 +5,7 @@ interface SlackMessage {
   url: string;
   userAgent: string;
   timestamp: string;
+  githubIssueUrl?: string;
 }
 
 export class SlackClient {
@@ -40,6 +41,15 @@ export class SlackClient {
               }),
               short: true,
             },
+            ...(feedback.githubIssueUrl
+              ? [
+                  {
+                    title: "GitHub Issue",
+                    value: `<${feedback.githubIssueUrl}|View Issue>`,
+                    short: false,
+                  },
+                ]
+              : []),
           ],
           footer: "TC9 Migration Tool",
           ts: Math.floor(Date.now() / 1000).toString(),
