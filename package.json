@@ -96,7 +96,7 @@
         "framer-motion": "^12.12.2",
         "ioredis": "^5.4.1",
         "jose": "^5.9.3",
-        "jsforce": "^2.0.0-beta.29",
+        "jsforce": "^3.9.1",
         "jsonwebtoken": "^9.0.2",
         "lucide-react": "^0.522.0",
         "next": "15.3.4",
