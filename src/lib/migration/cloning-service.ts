@@ -1,6 +1,7 @@
 import { sessionManager } from '@/lib/salesforce/session-manager';
 import { ExternalIdUtils } from '@/lib/migration/templates/utils/external-id-utils';
-import { Connection } from 'jsforce';
+// import { Connection } from 'jsforce';
+import { SalesforceClient } from '@/lib/salesforce/client';
 
 export interface CloneResult {
   success: boolean;
@@ -33,8 +34,8 @@ export class CloningService {
       const targetClient = await sessionManager.getClient(targetOrgId);
       
       // Detect external ID fields for both source and target
-      const sourceExternalIdField = await ExternalIdUtils.detectExternalIdField(objectApiName, sourceClient);
-      const targetExternalIdField = await ExternalIdUtils.detectExternalIdField(objectApiName, targetClient);
+      const sourceExternalIdField = await ExternalIdUtils.detectExternalIdField(objectApiName, sourceClient as any);
+      const targetExternalIdField = await ExternalIdUtils.detectExternalIdField(objectApiName, targetClient as any);
       
       // console.log(`Source external ID field: ${sourceExternalIdField}, Target external ID field: ${targetExternalIdField}`);
       
@@ -79,7 +80,8 @@ export class CloningService {
       // console.log(`Creating record in target org with external ID: ${targetRecord[targetExternalIdField]}`);
       
       // Create record in target org
-      const result = await targetClient.sobject(objectApiName).create(targetRecord);
+      const createResult = await targetClient.create(objectApiName, targetRecord);
+      const result = createResult.success ? { success: true, id: createResult.data?.id } : { success: false };
       
       if (result.success) {
         return {
@@ -106,13 +108,17 @@ export class CloningService {
   /**
    * Fetch source record with all fields
    */
-  private static async fetchSourceRecord(client: Connection, objectApiName: string, recordId: string, externalIdField: string): Promise<any> {
+  private static async fetchSourceRecord(client: SalesforceClient, objectApiName: string, recordId: string, externalIdField: string): Promise<any> {
     // Get all fields for the object
-    const describe = await client.describe(objectApiName);
+    const describeResult = await client.getObjectMetadata(objectApiName);
+    if (!describeResult.success) {
+      throw new Error(`Failed to describe object ${objectApiName}`);
+    }
+    const describe = describeResult.data;
     
     // Filter out compound fields and non-queryable fields
-    const queryableFields = describe.fields
-      .filter(field => {
+    const queryableFields = (describe?.fields || [])
+      .filter((field: any) => {
         // Exclude compound fields (like Name for Person Accounts)
         if (field.type === 'address' || field.type === 'location') {
           return false;
@@ -127,7 +133,7 @@ export class CloningService {
         }
         return true;
       })
-      .map(f => f.name);
+      .map((f: any) => f.name);
     
     // Ensure we always include essential fields
     const essentialFields = new Set(['Id', 'Name']);
@@ -151,14 +157,21 @@ export class CloningService {
     }
     
     // console.log(`Fetching source record with query: ${query}`);
-    const result = await client.query(query);
+    const queryResult = await client.query(query);
+    if (!queryResult.success) {
+      throw new Error(`Failed to query: ${queryResult.error}`);
+    }
+    const result = { records: queryResult.data };
     
     // If no record found with external ID, try ID as fallback
     if (!result.records[0] && !recordId.match(/^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/)) {
       console.log(`No record found with external ID, trying with Id field`);
       query = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
-      const fallbackResult = await client.query(query);
-      return fallbackResult.records[0];
+      const fallbackQueryResult = await client.query(query);
+      if (!fallbackQueryResult.success) {
+        return null;
+      }
+      return fallbackQueryResult.data?.[0];
     }
     
     return result.records[0];
@@ -167,12 +180,16 @@ export class CloningService {
   /**
    * Check if record already exists in target org
    */
-  private static async checkExistingRecord(client: Connection, objectApiName: string, externalIdValue: string, externalIdField: string): Promise<any> {
+  private static async checkExistingRecord(client: SalesforceClient, objectApiName: string, externalIdValue: string, externalIdField: string): Promise<any> {
     if (!externalIdValue) return null;
     
     try {
       const query = `SELECT Id, ${externalIdField} FROM ${objectApiName} WHERE ${externalIdField} = '${externalIdValue}' LIMIT 1`;
-      const result = await client.query(query);
+      const queryResult = await client.query(query);
+    if (!queryResult.success) {
+      throw new Error(`Failed to query: ${queryResult.error}`);
+    }
+    const result = { records: queryResult.data };
       return result.records[0] || null;
     } catch (error) {
       console.log('Record does not exist in target org');
@@ -183,19 +200,26 @@ export class CloningService {
   /**
    * Get field mapping between source and target orgs
    */
-  private static async getFieldMapping(sourceClient: Connection, targetClient: Connection, objectApiName: string): Promise<Map<string, string>> {
+  private static async getFieldMapping(sourceClient: SalesforceClient, targetClient: SalesforceClient, objectApiName: string): Promise<Map<string, string>> {
     const fieldMap = new Map<string, string>();
     
     // Get field metadata from both orgs
-    const [sourceDescribe, targetDescribe] = await Promise.all([
-      sourceClient.describe(objectApiName),
-      targetClient.describe(objectApiName)
+    const [sourceDescribeResult, targetDescribeResult] = await Promise.all([
+      sourceClient.getObjectMetadata(objectApiName),
+      targetClient.getObjectMetadata(objectApiName)
     ]);
     
-    const targetFieldNames = new Set(targetDescribe.fields.map(f => f.name));
+    if (!sourceDescribeResult.success || !targetDescribeResult.success) {
+      throw new Error(`Failed to get field metadata for ${objectApiName}`);
+    }
+    
+    const sourceDescribe = sourceDescribeResult.data;
+    const targetDescribe = targetDescribeResult.data;
+    
+    const targetFieldNames = new Set((targetDescribe?.fields || []).map((f: any) => f.name));
     
     // Map each source field to target field
-    for (const sourceField of sourceDescribe.fields) {
+    for (const sourceField of (sourceDescribe?.fields || [])) {
       // Skip system fields
       if (this.isSystemField(sourceField.name)) {
         continue;
@@ -239,7 +263,7 @@ export class CloningService {
   /**
    * Map source record fields to target record format
    */
-  private static async mapFields(sourceRecord: any, fieldMap: Map<string, string>, targetClient: Connection): Promise<any> {
+  private static async mapFields(sourceRecord: any, fieldMap: Map<string, string>, targetClient: SalesforceClient): Promise<any> {
     const targetRecord: any = {};
     
     // First, process all fields from the source record

@@ -20,7 +20,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { ValidationResult, ValidationIssue } from '@/lib/migration/templates/core/interfaces';
-import { useToast } from '@/components/ui/use-toast';
+// import { useToast } from '@/components/ui/use-toast';
 
 interface ValidationReportProps {
   validationResult: ValidationResult | null;
@@ -195,6 +195,9 @@ export function ValidationReport({
           badgeVariant="error"
           isExpanded={expandedSections.has('errors')}
           onToggle={() => toggleSection('errors')}
+          sourceOrgId={sourceOrgId}
+          targetOrgId={targetOrgId}
+          onRevalidate={onRevalidate}
         />
       )}
 
@@ -207,6 +210,9 @@ export function ValidationReport({
           badgeVariant="warning"
           isExpanded={expandedSections.has('warnings')}
           onToggle={() => toggleSection('warnings')}
+          sourceOrgId={sourceOrgId}
+          targetOrgId={targetOrgId}
+          onRevalidate={onRevalidate}
         />
       )}
 
@@ -219,6 +225,9 @@ export function ValidationReport({
           badgeVariant="info"
           isExpanded={expandedSections.has('info')}
           onToggle={() => toggleSection('info')}
+          sourceOrgId={sourceOrgId}
+          targetOrgId={targetOrgId}
+          onRevalidate={onRevalidate}
         />
       )}
     </div>
@@ -232,6 +241,9 @@ interface ValidationSectionProps {
   badgeVariant: "default" | "secondary" | "destructive" | "outline" | "error" | "warning" | "info";
   isExpanded: boolean;
   onToggle: () => void;
+  sourceOrgId?: string;
+  targetOrgId?: string;
+  onRevalidate?: () => void;
 }
 
 function ValidationSection({
@@ -240,7 +252,10 @@ function ValidationSection({
   icon,
   badgeVariant,
   isExpanded,
-  onToggle
+  onToggle,
+  sourceOrgId,
+  targetOrgId,
+  onRevalidate
 }: ValidationSectionProps) {
   return (
     <Card>
@@ -290,7 +305,7 @@ interface ValidationIssueCardProps {
 
 function ValidationIssueCard({ issue, sourceOrgId, targetOrgId, onCloneSuccess }: ValidationIssueCardProps) {
   const [isCloning, setIsCloning] = React.useState(false);
-  const { toast } = useToast();
+  // const { toast } = useToast();
   
   // Check if this is a missing pay code or leave rule error
   const isMissingPayCode = issue.checkName === 'Missing Pay Code Reference' && 
@@ -323,10 +338,11 @@ function ValidationIssueCard({ issue, sourceOrgId, targetOrgId, onCloneSuccess }
       const data = await response.json();
       
       if (response.ok && data.success) {
-        toast({
-          title: "Success",
-          description: data.message || `${isMissingPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`,
-        });
+        // toast({
+        //   title: "Success",
+        //   description: data.message || `${isMissingPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`,
+        // });
+        console.log(data.message || `${isMissingPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`);
         
         // Trigger re-validation
         if (onCloneSuccess) {
@@ -337,11 +353,12 @@ function ValidationIssueCard({ issue, sourceOrgId, targetOrgId, onCloneSuccess }
       }
     } catch (error) {
       console.error('Clone error:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Failed to clone record',
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Error",
+      //   description: error instanceof Error ? error.message : 'Failed to clone record',
+      //   variant: "destructive"
+      // });
+      console.error(error instanceof Error ? error.message : 'Failed to clone record');
     } finally {
       setIsCloning(false);
     }

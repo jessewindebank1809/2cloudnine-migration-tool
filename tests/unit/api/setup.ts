@@ -55,15 +55,21 @@ if (!global.Headers) {
     }
 
     *entries(): IterableIterator<[string, string]> {
-      yield* this.headers.entries();
+      for (const entry of Array.from(this.headers.entries())) {
+        yield entry;
+      }
     }
 
     *keys(): IterableIterator<string> {
-      yield* this.headers.keys();
+      for (const key of Array.from(this.headers.keys())) {
+        yield key;
+      }
     }
 
     *values(): IterableIterator<string> {
-      yield* this.headers.values();
+      for (const value of Array.from(this.headers.values())) {
+        yield value;
+      }
     }
 
     [Symbol.iterator](): IterableIterator<[string, string]> {

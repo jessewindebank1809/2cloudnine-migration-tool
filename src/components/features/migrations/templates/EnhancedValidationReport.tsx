@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/components/ui/use-toast';
+// import { useToast } from '@/components/ui/use-toast';
 
 interface EnhancedValidationReportProps {
     errors: any[];
@@ -38,7 +38,7 @@ export function EnhancedValidationReport({
     const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
     const [expandedRecords, setExpandedRecords] = React.useState<Set<string>>(new Set());
     const [cloningRecords, setCloningRecords] = React.useState<Set<string>>(new Set());
-    const { toast } = useToast();
+    // const { toast } = useToast();
     
     // Convert string to title case
     const toTitleCase = (str: string) => {
@@ -113,16 +113,17 @@ export function EnhancedValidationReport({
             issue.message?.match(/external id: ([^)]+)\)/)?.[1];
         
         if (!externalId || !sourceOrgId || !targetOrgId) {
-            toast({
-                title: "Error",
-                description: "Missing required information for cloning",
-                variant: "destructive"
-            });
+            // toast({
+            //     title: "Error",
+            //     description: "Missing required information for cloning",
+            //     variant: "destructive"
+            // });
+            console.error("Missing required information for cloning");
             return;
         }
         
         const recordKey = `${issue.checkName}-${externalId}`;
-        setCloningRecords(prev => new Set([...prev, recordKey]));
+        setCloningRecords(prev => new Set(Array.from(prev).concat(recordKey)));
         
         try {
             const isPayCode = issue.checkName === 'Missing Pay Code Reference' || 
@@ -147,10 +148,11 @@ export function EnhancedValidationReport({
             const data = await response.json();
             
             if (response.ok && data.success) {
-                toast({
-                    title: "Success",
-                    description: data.message || `${isPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`,
-                });
+                // toast({
+                //     title: "Success",
+                //     description: data.message || `${isPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`,
+                // });
+                console.log(data.message || `${isPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`);
                 
                 // Trigger re-validation
                 if (onRevalidate) {
@@ -161,11 +163,12 @@ export function EnhancedValidationReport({
             }
         } catch (error) {
             console.error('Clone error:', error);
-            toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : 'Failed to clone record',
-                variant: "destructive"
-            });
+            // toast({
+            //     title: "Error",
+            //     description: error instanceof Error ? error.message : 'Failed to clone record',
+            //     variant: "destructive"
+            // });
+            console.error(error instanceof Error ? error.message : 'Failed to clone record');
         } finally {
             setCloningRecords(prev => {
                 const next = new Set(prev);
