@@ -15,9 +15,12 @@ import {
   ChevronRight,
   RefreshCw,
   Play,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Loader2
 } from 'lucide-react';
 import { ValidationResult, ValidationIssue } from '@/lib/migration/templates/core/interfaces';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ValidationReportProps {
   validationResult: ValidationResult | null;
@@ -25,6 +28,8 @@ interface ValidationReportProps {
   onRevalidate: () => void;
   onProceedWithWarnings?: () => void;
   canProceed: boolean;
+  sourceOrgId?: string;
+  targetOrgId?: string;
 }
 
 export function ValidationReport({
@@ -32,7 +37,9 @@ export function ValidationReport({
   isValidating,
   onRevalidate,
   onProceedWithWarnings,
-  canProceed
+  canProceed,
+  sourceOrgId,
+  targetOrgId
 }: ValidationReportProps) {
   const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set());
 
@@ -258,7 +265,13 @@ function ValidationSection({
           <CardContent className="pt-0">
             <div className="space-y-3">
               {issues.map((issue, index) => (
-                <ValidationIssueCard key={index} issue={issue} />
+                <ValidationIssueCard 
+                  key={index} 
+                  issue={issue} 
+                  sourceOrgId={sourceOrgId}
+                  targetOrgId={targetOrgId}
+                  onCloneSuccess={onRevalidate}
+                />
               ))}
             </div>
           </CardContent>
@@ -270,9 +283,70 @@ function ValidationSection({
 
 interface ValidationIssueCardProps {
   issue: ValidationIssue;
+  sourceOrgId?: string;
+  targetOrgId?: string;
+  onCloneSuccess?: () => void;
 }
 
-function ValidationIssueCard({ issue }: ValidationIssueCardProps) {
+function ValidationIssueCard({ issue, sourceOrgId, targetOrgId, onCloneSuccess }: ValidationIssueCardProps) {
+  const [isCloning, setIsCloning] = React.useState(false);
+  const { toast } = useToast();
+  
+  // Check if this is a missing pay code or leave rule error
+  const isMissingPayCode = issue.checkName === 'Missing Pay Code Reference' && 
+    issue.context?.targetObject === 'tc9_pr__Pay_Code__c';
+  const isMissingLeaveRule = issue.checkName === 'Missing Leave Rule' && 
+    issue.context?.targetObject === 'tc9_pr__Leave_Rule__c';
+  const canClone = (isMissingPayCode || isMissingLeaveRule) && 
+    sourceOrgId && targetOrgId && issue.context?.missingTargetExternalId;
+  
+  const handleClone = async () => {
+    if (!canClone || !issue.context?.missingTargetExternalId) return;
+    
+    setIsCloning(true);
+    
+    try {
+      const endpoint = isMissingPayCode 
+        ? '/api/migrations/clone-pay-code'
+        : '/api/migrations/clone-leave-rule';
+      
+      const body = isMissingPayCode
+        ? { sourceOrgId, targetOrgId, payCodeId: issue.context.missingTargetExternalId }
+        : { sourceOrgId, targetOrgId, leaveRuleId: issue.context.missingTargetExternalId };
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        toast({
+          title: "Success",
+          description: data.message || `${isMissingPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`,
+        });
+        
+        // Trigger re-validation
+        if (onCloneSuccess) {
+          onCloneSuccess();
+        }
+      } else {
+        throw new Error(data.error || 'Clone operation failed');
+      }
+    } catch (error) {
+      console.error('Clone error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to clone record',
+        variant: "destructive"
+      });
+    } finally {
+      setIsCloning(false);
+    }
+  };
+  
   const getPicklistErrorSuggestion = (issue: ValidationIssue) => {
     if (issue.message.includes('Invalid picklist value')) {
       return "This is a picklist validation error. Please check the field values in your source data against the target org's picklist configuration.";
@@ -319,6 +393,33 @@ function ValidationIssueCard({ issue }: ValidationIssueCardProps) {
       {(issue.suggestedAction || isPicklistError) && (
         <div className={`text-xs p-2 rounded ${isPicklistError ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>
           <strong>Suggested Action:</strong> {getPicklistErrorSuggestion(issue)}
+        </div>
+      )}
+      
+      {canClone && (
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="text-xs text-gray-600">
+            {isMissingPayCode ? 'Pay code' : 'Leave rule'} not found in target org
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleClone}
+            disabled={isCloning}
+            className="text-xs"
+          >
+            {isCloning ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Cloning...
+              </>
+            ) : (
+              <>
+                <Copy className="h-3 w-3 mr-1" />
+                Clone from source
+              </>
+            )}
+          </Button>
         </div>
       )}
     </div>
