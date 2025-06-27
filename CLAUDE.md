@@ -16,6 +16,14 @@ npm install @salesforce/cli --global
 
 - use gh cli for github interactions
 
+## Git Workflow & Pull Requests
+
+**IMPORTANT: Always create PRs against `staging` branch, NOT `main`**
+- Feature branches should be created from `staging`
+- All PRs should target `staging` as the base branch
+- Only `staging` gets merged to `main` (not done by individual developers)
+- Example: `gh pr create --base staging`
+
 ## CLI Commands
 
 - 'npm run dev:fresh:env' - to run local server
