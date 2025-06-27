@@ -135,7 +135,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                 Thank you for your feedback!
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                We'll review it and get back to you if needed.
+                We&apos;ll review it and get back to you if needed.
               </p>
             </div>
           ) : (
