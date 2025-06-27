@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session-helper";
 import { SlackClient } from "@/lib/slack/client";
+import { GitHubClient } from "@/lib/github/client";
 import * as Sentry from "@sentry/nextjs";
 
 // Rate limiting: Track submissions per user
@@ -86,6 +87,62 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Create GitHub issue if configured
+    let githubIssueUrl: string | undefined;
+    const githubToken = process.env.GITHUB_TOKEN;
+    const githubRepo = process.env.GITHUB_REPO;
+
+    if (githubToken && githubRepo) {
+      try {
+        const [owner, repo] = githubRepo.split("/");
+        const githubClient = new GitHubClient(githubToken, owner, repo);
+
+        // Create issue title and body
+        const issueTitle = `[${type.charAt(0).toUpperCase() + type.slice(1)}] User Feedback - ${new Date().toLocaleDateString()}`;
+        const issueBody = `## User Feedback
+
+**Type:** ${type}
+**Submitted by:** ${userEmail}
+**URL:** ${url}
+**Time:** ${new Date().toISOString()}
+
+### Message
+${message}
+
+### Browser Info
+\`\`\`
+${userAgent}
+\`\`\`
+
+---
+*This issue was automatically created from user feedback submitted through the TC9 Migration Tool.*`;
+
+        const labels = type === "bug" ? ["bug", "user-feedback"] : ["enhancement", "user-feedback"];
+
+        const issue = await githubClient.createIssue({
+          title: issueTitle,
+          body: issueBody,
+          labels,
+        });
+
+        githubIssueUrl = issue.html_url;
+        console.log("GitHub issue created:", githubIssueUrl);
+      } catch (githubError) {
+        console.error("Failed to create GitHub issue:", githubError);
+        // Don't fail the request if GitHub fails
+        Sentry.captureException(githubError, {
+          tags: {
+            component: "feedback",
+            service: "github",
+          },
+        });
+      }
+    } else if (!githubToken) {
+      console.warn("GITHUB_TOKEN not configured, skipping issue creation");
+    } else if (!githubRepo) {
+      console.warn("GITHUB_REPO not configured, skipping issue creation");
+    }
+
     // Send to Slack
     try {
       const slackClient = new SlackClient(slackWebhookUrl);
@@ -96,6 +153,7 @@ export async function POST(request: NextRequest) {
         url,
         userAgent,
         timestamp: new Date().toISOString(),
+        githubIssueUrl, // Pass GitHub issue URL to Slack
       });
 
       // Log to Sentry for tracking
@@ -107,12 +165,14 @@ export async function POST(request: NextRequest) {
         extra: {
           userEmail,
           url,
+          githubIssueUrl,
         },
       });
 
       return NextResponse.json({
         success: true,
         message: "Feedback sent successfully",
+        githubIssueUrl,
       });
     } catch (slackError) {
       console.error("Failed to send to Slack:", slackError);
@@ -121,12 +181,14 @@ export async function POST(request: NextRequest) {
       Sentry.captureException(slackError, {
         tags: {
           component: "feedback",
+          service: "slack",
         },
       });
 
       return NextResponse.json({
         success: true,
         message: "Feedback received (Slack delivery pending)",
+        githubIssueUrl,
       });
     }
   } catch (error) {
