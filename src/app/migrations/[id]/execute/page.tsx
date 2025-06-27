@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Play, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ interface PageProps {
 
 export default function MigrationExecutePage({ params }: PageProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
 
@@ -56,6 +57,8 @@ export default function MigrationExecutePage({ params }: PageProps) {
     },
     onSuccess: () => {
       setIsExecuting(true);
+      // Invalidate running migrations to ensure button state updates
+      queryClient.invalidateQueries({ queryKey: ['running-migrations-check'] });
     },
   });
 
@@ -69,6 +72,9 @@ export default function MigrationExecutePage({ params }: PageProps) {
   };
 
   const handleComplete = () => {
+    // Ensure cache is invalidated before navigation
+    queryClient.invalidateQueries({ queryKey: ['running-migrations-check'] });
+    queryClient.invalidateQueries({ queryKey: ['migrations'] });
     router.push(`/migrations/${id}`);
   };
 

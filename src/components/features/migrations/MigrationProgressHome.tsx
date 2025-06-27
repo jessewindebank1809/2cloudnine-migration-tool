@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -50,6 +50,7 @@ interface SessionProgress {
 
 export function MigrationProgressHome({ projectId, onComplete }: MigrationProgressProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
+  const queryClient = useQueryClient();
 
   // Fetch migration progress
   const { data, isLoading, error, refetch } = useQuery({
@@ -75,10 +76,14 @@ export function MigrationProgressHome({ projectId, onComplete }: MigrationProgre
 
   // Call onComplete when migration finishes
   useEffect(() => {
-    if (data?.status === 'COMPLETED' && onComplete) {
-      onComplete();
+    if ((data?.status === 'COMPLETED' || data?.status === 'FAILED' || data?.status === 'PARTIAL_SUCCESS') && onComplete) {
+      // Invalidate running migrations cache to ensure UI updates
+      queryClient.invalidateQueries({ queryKey: ['running-migrations-check'] });
+      if (data?.status === 'COMPLETED') {
+        onComplete();
+      }
     }
-  }, [data?.status, onComplete]);
+  }, [data?.status, onComplete, queryClient]);
 
   if (isLoading) {
     return (
