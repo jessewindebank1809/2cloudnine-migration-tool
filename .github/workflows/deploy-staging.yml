@@ -107,19 +107,26 @@ jobs:
           attempt=1
           
           while [ $attempt -le $max_attempts ]; do
-            if flyctl status --app tc9-migration-tool-staging --json | jq -e '.Allocations[0].Status == "running"' >/dev/null 2>&1; then
-              echo "✅ App is running"
+            # Get status without JSON first to see raw output
+            echo "📊 Getting app status (attempt $attempt/$max_attempts)..."
+            
+            # Try to get machine status
+            if flyctl status --app tc9-migration-tool-staging 2>&1 | grep -q "running"; then
+              echo "✅ App machines are running"
               break
             else
-              echo "⏳ Attempt $attempt/$max_attempts: App not ready yet..."
+              echo "⏳ App not ready yet, waiting..."
               sleep 10
               attempt=$((attempt + 1))
             fi
           done
           
           if [ $attempt -gt $max_attempts ]; then
-            echo "❌ App failed to start"
-            flyctl logs --app tc9-migration-tool-staging --json | jq -r '.data[] | select(.level=="error") | .message' || true
+            echo "❌ App failed to start within timeout"
+            echo "📋 Current app status:"
+            flyctl status --app tc9-migration-tool-staging || true
+            echo "📝 Recent logs:"
+            flyctl logs --app tc9-migration-tool-staging -n 50 || true
             exit 1
           fi
         env:

@@ -15,8 +15,8 @@ FROM base AS builder
 WORKDIR /app
 
 # Install OpenSSL for Prisma
-# Try apk first (Alpine), fallback to apt-get if needed
-RUN (apk add --no-cache openssl || (apt-get update -y && apt-get install -y openssl && apt-get clean))
+# The oven/bun:1 image is based on Debian, so use apt-get
+RUN apt-get update -y && apt-get install -y openssl libssl-dev && apt-get clean
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
