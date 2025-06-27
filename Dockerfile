@@ -1,18 +1,14 @@
 # Multi-stage build for production
-FROM node:20-alpine AS base
-
-# Update npm to latest version
-RUN npm install -g npm@11.4.1
+FROM oven/bun:1 AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 # Copy package files and prisma schema
-COPY package.json package-lock.json* ./
+COPY package.json bun.lock* ./
 COPY prisma ./prisma
-RUN npm ci
+RUN bun install --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -21,14 +17,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN bun prisma generate
 
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN bun run build
 
 # Production image, copy all the files and run next
-FROM base AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Install OpenSSL for Prisma compatibility
@@ -61,4 +57,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"] 
+CMD ["node", "server.js"]
