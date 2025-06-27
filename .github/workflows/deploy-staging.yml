@@ -111,7 +111,10 @@ jobs:
             echo "📊 Getting app status (attempt $attempt/$max_attempts)..."
             
             # Try to get machine status
-            if flyctl status --app tc9-migration-tool-staging 2>&1 | grep -q "running"; then
+            status_output=$(flyctl status --app tc9-migration-tool-staging 2>&1)
+            echo "$status_output"
+            
+            if echo "$status_output" | grep -q "running"; then
               echo "✅ App machines are running"
               break
             else
@@ -126,7 +129,7 @@ jobs:
             echo "📋 Current app status:"
             flyctl status --app tc9-migration-tool-staging || true
             echo "📝 Recent logs:"
-            flyctl logs --app tc9-migration-tool-staging -n 50 || true
+            flyctl logs --app tc9-migration-tool-staging --no-tail || true
             exit 1
           fi
         env:

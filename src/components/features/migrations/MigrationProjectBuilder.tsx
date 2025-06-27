@@ -108,6 +108,9 @@ export function MigrationProjectBuilder() {
     selectedRecords: [] as string[],
     selectedRecordNames: {} as Record<string, string>, // Map of record ID to name
   });
+  
+  // Track if we've attempted to set default template
+  const [hasSetDefaultTemplate, setHasSetDefaultTemplate] = useState(false);
 
   // Fetch available organisations
   const { data: orgsData, isLoading: orgsLoading } = useQuery({
@@ -149,20 +152,28 @@ export function MigrationProjectBuilder() {
 
   // Set default template to interpretation rules when templates load
   React.useEffect(() => {
-    if (templatesData?.templates && !projectData.templateId) {
+    // Only attempt to set default template once, and only when templates are loaded
+    if (templatesData?.templates && templatesData.templates.length > 0 && !hasSetDefaultTemplate) {
+      console.log('Setting default template. Available templates:', templatesData.templates.map(t => t.name));
+      
       const interpretationRulesTemplate = templatesData.templates.find(
         (template: MigrationTemplate) => 
           template.name.toLowerCase().includes('interpretation') || 
           template.name.toLowerCase().includes('rules')
       );
+      
       if (interpretationRulesTemplate) {
+        console.log('Found interpretation rules template:', interpretationRulesTemplate.name);
         setProjectData(prev => ({ ...prev, templateId: interpretationRulesTemplate.id }));
+        setHasSetDefaultTemplate(true);
       } else if (templatesData.templates.length > 0) {
         // Fallback to first template if interpretation rules not found
+        console.log('Interpretation rules template not found, using first template:', templatesData.templates[0].name);
         setProjectData(prev => ({ ...prev, templateId: templatesData.templates[0].id }));
+        setHasSetDefaultTemplate(true);
       }
     }
-  }, [templatesData, projectData.templateId]);
+  }, [templatesData, hasSetDefaultTemplate]);
 
   // Validation mutation
   const validateMigration = useMutation({
@@ -1328,7 +1339,7 @@ export function MigrationProjectBuilder() {
                         setCurrentStep('project-setup');
                         setProjectData({
                           name: '',
-                          templateId: templatesData?.templates?.[0]?.id || '',
+                          templateId: '', // Will be set by useEffect
                           sourceOrgId: '',
                           targetOrgId: '',
                           selectedRecords: [],
@@ -1339,6 +1350,7 @@ export function MigrationProjectBuilder() {
                         setCurrentOperation('idle');
                         setOrgConnectionErrors({});
                         setIsValidating({});
+                        setHasSetDefaultTemplate(false); // Reset so template can be set again
                       } else {
                         router.push('/migrations/new');
                       }
