@@ -3,6 +3,7 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppNavigation } from '@/components/layout/AppNavigation';
+import { AppInitializer } from '@/components/providers/AppInitializer';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -21,6 +22,7 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
+      <AppInitializer />
       <AppNavigation>
         {children}
       </AppNavigation>
