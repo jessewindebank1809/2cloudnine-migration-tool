@@ -42,9 +42,17 @@ if (typeof window === "undefined") {
     global.Request = Request;
     global.Response = Response;
     global.Headers = Headers;
+    
+    // Also set up URL and URLSearchParams if not already available
+    if (!global.URL) {
+      global.URL = require("url").URL;
+    }
+    if (!global.URLSearchParams) {
+      global.URLSearchParams = require("url").URLSearchParams;
+    }
   } catch (error) {
     // Fallback if node-fetch is not available
-    console.warn("node-fetch not available for test environment");
+    console.warn("node-fetch not available for test environment", error);
   }
 }
 

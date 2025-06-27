@@ -19,13 +19,25 @@ describe('Clone Workflow Integration Tests', () => {
   const mockSourceClient = {
     query: jest.fn(),
     describe: jest.fn(),
-    sobject: jest.fn()
+    sobject: jest.fn(),
+    getObjectMetadata: jest.fn(),
+    create: jest.fn()
   };
   
   const mockTargetClient = {
     query: jest.fn(),
     describe: jest.fn(),
-    sobject: jest.fn()
+    sobject: jest.fn(),
+    getObjectMetadata: jest.fn(),
+    create: jest.fn()
+  };
+  
+  // Helper to setup getObjectMetadata mock
+  const setupGetObjectMetadataMock = (client: any, fields: any[]) => {
+    client.getObjectMetadata.mockResolvedValue({
+      success: true,
+      data: { fields }
+    });
   };
 
   const mockAuthSession = {
@@ -64,16 +76,22 @@ describe('Clone Workflow Integration Tests', () => {
     
     const setupPayCodeMocks = (sourcePayCode: any, targetExists: boolean = false) => {
       // Source client mocks
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'Type__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'Description__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'Type__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'Description__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      
+      // Mock getObjectMetadata for source
+      mockSourceClient.getObjectMetadata.mockResolvedValue({
+        success: true,
+        data: { fields: sourceFields }
       });
       
       mockSourceClient.query.mockResolvedValue({
@@ -81,16 +99,22 @@ describe('Clone Workflow Integration Tests', () => {
       });
       
       // Target client mocks
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Type__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'tc9_pr__Description__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Type__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'tc9_pr__Description__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      
+      // Mock getObjectMetadata for target
+      mockTargetClient.getObjectMetadata.mockResolvedValue({
+        success: true,
+        data: { fields: targetFields }
       });
       
       // Mock target query - check if record exists
@@ -112,6 +136,12 @@ describe('Clone Workflow Integration Tests', () => {
       });
       mockTargetClient.sobject.mockReturnValue({
         create: mockCreate
+      });
+      
+      // Mock create method on client
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'new-target-id' }
       });
     };
 
@@ -188,17 +218,18 @@ describe('Clone Workflow Integration Tests', () => {
       };
       
       // Setup source as managed package
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Type__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'tc9_pr__Description__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Type__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'tc9_pr__Description__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
       
       mockSourceClient.query.mockResolvedValue({
         records: [sourcePayCode]
@@ -210,17 +241,18 @@ describe('Clone Workflow Integration Tests', () => {
         return 'tc9_edc__External_ID_Data_Creation__c';
       });
       
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'Type__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'Description__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'Type__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'Description__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
       
       mockTargetClient.query.mockResolvedValue({ records: [] });
       mockCreate = jest.fn().mockResolvedValue({
@@ -229,6 +261,12 @@ describe('Clone Workflow Integration Tests', () => {
       });
       mockTargetClient.sobject.mockReturnValue({
         create: mockCreate
+      });
+      
+      // Mock create method on client
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'new-target-id' }
       });
       
       const request = new NextRequest('http://localhost:3000/api/migrations/clone-pay-code', {
@@ -301,16 +339,22 @@ describe('Clone Workflow Integration Tests', () => {
     
     const setupLeaveRuleMocks = (sourceLeaveRule: any, targetExists: boolean = false) => {
       // Source client mocks
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Leave_Type__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'Accrual_Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'Maximum_Balance__c', type: 'double', createable: true, updateable: true },
-          { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Leave_Type__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'Accrual_Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'Maximum_Balance__c', type: 'double', createable: true, updateable: true },
+        { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      
+      // Mock getObjectMetadata for source
+      mockSourceClient.getObjectMetadata.mockResolvedValue({
+        success: true,
+        data: { fields: sourceFields }
       });
       
       mockSourceClient.query.mockResolvedValue({
@@ -318,16 +362,22 @@ describe('Clone Workflow Integration Tests', () => {
       });
       
       // Target client mocks
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Leave_Type__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'tc9_pr__Accrual_Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Maximum_Balance__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Leave_Type__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'tc9_pr__Accrual_Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Maximum_Balance__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      
+      // Mock getObjectMetadata for target
+      mockTargetClient.getObjectMetadata.mockResolvedValue({
+        success: true,
+        data: { fields: targetFields }
       });
       
       // Mock target query
@@ -349,6 +399,12 @@ describe('Clone Workflow Integration Tests', () => {
       });
       mockTargetClient.sobject.mockReturnValue({
         create: mockCreate
+      });
+      
+      // Mock create method on client
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'new-leave-rule-id' }
       });
     };
 
@@ -427,43 +483,45 @@ describe('Clone Workflow Integration Tests', () => {
       };
       
       // Setup with additional fields
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Leave_Type__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'Accrual_Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'Maximum_Balance__c', type: 'double', createable: true, updateable: true },
-          { name: 'Minimum_Balance__c', type: 'double', createable: true, updateable: true },
-          { name: 'Carry_Over_Limit__c', type: 'double', createable: true, updateable: true },
-          { name: 'Proration_Method__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'Waiting_Period_Days__c', type: 'double', createable: true, updateable: true },
-          { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'Description__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Leave_Type__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'Accrual_Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'Maximum_Balance__c', type: 'double', createable: true, updateable: true },
+        { name: 'Minimum_Balance__c', type: 'double', createable: true, updateable: true },
+        { name: 'Carry_Over_Limit__c', type: 'double', createable: true, updateable: true },
+        { name: 'Proration_Method__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'Waiting_Period_Days__c', type: 'double', createable: true, updateable: true },
+        { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'Description__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
       
       mockSourceClient.query.mockResolvedValue({
         records: [complexLeaveRule]
       });
       
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Leave_Type__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'tc9_pr__Accrual_Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Maximum_Balance__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Minimum_Balance__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Carry_Over_Limit__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Proration_Method__c', type: 'picklist', createable: true, updateable: true },
-          { name: 'tc9_pr__Waiting_Period_Days__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'tc9_pr__Description__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Leave_Type__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'tc9_pr__Accrual_Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Maximum_Balance__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Minimum_Balance__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Carry_Over_Limit__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Proration_Method__c', type: 'picklist', createable: true, updateable: true },
+        { name: 'tc9_pr__Waiting_Period_Days__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'tc9_pr__Description__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
       
       mockTargetClient.query.mockResolvedValue({ records: [] });
       mockCreate = jest.fn().mockResolvedValue({
@@ -472,6 +530,12 @@ describe('Clone Workflow Integration Tests', () => {
       });
       mockTargetClient.sobject.mockReturnValue({
         create: mockCreate
+      });
+      
+      // Mock create method on client
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'new-complex-leave-id' }
       });
       
       const request = new NextRequest('http://localhost:3000/api/migrations/clone-leave-rule', {
@@ -536,13 +600,14 @@ describe('Clone Workflow Integration Tests', () => {
         External_ID_Data_Creation__c: 'a1234567890ABCDE'
       };
       
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const fields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
       
       // Mock token expiry error
       mockSourceClient.query.mockRejectedValue(new Error('INVALID_SESSION_ID: Session expired or invalid'));
@@ -569,12 +634,13 @@ describe('Clone Workflow Integration Tests', () => {
     });
 
     it('should handle source record not found', async () => {
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const fields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
       
       mockSourceClient.query.mockResolvedValue({ records: [] });
       
@@ -606,27 +672,29 @@ describe('Clone Workflow Integration Tests', () => {
         Rate__c: 25.50
       };
       
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
       
       mockSourceClient.query.mockResolvedValue({
         records: [sourcePayCode]
       });
       
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
       
       mockTargetClient.query.mockResolvedValue({ records: [] });
       
@@ -634,6 +702,9 @@ describe('Clone Workflow Integration Tests', () => {
       mockTargetClient.sobject.mockReturnValue({
         create: jest.fn().mockRejectedValue(new Error('FIELD_CUSTOM_VALIDATION_EXCEPTION: Rate must be greater than 0'))
       });
+      
+      // Mock create method failure on client
+      mockTargetClient.create.mockRejectedValue(new Error('FIELD_CUSTOM_VALIDATION_EXCEPTION: Rate must be greater than 0'));
       
       const request = new NextRequest('http://localhost:3000/api/migrations/clone-pay-code', {
         method: 'POST',
@@ -669,34 +740,42 @@ describe('Clone Workflow Integration Tests', () => {
         Is_Default__c: true
       };
       
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'Enabled__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'Is_Default__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'Enabled__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'Is_Default__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
       
       mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
       
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'tc9_pr__Enabled__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'tc9_pr__Is_Default__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'tc9_pr__Enabled__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'tc9_pr__Is_Default__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
       
       mockTargetClient.query.mockResolvedValue({ records: [] });
       mockCreate = jest.fn().mockResolvedValue({ success: true, id: 'new-id' });
       mockTargetClient.sobject.mockReturnValue({
         create: mockCreate
+      });
+      
+      // Mock create method on client
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'new-id' }
       });
       
       const result = await CloningService.cloneRecord({
@@ -726,36 +805,44 @@ describe('Clone Workflow Integration Tests', () => {
         Percentage__c: 150.25
       };
       
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'Minimum_Hours__c', type: 'double', createable: true, updateable: true },
-          { name: 'Maximum_Hours__c', type: 'double', createable: true, updateable: true },
-          { name: 'Percentage__c', type: 'double', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'Minimum_Hours__c', type: 'double', createable: true, updateable: true },
+        { name: 'Maximum_Hours__c', type: 'double', createable: true, updateable: true },
+        { name: 'Percentage__c', type: 'double', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
       
       mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
       
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Minimum_Hours__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Maximum_Hours__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Percentage__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Minimum_Hours__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Maximum_Hours__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Percentage__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
       
       mockTargetClient.query.mockResolvedValue({ records: [] });
       mockCreate = jest.fn().mockResolvedValue({ success: true, id: 'new-id' });
       mockTargetClient.sobject.mockReturnValue({
         create: mockCreate
+      });
+      
+      // Mock create method on client
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'new-id' }
       });
       
       const result = await CloningService.cloneRecord({
@@ -786,36 +873,44 @@ describe('Clone Workflow Integration Tests', () => {
         Active__c: true
       };
       
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'Description__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'Notes__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'Description__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'Notes__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
       
       mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
       
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_pr__Description__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'tc9_pr__Notes__c', type: 'textarea', createable: true, updateable: true },
-          { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_pr__Description__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'tc9_pr__Notes__c', type: 'textarea', createable: true, updateable: true },
+        { name: 'tc9_pr__Active__c', type: 'boolean', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
       
       mockTargetClient.query.mockResolvedValue({ records: [] });
       mockCreate = jest.fn().mockResolvedValue({ success: true, id: 'new-id' });
       mockTargetClient.sobject.mockReturnValue({
         create: mockCreate
+      });
+      
+      // Mock create method on client
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'new-id' }
       });
       
       const result = await CloningService.cloneRecord({
@@ -852,30 +947,38 @@ describe('Clone Workflow Integration Tests', () => {
         Rate__c: 30.00
       };
       
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const sourceFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
       
       mockSourceClient.query.mockResolvedValue({ records: [sourcePayCode] });
       
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false },
-          { name: 'Name', type: 'string', createable: true, updateable: true },
-          { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
-        ]
-      });
+      const targetFields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false },
+        { name: 'Name', type: 'string', createable: true, updateable: true },
+        { name: 'tc9_pr__Rate__c', type: 'double', createable: true, updateable: true },
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string', createable: true, updateable: true }
+      ];
+      
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
       
       mockTargetClient.query.mockResolvedValue({ records: [] });
       mockCreate = jest.fn().mockResolvedValue({ success: true, id: 'new-tracking-id' });
       mockTargetClient.sobject.mockReturnValue({
         create: mockCreate
+      });
+      
+      // Mock create method on client
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'new-tracking-id' }
       });
       
       const request = new NextRequest('http://localhost:3000/api/migrations/clone-pay-code', {
@@ -906,11 +1009,12 @@ describe('Clone Workflow Integration Tests', () => {
     });
 
     it('should track failed cloning events with error details', async () => {
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id', createable: false, updateable: false }
-        ]
-      });
+      const fields = [
+        { name: 'Id', type: 'id', createable: false, updateable: false }
+      ];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
       
       mockSourceClient.query.mockResolvedValue({ records: [] });
       

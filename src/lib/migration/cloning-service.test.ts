@@ -11,21 +11,44 @@ describe('CloningService', () => {
   let mockSourceClient: any;
   let mockTargetClient: any;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Create mock clients with all required methods
+  // Helper function to setup mock clients with proper structure
+  const setupMockClients = () => {
     mockSourceClient = {
       query: jest.fn(),
       describe: jest.fn(),
-      sobject: jest.fn()
+      sobject: jest.fn(),
+      getObjectMetadata: jest.fn(),
+      create: jest.fn()
     };
 
     mockTargetClient = {
       query: jest.fn(),
       describe: jest.fn(),
-      sobject: jest.fn()
+      sobject: jest.fn(),
+      getObjectMetadata: jest.fn(),
+      create: jest.fn()
     };
+  };
+
+  // Helper function to setup getObjectMetadata mock
+  const setupGetObjectMetadataMock = (client: any, fields: any[]) => {
+    client.getObjectMetadata.mockResolvedValue({
+      success: true,
+      data: {
+        fields: fields.map(f => ({
+          ...f,
+          createable: f.createable !== undefined ? f.createable : true,
+          updateable: f.updateable !== undefined ? f.updateable : true
+        }))
+      }
+    });
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Create mock clients
+    setupMockClients();
 
     // Setup default session manager mock
     (sessionManager.getClient as jest.Mock).mockImplementation((orgId: string) => {
@@ -74,16 +97,27 @@ describe('CloningService', () => {
       // Mock describe calls
       mockSourceClient.describe.mockResolvedValue({ fields: managedSourceFields });
       mockTargetClient.describe.mockResolvedValue({ fields: unmanagedTargetFields });
+      
+      // Mock getObjectMetadata calls
+      setupGetObjectMetadataMock(mockSourceClient, managedSourceFields);
+      setupGetObjectMetadataMock(mockTargetClient, unmanagedTargetFields);
 
       // Mock query for source record
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
+      });
 
       // Mock no existing record in target
-      mockTargetClient.query.mockResolvedValue({ records: [] });
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
+      });
 
       // Mock successful creation
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'b9876543210ZYXWV' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'b9876543210ZYXWV' }
       });
 
       // Execute clone
@@ -95,8 +129,8 @@ describe('CloningService', () => {
       });
 
       // Verify field mapping
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      const createdRecord = createCall.mock.calls[0][0];
+      const createCall = mockTargetClient.create;
+      const createdRecord = createCall.mock.calls[0][1];
       
       // External ID should be set to source record ID
       expect(createdRecord['External_ID_Data_Creation__c']).toBe('a1234567890ABCDE');
@@ -148,16 +182,27 @@ describe('CloningService', () => {
       // Mock describe calls
       mockSourceClient.describe.mockResolvedValue({ fields: unmanagedSourceFields });
       mockTargetClient.describe.mockResolvedValue({ fields: managedTargetFields });
+      
+      // Mock getObjectMetadata calls
+      setupGetObjectMetadataMock(mockSourceClient, unmanagedSourceFields);
+      setupGetObjectMetadataMock(mockTargetClient, managedTargetFields);
 
       // Mock query for source record
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
+      });
 
       // Mock no existing record in target
-      mockTargetClient.query.mockResolvedValue({ records: [] });
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
+      });
 
       // Mock successful creation
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'b9876543210ZYXWV' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'b9876543210ZYXWV' }
       });
 
       // Execute clone
@@ -169,8 +214,8 @@ describe('CloningService', () => {
       });
 
       // Verify field mapping
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      const createdRecord = createCall.mock.calls[0][0];
+      const createCall = mockTargetClient.create;
+      const createdRecord = createCall.mock.calls[0][1];
       
       // External ID should be set to source record ID
       expect(createdRecord['tc9_edc__External_ID_Data_Creation__c']).toBe('a1234567890ABCDE');
@@ -212,16 +257,27 @@ describe('CloningService', () => {
       // Mock describe calls
       mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
       mockTargetClient.describe.mockResolvedValue({ fields: sourceFields });
+      
+      // Mock getObjectMetadata calls
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
+      setupGetObjectMetadataMock(mockTargetClient, sourceFields);
 
       // Mock query for source record
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
+      });
 
       // Mock no existing record in target
-      mockTargetClient.query.mockResolvedValue({ records: [] });
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
+      });
 
       // Mock successful creation
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'b9876543210ZYXWV' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'b9876543210ZYXWV' }
       });
 
       // Execute clone
@@ -233,8 +289,8 @@ describe('CloningService', () => {
       });
 
       // Verify system fields were not included
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      const createdRecord = createCall.mock.calls[0][0];
+      const createCall = mockTargetClient.create;
+      const createdRecord = createCall.mock.calls[0][1];
       
       expect(createdRecord).not.toHaveProperty('CreatedDate');
       expect(createdRecord).not.toHaveProperty('LastModifiedDate');
@@ -258,27 +314,30 @@ describe('CloningService', () => {
         .mockResolvedValueOnce('tc9_edc__External_ID_Data_Creation__c') // source
         .mockResolvedValueOnce('tc9_edc__External_ID_Data_Creation__c'); // target
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_edc__External_ID_Data_Creation__c' }
-        ]
+      const fields = [
+        { name: 'Id' },
+        { name: 'Name' },
+        { name: 'tc9_edc__External_ID_Data_Creation__c' }
+      ];
+
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      mockTargetClient.describe.mockResolvedValue({ fields });
+      
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+      setupGetObjectMetadataMock(mockTargetClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
+      });
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
 
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_edc__External_ID_Data_Creation__c' }
-        ]
-      });
-
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
-      mockTargetClient.query.mockResolvedValue({ records: [] });
-
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newId' }
       });
 
       const result = await CloningService.cloneRecord({
@@ -293,8 +352,8 @@ describe('CloningService', () => {
       expect(ExternalIdUtils.detectExternalIdField).toHaveBeenCalledWith('tc9_pr__Pay_Code__c', mockTargetClient);
 
       // Verify target record has source record ID as external ID
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      expect(createCall).toHaveBeenCalledWith(expect.objectContaining({
+      const createCall = mockTargetClient.create;
+      expect(createCall).toHaveBeenCalledWith('tc9_pr__Pay_Code__c', expect.objectContaining({
         'tc9_edc__External_ID_Data_Creation__c': 'a1234567890ABCDE' // Source record ID
       }));
     });
@@ -325,26 +384,31 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'External_ID_Data_Creation__c' }
-        ]
+      const fields = [
+        { name: 'Id' },
+        { name: 'Name' },
+        { name: 'External_ID_Data_Creation__c' }
+      ];
+
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
+      });
+      
+      mockTargetClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockTargetClient, fields);
+      
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'External_ID_Data_Creation__c' }
-        ]
-      });
-      mockTargetClient.query.mockResolvedValue({ records: [] });
-
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newId' }
       });
 
       // Use external ID instead of Salesforce ID
@@ -377,14 +441,21 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('tc9_edc__External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [{ name: 'Id' }, { name: 'Name' }]
+      const fields = [{ name: 'Id' }, { name: 'Name' }];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
-
       // Mock existing record in target
-      mockTargetClient.query.mockResolvedValue({ records: [existingTargetRecord] });
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: [existingTargetRecord]
+      });
 
       const result = await CloningService.cloneRecord({
         sourceOrgId: 'source-org-id',
@@ -396,7 +467,7 @@ describe('CloningService', () => {
       expect(result.success).toBe(true);
       expect(result.recordId).toBe('b9876543210ZYXWV');
       expect(result.error).toBe('Record already exists in target org');
-      expect(mockTargetClient.sobject).not.toHaveBeenCalled();
+      expect(mockTargetClient.create).not.toHaveBeenCalled();
     });
 
     it('should handle duplicate check query failure gracefully', async () => {
@@ -408,20 +479,25 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('tc9_edc__External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [{ name: 'Id' }, { name: 'Name' }]
-      });
+      const fields = [{ name: 'Id' }, { name: 'Name' }];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
 
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
+      });
 
       // Mock query failure for duplicate check
       mockTargetClient.query.mockRejectedValueOnce(new Error('Query failed'));
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [{ name: 'Id' }, { name: 'Name' }]
-      });
+      
+      mockTargetClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockTargetClient, fields);
 
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newId' }
       });
 
       const result = await CloningService.cloneRecord({
@@ -433,7 +509,7 @@ describe('CloningService', () => {
 
       // Should continue with creation despite duplicate check failure
       expect(result.success).toBe(true);
-      expect(mockTargetClient.sobject).toHaveBeenCalled();
+      expect(mockTargetClient.create).toHaveBeenCalled();
     });
   });
 
@@ -442,12 +518,16 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [{ name: 'Id' }]
-      });
+      const fields = [{ name: 'Id' }];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
 
       // No records found
-      mockSourceClient.query.mockResolvedValue({ records: [] });
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: []
+      });
 
       const result = await CloningService.cloneRecord({
         sourceOrgId: 'source-org-id',
@@ -483,22 +563,26 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [{ name: 'Id' }, { name: 'Name' }]
+      const fields = [{ name: 'Id' }, { name: 'Name' }];
+      
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
+      mockTargetClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockTargetClient, fields);
 
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [{ name: 'Id' }, { name: 'Name' }]
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
-
-      mockTargetClient.query.mockResolvedValue({ records: [] });
 
       // Mock creation failure
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: false })
-      });
+      mockTargetClient.create.mockResolvedValue({ success: false });
 
       const result = await CloningService.cloneRecord({
         sourceOrgId: 'source-org-id',
@@ -515,7 +599,9 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockRejectedValue(new Error('Describe failed'));
+      mockSourceClient.getObjectMetadata.mockResolvedValue({
+        success: false
+      });
 
       const result = await CloningService.cloneRecord({
         sourceOrgId: 'source-org-id',
@@ -525,7 +611,7 @@ describe('CloningService', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Describe failed');
+      expect(result.error).toContain('Failed to describe object');
     });
   });
 
@@ -543,35 +629,39 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('tc9_edc__External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_pr__Code__c' },
-          { name: 'tc9_pr__Rate__c' },
-          { name: 'tc9_pr__Type__c' },
-          { name: 'tc9_pr__Active__c' }
-        ]
+      const fields = [
+        { name: 'Id' },
+        { name: 'Name' },
+        { name: 'tc9_pr__Code__c' },
+        { name: 'tc9_pr__Rate__c' },
+        { name: 'tc9_pr__Type__c' },
+        { name: 'tc9_pr__Active__c' }
+      ];
+
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [payCodeRecord]
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [payCodeRecord] });
+      const targetFields = [
+        ...fields,
+        { name: 'tc9_edc__External_ID_Data_Creation__c' }
+      ];
 
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_pr__Code__c' },
-          { name: 'tc9_pr__Rate__c' },
-          { name: 'tc9_pr__Type__c' },
-          { name: 'tc9_pr__Active__c' },
-          { name: 'tc9_edc__External_ID_Data_Creation__c' }
-        ]
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
+
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
 
-      mockTargetClient.query.mockResolvedValue({ records: [] });
-
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newId' }
       });
 
       const result = await CloningService.cloneRecord({
@@ -582,8 +672,8 @@ describe('CloningService', () => {
       });
 
       expect(result.success).toBe(true);
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      expect(createCall).toHaveBeenCalledWith(expect.objectContaining({
+      const createCall = mockTargetClient.create;
+      expect(createCall).toHaveBeenCalledWith('tc9_pr__Pay_Code__c', expect.objectContaining({
         Name: 'Regular Hours',
         'tc9_pr__Code__c': 'REG',
         'tc9_pr__Rate__c': 25.00,
@@ -605,35 +695,39 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('tc9_edc__External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_pr__Leave_Type__c' },
-          { name: 'tc9_pr__Accrual_Rate__c' },
-          { name: 'tc9_pr__Maximum_Balance__c' },
-          { name: 'tc9_pr__Active__c' }
-        ]
+      const fields = [
+        { name: 'Id' },
+        { name: 'Name' },
+        { name: 'tc9_pr__Leave_Type__c' },
+        { name: 'tc9_pr__Accrual_Rate__c' },
+        { name: 'tc9_pr__Maximum_Balance__c' },
+        { name: 'tc9_pr__Active__c' }
+      ];
+
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [leaveRuleRecord]
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [leaveRuleRecord] });
+      const targetFields = [
+        ...fields,
+        { name: 'tc9_edc__External_ID_Data_Creation__c' }
+      ];
 
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_pr__Leave_Type__c' },
-          { name: 'tc9_pr__Accrual_Rate__c' },
-          { name: 'tc9_pr__Maximum_Balance__c' },
-          { name: 'tc9_pr__Active__c' },
-          { name: 'tc9_edc__External_ID_Data_Creation__c' }
-        ]
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
+
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
 
-      mockTargetClient.query.mockResolvedValue({ records: [] });
-
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newLeaveRuleId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newLeaveRuleId' }
       });
 
       const result = await CloningService.cloneRecord({
@@ -644,8 +738,8 @@ describe('CloningService', () => {
       });
 
       expect(result.success).toBe(true);
-      const createCall = mockTargetClient.sobject('tc9_pr__Leave_Rule__c').create;
-      expect(createCall).toHaveBeenCalledWith(expect.objectContaining({
+      const createCall = mockTargetClient.create;
+      expect(createCall).toHaveBeenCalledWith('tc9_pr__Leave_Rule__c', expect.objectContaining({
         Name: 'Annual Leave',
         'tc9_pr__Leave_Type__c': 'Annual',
         'tc9_pr__Accrual_Rate__c': 4.0,
@@ -665,31 +759,37 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('tc9_edc__External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id' },
-          { name: 'Name', type: 'string' },
-          { name: 'tc9_pr__Parent_Code__c', type: 'reference' },
-          { name: 'tc9_pr__Type__c', type: 'string' }
-        ]
+      const fields = [
+        { name: 'Id', type: 'id' },
+        { name: 'Name', type: 'string' },
+        { name: 'tc9_pr__Parent_Code__c', type: 'reference' },
+        { name: 'tc9_pr__Type__c', type: 'string' }
+      ];
+
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [recordWithLookup]
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [recordWithLookup] });
+      const targetFields = [
+        ...fields,
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string' }
+      ];
 
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id' },
-          { name: 'Name', type: 'string' },
-          { name: 'tc9_pr__Parent_Code__c', type: 'reference' },
-          { name: 'tc9_pr__Type__c', type: 'string' },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string' }
-        ]
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
+
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
 
-      mockTargetClient.query.mockResolvedValue({ records: [] });
-
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newId' }
       });
 
       await CloningService.cloneRecord({
@@ -699,8 +799,8 @@ describe('CloningService', () => {
         objectApiName: 'tc9_pr__Pay_Code__c'
       });
 
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      const createdRecord = createCall.mock.calls[0][0];
+      const createCall = mockTargetClient.create;
+      const createdRecord = createCall.mock.calls[0][1];
 
       // Verify lookup field was skipped
       expect(createdRecord).not.toHaveProperty('tc9_pr__Parent_Code__c');
@@ -721,28 +821,37 @@ describe('CloningService', () => {
         .mockResolvedValueOnce('External_ID_Data_Creation__c') // source unmanaged
         .mockResolvedValueOnce('tc9_edc__External_ID_Data_Creation__c'); // target managed
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'External_ID_Data_Creation__c' }
-        ]
+      const sourceFields = [
+        { name: 'Id' },
+        { name: 'Name' },
+        { name: 'External_ID_Data_Creation__c' }
+      ];
+
+      mockSourceClient.describe.mockResolvedValue({ fields: sourceFields });
+      setupGetObjectMetadataMock(mockSourceClient, sourceFields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
+      const targetFields = [
+        { name: 'Id' },
+        { name: 'Name' },
+        { name: 'tc9_edc__External_ID_Data_Creation__c' }
+      ];
 
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_edc__External_ID_Data_Creation__c' }
-        ]
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
+
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
 
-      mockTargetClient.query.mockResolvedValue({ records: [] });
-
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newId' }
       });
 
       await CloningService.cloneRecord({
@@ -752,8 +861,8 @@ describe('CloningService', () => {
         objectApiName: 'tc9_pr__Pay_Code__c'
       });
 
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      expect(createCall).toHaveBeenCalledWith(expect.objectContaining({
+      const createCall = mockTargetClient.create;
+      expect(createCall).toHaveBeenCalledWith('tc9_pr__Pay_Code__c', expect.objectContaining({
         'tc9_edc__External_ID_Data_Creation__c': 'a1234567890ABCDE' // Source record ID
       }));
     });
@@ -770,33 +879,38 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('tc9_edc__External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_pr__Rate__c' },
-          { name: 'tc9_pr__Type__c' },
-          { name: 'tc9_pr__Description__c' }
-        ]
+      const fields = [
+        { name: 'Id' },
+        { name: 'Name' },
+        { name: 'tc9_pr__Rate__c' },
+        { name: 'tc9_pr__Type__c' },
+        { name: 'tc9_pr__Description__c' }
+      ];
+
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
+      const targetFields = [
+        ...fields,
+        { name: 'tc9_edc__External_ID_Data_Creation__c' }
+      ];
 
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id' },
-          { name: 'Name' },
-          { name: 'tc9_pr__Rate__c' },
-          { name: 'tc9_pr__Type__c' },
-          { name: 'tc9_pr__Description__c' },
-          { name: 'tc9_edc__External_ID_Data_Creation__c' }
-        ]
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
+
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
 
-      mockTargetClient.query.mockResolvedValue({ records: [] });
-
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newId' }
       });
 
       await CloningService.cloneRecord({
@@ -806,8 +920,8 @@ describe('CloningService', () => {
         objectApiName: 'tc9_pr__Pay_Code__c'
       });
 
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      const createdRecord = createCall.mock.calls[0][0];
+      const createCall = mockTargetClient.create;
+      const createdRecord = createCall.mock.calls[0][1];
 
       // Verify null/undefined values were not included
       expect(createdRecord).not.toHaveProperty('tc9_pr__Rate__c');
@@ -828,31 +942,37 @@ describe('CloningService', () => {
       (ExternalIdUtils.detectExternalIdField as jest.Mock)
         .mockResolvedValue('tc9_edc__External_ID_Data_Creation__c');
 
-      mockSourceClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id' },
-          { name: 'Name', type: 'string' },
-          { name: 'tc9_pr__Parent_Code__c', type: 'reference' },
-          { name: 'tc9_pr__Type__c', type: 'string' }
-        ]
+      const fields = [
+        { name: 'Id', type: 'id' },
+        { name: 'Name', type: 'string' },
+        { name: 'tc9_pr__Parent_Code__c', type: 'reference' },
+        { name: 'tc9_pr__Type__c', type: 'string' }
+      ];
+
+      mockSourceClient.describe.mockResolvedValue({ fields });
+      setupGetObjectMetadataMock(mockSourceClient, fields);
+
+      mockSourceClient.query.mockResolvedValue({
+        success: true,
+        data: [sourceRecord]
       });
 
-      mockSourceClient.query.mockResolvedValue({ records: [sourceRecord] });
+      const targetFields = [
+        ...fields,
+        { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string' }
+      ];
 
-      mockTargetClient.describe.mockResolvedValue({
-        fields: [
-          { name: 'Id', type: 'id' },
-          { name: 'Name', type: 'string' },
-          { name: 'tc9_pr__Parent_Code__c', type: 'reference' },
-          { name: 'tc9_pr__Type__c', type: 'string' },
-          { name: 'tc9_edc__External_ID_Data_Creation__c', type: 'string' }
-        ]
+      mockTargetClient.describe.mockResolvedValue({ fields: targetFields });
+      setupGetObjectMetadataMock(mockTargetClient, targetFields);
+
+      mockTargetClient.query.mockResolvedValue({
+        success: true,
+        data: []
       });
 
-      mockTargetClient.query.mockResolvedValue({ records: [] });
-
-      mockTargetClient.sobject.mockReturnValue({
-        create: jest.fn().mockResolvedValue({ success: true, id: 'newId' })
+      mockTargetClient.create.mockResolvedValue({
+        success: true,
+        data: { id: 'newId' }
       });
 
       await CloningService.cloneRecord({
@@ -862,8 +982,8 @@ describe('CloningService', () => {
         objectApiName: 'tc9_pr__Pay_Code__c'
       });
 
-      const createCall = mockTargetClient.sobject('tc9_pr__Pay_Code__c').create;
-      const createdRecord = createCall.mock.calls[0][0];
+      const createCall = mockTargetClient.create;
+      const createdRecord = createCall.mock.calls[0][1];
 
       // Verify relationship field was skipped
       expect(createdRecord).not.toHaveProperty('tc9_pr__Parent_Code__r');
