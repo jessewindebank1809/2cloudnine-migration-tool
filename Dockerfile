@@ -13,6 +13,11 @@ RUN bun install --frozen-lockfile
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+# Try apk first (Alpine), fallback to apt-get if needed
+RUN (apk add --no-cache openssl || (apt-get update -y && apt-get install -y openssl && apt-get clean))
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
