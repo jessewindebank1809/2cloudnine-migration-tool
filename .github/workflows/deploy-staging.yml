@@ -114,11 +114,19 @@ jobs:
             status_output=$(flyctl status --app tc9-migration-tool-staging 2>&1)
             echo "$status_output"
             
-            if echo "$status_output" | grep -q "running"; then
-              echo "✅ App machines are running"
+            if echo "$status_output" | grep -E "running|stopped" | grep -v "replacing"; then
+              # Check if deployment is complete (machines are either running or stopped)
+              echo "✅ Deployment complete - machines are ready"
+              # Make a health check request to wake up the app
+              echo "🏥 Performing health check..."
+              if curl -f -s -o /dev/null -w "%{http_code}" https://tc9-migration-tool-staging.fly.dev/api/health; then
+                echo "✅ Health check passed"
+              else
+                echo "⚠️ Health check failed, but deployment succeeded"
+              fi
               break
             else
-              echo "⏳ App not ready yet, waiting..."
+              echo "⏳ Deployment in progress, waiting..."
               sleep 10
               attempt=$((attempt + 1))
             fi

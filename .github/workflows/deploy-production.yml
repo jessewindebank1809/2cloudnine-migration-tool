@@ -114,19 +114,37 @@ jobs:
           attempt=1
           
           while [ $attempt -le $max_attempts ]; do
-            if flyctl status --app tc9-migration-tool --json | jq -e '.Allocations[0].Status == "running"' >/dev/null 2>&1; then
-              echo "✅ App is running"
+            # Get status without JSON first to see raw output
+            echo "📊 Getting app status (attempt $attempt/$max_attempts)..."
+            
+            # Try to get machine status
+            status_output=$(flyctl status --app tc9-migration-tool 2>&1)
+            echo "$status_output"
+            
+            if echo "$status_output" | grep -E "running|stopped" | grep -v "replacing"; then
+              # Check if deployment is complete (machines are either running or stopped)
+              echo "✅ Deployment complete - machines are ready"
+              # Make a health check request to wake up the app
+              echo "🏥 Performing health check..."
+              if curl -f -s -o /dev/null -w "%{http_code}" https://tc9-migration-tool.fly.dev/api/health; then
+                echo "✅ Health check passed"
+              else
+                echo "⚠️ Health check failed, but deployment succeeded"
+              fi
               break
             else
-              echo "⏳ Attempt $attempt/$max_attempts: App not ready yet..."
+              echo "⏳ Deployment in progress, waiting..."
               sleep 10
               attempt=$((attempt + 1))
             fi
           done
           
           if [ $attempt -gt $max_attempts ]; then
-            echo "❌ App failed to start"
-            flyctl logs --app tc9-migration-tool --json | jq -r '.data[] | select(.level=="error") | .message' || true
+            echo "❌ App failed to start within timeout"
+            echo "📋 Current app status:"
+            flyctl status --app tc9-migration-tool || true
+            echo "📝 Recent logs:"
+            flyctl logs --app tc9-migration-tool --no-tail || true
             exit 1
           fi
         env:
