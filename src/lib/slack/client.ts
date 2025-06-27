@@ -6,6 +6,7 @@ interface SlackMessage {
   userAgent: string;
   timestamp: string;
   githubIssueUrl?: string;
+  attachmentCount?: number;
 }
 
 export class SlackClient {
@@ -41,6 +42,15 @@ export class SlackClient {
               }),
               short: true,
             },
+            ...(feedback.attachmentCount && feedback.attachmentCount > 0
+              ? [
+                  {
+                    title: "Attachments",
+                    value: `${feedback.attachmentCount} file${feedback.attachmentCount > 1 ? 's' : ''}`,
+                    short: true,
+                  },
+                ]
+              : []),
             ...(feedback.githubIssueUrl
               ? [
                   {

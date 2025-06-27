@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { type, message, url, userAgent } = body;
+    const { type, message, url, userAgent, attachments = [] } = body;
 
     // Validate required fields
     if (!type || !message || !message.trim()) {
@@ -62,6 +62,14 @@ export async function POST(request: NextRequest) {
     if (!validTypes.includes(type)) {
       return NextResponse.json(
         { error: "Invalid feedback type" },
+        { status: 400 },
+      );
+    }
+
+    // Validate attachments
+    if (attachments.length > 3) {
+      return NextResponse.json(
+        { error: "Maximum 3 attachments allowed" },
         { status: 400 },
       );
     }
@@ -97,6 +105,26 @@ export async function POST(request: NextRequest) {
         const [owner, repo] = githubRepo.split("/");
         const githubClient = new GitHubClient(githubToken, owner, repo);
 
+        // Process attachments for GitHub issue
+        let attachmentsSection = "";
+        if (attachments.length > 0) {
+          attachmentsSection = "\n\n### Attachments\n";
+          
+          for (const attachment of attachments) {
+            const { name, type, size, data } = attachment;
+            
+            // For images, embed them directly in the issue
+            if (type.startsWith("image/")) {
+              attachmentsSection += `\n**${name}** (${(size / 1024).toFixed(1)}KB)\n\n`;
+              attachmentsSection += `![${name}](${data})\n`;
+            } else {
+              // For non-images, provide file info
+              attachmentsSection += `\n**${name}** (${(size / 1024).toFixed(1)}KB) - Type: ${type}\n`;
+              attachmentsSection += `*Note: Non-image attachments cannot be directly embedded in GitHub issues. Please contact the user for the full file.*\n`;
+            }
+          }
+        }
+
         // Create issue title and body
         const issueTitle = `[${type.charAt(0).toUpperCase() + type.slice(1)}] User Feedback - ${new Date().toLocaleDateString()}`;
         const issueBody = `## User Feedback
@@ -107,7 +135,7 @@ export async function POST(request: NextRequest) {
 **Time:** ${new Date().toISOString()}
 
 ### Message
-${message}
+${message}${attachmentsSection}
 
 ### Browser Info
 \`\`\`
@@ -154,6 +182,7 @@ ${userAgent}
         userAgent,
         timestamp: new Date().toISOString(),
         githubIssueUrl, // Pass GitHub issue URL to Slack
+        attachmentCount: attachments.length,
       });
 
       // Log to Sentry for tracking
