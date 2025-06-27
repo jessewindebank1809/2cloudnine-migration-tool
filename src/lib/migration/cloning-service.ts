@@ -36,7 +36,7 @@ export class CloningService {
       const sourceExternalIdField = await ExternalIdUtils.detectExternalIdField(objectApiName, sourceClient);
       const targetExternalIdField = await ExternalIdUtils.detectExternalIdField(objectApiName, targetClient);
       
-      console.log(`Source external ID field: ${sourceExternalIdField}, Target external ID field: ${targetExternalIdField}`);
+      // console.log(`Source external ID field: ${sourceExternalIdField}, Target external ID field: ${targetExternalIdField}`);
       
       // Fetch source record
       const sourceRecord = await this.fetchSourceRecord(sourceClient, objectApiName, sourceRecordId, sourceExternalIdField);
@@ -69,10 +69,14 @@ export class CloningService {
       // Map fields from source to target
       const targetRecord = await this.mapFields(sourceRecord, fieldMap, targetClient);
       
+      // Log the source record fields for debugging
+      // console.log(`Source record fields: ${Object.keys(sourceRecord).join(', ')}`);
+      // console.log(`Mapped ${Object.keys(targetRecord).length} fields to target record`);
+      
       // Ensure external ID is set in target record with the source record's ID
       targetRecord[targetExternalIdField] = sourceRecord.Id;
       
-      console.log(`Creating record in target org with external ID: ${targetRecord[targetExternalIdField]}`);
+      // console.log(`Creating record in target org with external ID: ${targetRecord[targetExternalIdField]}`);
       
       // Create record in target org
       const result = await targetClient.sobject(objectApiName).create(targetRecord);
@@ -105,25 +109,54 @@ export class CloningService {
   private static async fetchSourceRecord(client: Connection, objectApiName: string, recordId: string, externalIdField: string): Promise<any> {
     // Get all fields for the object
     const describe = await client.describe(objectApiName);
-    const fields = describe.fields.map(f => f.name);
+    
+    // Filter out compound fields and non-queryable fields
+    const queryableFields = describe.fields
+      .filter(field => {
+        // Exclude compound fields (like Name for Person Accounts)
+        if (field.type === 'address' || field.type === 'location') {
+          return false;
+        }
+        // Exclude non-queryable fields
+        if (!field.createable && !field.updateable && field.name !== 'Id' && field.name !== 'Name' && !field.name.includes('__c')) {
+          return false;
+        }
+        // Exclude relationship fields that end with __r
+        if (field.name.endsWith('__r')) {
+          return false;
+        }
+        return true;
+      })
+      .map(f => f.name);
+    
+    // Ensure we always include essential fields
+    const essentialFields = new Set(['Id', 'Name']);
+    if (externalIdField && !queryableFields.includes(externalIdField)) {
+      queryableFields.push(externalIdField);
+    }
+    
+    // Remove duplicates and ensure essential fields are included
+    const fieldsToQuery = Array.from(new Set([...queryableFields]));
+    
+    // console.log(`Fetching ${fieldsToQuery.length} fields for ${objectApiName}`);
     
     // Build query - check if recordId is actually an external ID or a Salesforce ID
     let query: string;
     if (recordId.match(/^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/)) {
       // This looks like a Salesforce ID (15 or 18 characters)
-      query = `SELECT ${fields.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
+      query = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
     } else {
       // This is likely an external ID - try external ID field first
-      query = `SELECT ${fields.join(', ')} FROM ${objectApiName} WHERE ${externalIdField} = '${recordId}' LIMIT 1`;
+      query = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${externalIdField} = '${recordId}' LIMIT 1`;
     }
     
-    console.log(`Fetching source record with query: ${query}`);
+    // console.log(`Fetching source record with query: ${query}`);
     const result = await client.query(query);
     
     // If no record found with external ID, try ID as fallback
     if (!result.records[0] && !recordId.match(/^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/)) {
       console.log(`No record found with external ID, trying with Id field`);
-      query = `SELECT ${fields.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
+      query = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
       const fallbackResult = await client.query(query);
       return fallbackResult.records[0];
     }
@@ -168,6 +201,17 @@ export class CloningService {
         continue;
       }
       
+      // Skip relationship fields
+      if (sourceField.name.endsWith('__r')) {
+        continue;
+      }
+      
+      // Skip fields that are references/lookups (detected by type)
+      if (sourceField.type === 'reference' && sourceField.name !== 'OwnerId' && sourceField.name !== 'RecordTypeId') {
+        // Skip most reference fields except standard ones like OwnerId
+        continue;
+      }
+      
       // Try exact match first
       if (targetFieldNames.has(sourceField.name)) {
         fieldMap.set(sourceField.name, sourceField.name);
@@ -198,7 +242,8 @@ export class CloningService {
   private static async mapFields(sourceRecord: any, fieldMap: Map<string, string>, targetClient: Connection): Promise<any> {
     const targetRecord: any = {};
     
-    for (const [sourceField, targetField] of fieldMap) {
+    // First, process all fields from the source record
+    for (const sourceField of Object.keys(sourceRecord)) {
       const value = sourceRecord[sourceField];
       
       // Skip null/undefined values
@@ -211,15 +256,28 @@ export class CloningService {
         continue;
       }
       
-      // Handle lookup fields - they need special treatment
-      if (sourceField.endsWith('__c') && typeof value === 'string' && value.startsWith('a')) {
-        // This is likely a custom object reference
-        // For now, we'll skip it as it would need to be mapped to the target org's ID
-        // In a full implementation, we'd need to look up the target record by external ID
+      // Skip system fields
+      if (this.isSystemField(sourceField)) {
         continue;
       }
       
-      targetRecord[targetField] = value;
+      // Handle lookup fields - they need special treatment
+      if (sourceField.endsWith('__c') && typeof value === 'string' && value.match(/^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/)) {
+        // This is likely a custom object reference (Salesforce ID format)
+        // Custom objects in Salesforce start with 'a' followed by alphanumeric characters
+        if (value.toLowerCase().startsWith('a')) {
+          // This is a custom object reference
+          // Skip it as it would need to be mapped to the target org's ID
+          continue;
+        }
+      }
+      
+      // Check if we have a mapping for this field
+      if (fieldMap.has(sourceField)) {
+        const targetField = fieldMap.get(sourceField)!;
+        targetRecord[targetField] = value;
+      }
+      // If no mapping exists but the field name exists in the source, we've already skipped it in the field mapping
     }
     
     return targetRecord;
@@ -232,8 +290,11 @@ export class CloningService {
     const systemFields = [
       'Id', 'CreatedDate', 'CreatedById', 'LastModifiedDate', 'LastModifiedById',
       'SystemModstamp', 'IsDeleted', 'LastActivityDate', 'LastViewedDate',
-      'LastReferencedDate', 'OwnerId', 'RecordTypeId'
+      'LastReferencedDate', 'OwnerId'
     ];
+    
+    // Note: RecordTypeId is removed from system fields as it might need to be copied
+    // in some scenarios, but we'll handle it separately if needed
     
     return systemFields.includes(fieldName);
   }
@@ -248,7 +309,7 @@ export class CloningService {
     }
     
     // If it already has a namespace prefix, return as is
-    const prefixMatch = fieldName.match(/^([a-zA-Z0-9]+)__/);
+    const prefixMatch = fieldName.match(/^[a-zA-Z0-9]+_[a-zA-Z0-9]+__/);
     if (prefixMatch) {
       return fieldName;
     }
@@ -271,8 +332,8 @@ export class CloningService {
    * Get unmanaged field name from managed field name
    */
   private static getUnmanagedFieldName(fieldName: string): string {
-    // Remove namespace prefix if present
-    const prefixMatch = fieldName.match(/^[a-zA-Z0-9]+__(.+)$/);
+    // Remove namespace prefix if present (e.g., tc9_pr__Field__c -> Field__c)
+    const prefixMatch = fieldName.match(/^[a-zA-Z0-9]+_[a-zA-Z0-9]+__(.+)$/);
     if (prefixMatch) {
       return prefixMatch[1];
     }
