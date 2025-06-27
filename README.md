@@ -13,6 +13,7 @@ with prebuilt migration templates.
 - **Multi-org Support**: Connect and manage multiple Salesforce organisations
 - **Migration Templates**: Pre-built templates for common migration scenarios
 - **Audit Trail**: Complete logging and reporting of migration activities
+- **Feedback System**: Built-in feedback with file attachments support for bug reports and feature requests
 
 ## 🔧 Technology Stack
 
