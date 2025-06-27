@@ -15,7 +15,8 @@ FROM base AS builder
 WORKDIR /app
 
 # Install OpenSSL for Prisma
-RUN apt-get update -y && apt-get install -y openssl && apt-get clean
+# Try apk first (Alpine), fallback to apt-get if needed
+RUN (apk add --no-cache openssl || (apt-get update -y && apt-get install -y openssl && apt-get clean))
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
