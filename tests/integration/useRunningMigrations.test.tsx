@@ -14,7 +14,7 @@ describe('useRunningMigrations Hook - Issue #110 Integration Tests', () => {
           retry: false,
           refetchOnWindowFocus: false,
           staleTime: 0,
-          cacheTime: 0,
+          gcTime: 0,
         },
       },
     });
