@@ -3,10 +3,7 @@ import * as Sentry from '@sentry/nextjs';
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('../sentry.server.config');
-    
-    // Initialize app (including token refresh scheduler)
-    const { initializeApp } = await import('./lib/startup');
-    await initializeApp();
+    // App initialization moved to /api/init to avoid module resolution issues
   }
 
   if (process.env.NEXT_RUNTIME === 'edge') {
