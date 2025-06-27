@@ -139,6 +139,7 @@
         "jest-environment-puppeteer": "^11.0.0",
         "jest-image-snapshot": "^6.5.1",
         "jest-puppeteer": "^11.0.0",
+        "msw": "^2.10.2",
         "node-fetch": "^2.7.0",
         "postcss": "^8.4.47",
         "prisma": "^6.10.1",
