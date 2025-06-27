@@ -16,10 +16,17 @@ export async function initializeApp() {
     return;
   }
 
+  // Skip initialization during instrumentation phase
+  if (process.env.NEXT_RUNTIME === 'nodejs' && !(global as any).__app_initialized) {
+    console.log('⚠️ Deferring app initialization during instrumentation phase');
+    return;
+  }
+
   console.log('🚀 Initializing application...');
   
-  // Start the token refresh scheduler asynchronously to not block startup
-  setImmediate(async () => {
+  // Defer token refresh scheduler to avoid instrumentation phase issues
+  // Use a longer delay to ensure Next.js is fully initialized
+  setTimeout(async () => {
     try {
       // Dynamically import TokenManager to avoid client-side bundling
       const { TokenManager } = await import('./salesforce/token-manager');
@@ -29,14 +36,16 @@ export async function initializeApp() {
     } catch (error) {
       console.error('❌ Failed to start token refresh scheduler:', error);
     }
-  });
+  }, 5000); // 5 second delay to ensure proper initialization
   
   isInitialized = true;
+  (global as any).__app_initialized = true;
   console.log('✅ Application initialized successfully');
 }
 
 // Auto-initialize on module load (server startup)
 // Only runs once when the module is first loaded
-if (typeof window === 'undefined') {
+// Deferred to avoid instrumentation phase issues
+if (typeof window === 'undefined' && process.env.NEXT_RUNTIME !== 'nodejs') {
   initializeApp();
 } 
