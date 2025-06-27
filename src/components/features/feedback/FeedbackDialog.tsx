@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Paperclip, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface FeedbackDialogProps {
@@ -28,10 +28,16 @@ interface FeedbackDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// File upload constraints
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_FILE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "text/plain", "application/pdf"];
+const MAX_FILES = 3;
+
 export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const [session, setSession] = useState<any>(null);
   const [type, setType] = useState<string>("bug");
   const [message, setMessage] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -53,6 +59,45 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     }
   }, [open]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    files.forEach((file) => {
+      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+        errors.push(`${file.name}: File type not allowed`);
+      } else if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name}: File too large (max 5MB)`);
+      } else if (attachments.length + validFiles.length >= MAX_FILES) {
+        errors.push(`Maximum ${MAX_FILES} files allowed`);
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    if (errors.length > 0) {
+      setError(errors.join(", "));
+    } else {
+      setError(null);
+    }
+
+    setAttachments([...attachments, ...validFiles]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -65,6 +110,16 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     setError(null);
 
     try {
+      // Convert attachments to base64
+      const attachmentData = await Promise.all(
+        attachments.map(async (file) => ({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: await fileToBase64(file),
+        }))
+      );
+
       const response = await fetch("/api/feedback", {
         method: "POST",
         headers: {
@@ -75,6 +130,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
           message,
           url: window.location.href,
           userAgent: navigator.userAgent,
+          attachments: attachmentData,
         }),
       });
 
@@ -87,6 +143,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       setSuccess(true);
       setMessage("");
       setType("bug");
+      setAttachments([]);
 
       // Close dialog after a short delay
       setTimeout(() => {
@@ -112,6 +169,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
         setType("bug");
         setError(null);
         setSuccess(false);
+        setAttachments([]);
       }, 300);
     }
   };
@@ -175,6 +233,61 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                   disabled={submitting}
                   className="min-h-[120px] resize-none"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="attachments">Attachments (optional)</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={submitting || attachments.length >= MAX_FILES}
+                      onClick={() => document.getElementById("file-input")?.click()}
+                    >
+                      <Paperclip className="h-4 w-4 mr-2" />
+                      Add Files
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Max {MAX_FILES} files, 5MB each
+                    </span>
+                  </div>
+                  <input
+                    id="file-input"
+                    type="file"
+                    multiple
+                    accept={ALLOWED_FILE_TYPES.join(",")}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={submitting}
+                  />
+                  {attachments.length > 0 && (
+                    <div className="space-y-1">
+                      {attachments.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 text-sm bg-muted rounded-md"
+                        >
+                          <span className="truncate flex-1">{file.name}</span>
+                          <span className="text-xs text-muted-foreground mx-2">
+                            {(file.size / 1024).toFixed(1)}KB
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => removeAttachment(index)}
+                            disabled={submitting}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {error && (
