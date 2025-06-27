@@ -6,6 +6,7 @@
             "dom.iterable",
             "es6"
         ],
+        "types": ["jest", "@testing-library/jest-dom"],
         "allowJs": true,
         "skipLibCheck": true,
         "strict": true,
@@ -17,6 +18,7 @@
         "isolatedModules": true,
         "jsx": "preserve",
         "incremental": true,
+        "downlevelIteration": true,
         "plugins": [
             {
                 "name": "next"
@@ -48,10 +50,12 @@
         "next-env.d.ts",
         "**/*.ts",
         "**/*.tsx",
-        ".next/types/**/*.ts"
+        ".next/types/**/*.ts",
+        "tests/jest-dom.d.ts"
     ],
     "exclude": [
         "node_modules",
-        "tests/unit/usage-tracker.test.ts"
+        "tests/unit/usage-tracker.test.ts",
+        "tests/unit/components/MigrationProjectBuilder.bun.test.tsx"
     ]
 }

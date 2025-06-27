@@ -3,11 +3,12 @@
 import React from 'react';
 import { ValidationIssue } from '@/lib/migration/templates/core/interfaces';
 import { ValidationFormatter } from '@/lib/migration/templates/core/validation-formatter';
-import { AlertCircle, AlertTriangle, Info, ExternalLink, ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Info, ExternalLink, ChevronDown, ChevronRight, Users, Copy, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+// import { useToast } from '@/components/ui/use-toast';
 
 interface EnhancedValidationReportProps {
     errors: any[];
@@ -15,6 +16,9 @@ interface EnhancedValidationReportProps {
     info: any[];
     sourceOrgName?: string;
     targetOrgName?: string;
+    sourceOrgId?: string;
+    targetOrgId?: string;
+    onRevalidate?: () => void;
     selectedRecords?: string[];
     interpretationRuleNames?: Record<string, string>; // Map of rule ID to name
 }
@@ -25,11 +29,16 @@ export function EnhancedValidationReport({
     info,
     sourceOrgName = 'Source Org',
     targetOrgName = 'Target Org',
+    sourceOrgId,
+    targetOrgId,
+    onRevalidate,
     selectedRecords = [],
     interpretationRuleNames = {},
 }: EnhancedValidationReportProps) {
     const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
     const [expandedRecords, setExpandedRecords] = React.useState<Set<string>>(new Set());
+    const [cloningRecords, setCloningRecords] = React.useState<Set<string>>(new Set());
+    // const { toast } = useToast();
     
     // Convert string to title case
     const toTitleCase = (str: string) => {
@@ -82,6 +91,91 @@ export function EnhancedValidationReport({
             newExpanded.add(recordName);
         }
         setExpandedRecords(newExpanded);
+    };
+    
+    const canShowCloneButton = (issue: any) => {
+        if (!sourceOrgId || !targetOrgId) return false;
+        
+        const isPayCodeError = issue.checkName === 'Missing Pay Code Reference' || 
+            (issue.message?.includes('Pay Code') && issue.message?.includes('missing from target org'));
+        const isLeaveRuleError = issue.checkName === 'Missing Leave Rule' || 
+            (issue.message?.includes('Leave Rule') && issue.message?.includes('missing from target org'));
+        
+        const hasExternalId = issue.context?.missingTargetExternalId || 
+            issue.message?.match(/external id: ([^)]+)\)/)?.[1];
+        
+        return (isPayCodeError || isLeaveRuleError) && hasExternalId;
+    };
+    
+    const handleCloneRecord = async (issue: any) => {
+        // Extract the external ID from the issue
+        const externalId = issue.context?.missingTargetExternalId || 
+            issue.message?.match(/external id: ([^)]+)\)/)?.[1];
+        
+        if (!externalId || !sourceOrgId || !targetOrgId) {
+            // toast({
+            //     title: "Error",
+            //     description: "Missing required information for cloning",
+            //     variant: "destructive"
+            // });
+            console.error("Missing required information for cloning");
+            return;
+        }
+        
+        const recordKey = `${issue.checkName}-${externalId}`;
+        setCloningRecords(prev => new Set(Array.from(prev).concat(recordKey)));
+        
+        try {
+            const isPayCode = issue.checkName === 'Missing Pay Code Reference' || 
+                issue.context?.targetObject === 'tc9_pr__Pay_Code__c';
+            const isLeaveRule = issue.checkName === 'Missing Leave Rule' || 
+                issue.context?.targetObject === 'tc9_pr__Leave_Rule__c';
+            
+            const endpoint = isPayCode 
+                ? '/api/migrations/clone-pay-code'
+                : '/api/migrations/clone-leave-rule';
+            
+            const body = isPayCode
+                ? { sourceOrgId, targetOrgId, payCodeId: externalId }
+                : { sourceOrgId, targetOrgId, leaveRuleId: externalId };
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // toast({
+                //     title: "Success",
+                //     description: data.message || `${isPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`,
+                // });
+                console.log(data.message || `${isPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`);
+                
+                // Trigger re-validation
+                if (onRevalidate) {
+                    onRevalidate();
+                }
+            } else {
+                throw new Error(data.error || 'Clone operation failed');
+            }
+        } catch (error) {
+            console.error('Clone error:', error);
+            // toast({
+            //     title: "Error",
+            //     description: error instanceof Error ? error.message : 'Failed to clone record',
+            //     variant: "destructive"
+            // });
+            console.error(error instanceof Error ? error.message : 'Failed to clone record');
+        } finally {
+            setCloningRecords(prev => {
+                const next = new Set(prev);
+                next.delete(recordKey);
+                return next;
+            });
+        }
     };
     
     const renderIssueGroup = (
@@ -154,6 +248,31 @@ export function EnhancedValidationReport({
                                     <div className="mt-3 text-sm text-gray-600">
                                         <strong>Suggested Action: </strong>
                                         {exampleIssue.suggestedAction || exampleIssue.suggestion}
+                                    </div>
+                                )}
+                                
+                                {/* Clone button for missing pay codes and leave rules */}
+                                {canShowCloneButton(exampleIssue) && (
+                                    <div className="mt-3">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleCloneRecord(exampleIssue)}
+                                            disabled={cloningRecords.has(`${exampleIssue.checkName}-${exampleIssue.context?.missingTargetExternalId || exampleIssue.message?.match(/external id: ([^)]+)\)/)?.[1]}`)}
+                                            className="text-xs"
+                                        >
+                                            {cloningRecords.has(`${exampleIssue.checkName}-${exampleIssue.context?.missingTargetExternalId || exampleIssue.message?.match(/external id: ([^)]+)\)/)?.[1]}`) ? (
+                                                <>
+                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                    Cloning...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Copy className="h-3 w-3 mr-1" />
+                                                    Clone from source
+                                                </>
+                                            )}
+                                        </Button>
                                     </div>
                                 )}
                             </div>

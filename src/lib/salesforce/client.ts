@@ -364,6 +364,25 @@ export class SalesforceClient {
     }
   }
 
+  async create(objectName: string, record: any) {
+    try {
+      const result = await withTokenRefresh(
+        this,
+        async () => await this.connection.sobject(objectName).create(record),
+        `create ${objectName} record`
+      );
+      return {
+        success: true,
+        data: result
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Create failed'
+      };
+    }
+  }
+
   async bulkInsert(objectName: string, records: any[]) {
     try {
       console.log(`Starting bulk insert for ${objectName} with ${records.length} records`);
