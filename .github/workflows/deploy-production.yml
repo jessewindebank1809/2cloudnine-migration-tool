@@ -35,7 +35,7 @@ jobs:
 
       - name: Setup Bun (if no artifacts)
         if: steps.download-artifacts.outcome == 'failure'
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
@@ -43,14 +43,14 @@ jobs:
         if: steps.download-artifacts.outcome == 'failure'
         run: |
           echo "🔄 Installing dependencies with Bun..."
-          bun install --frozen-lockfile
+          bun install
           echo "✅ Dependencies installed"
 
       - name: Generate Prisma client (if no artifacts)
         if: steps.download-artifacts.outcome == 'failure'
         run: |
           echo "🔄 Generating Prisma client..."
-          bun run prisma generate
+          bun prisma generate
           echo "✅ Prisma client generated"
 
       - name: Build application (if no artifacts)
