@@ -32,8 +32,8 @@ RUN bun run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Install OpenSSL for Prisma compatibility
-RUN apk add --no-cache openssl
+# Install OpenSSL for Prisma compatibility and Node/npm for migrations
+RUN apk add --no-cache openssl nodejs npm
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -54,7 +54,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+
+# Install Prisma CLI for migrations (as root before switching to nextjs user)
+RUN npm install -g prisma@6.10.1
 
 USER nextjs
 

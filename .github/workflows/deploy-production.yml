@@ -159,7 +159,7 @@ jobs:
           while [ $attempt -le $max_attempts ]; do
             echo "📊 Migration attempt $attempt/$max_attempts..."
             
-            if flyctl ssh console --app tc9-migration-tool -C "sh -c 'cd /app && node node_modules/prisma/build/index.js migrate deploy'"; then
+            if flyctl ssh console --app tc9-migration-tool -C "sh -c 'cd /app && prisma migrate deploy'"; then
               echo "✅ Database migrations completed successfully"
               break
             else
