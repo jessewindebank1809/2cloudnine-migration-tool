@@ -13,6 +13,10 @@ RUN bun install --frozen-lockfile
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl && apt-get clean
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
