@@ -1,28 +1,3 @@
-// Mock Prisma client before any imports
-jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn().mockImplementation(() => ({
-    organisations: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    migrations: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    migration_sessions: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    $disconnect: jest.fn(),
-  })),
-}));
-
 import { NextRequest, NextResponse } from 'next/server';
 import { CloningService } from '@/lib/migration/cloning-service';
 import { sessionManager } from '@/lib/salesforce/session-manager';

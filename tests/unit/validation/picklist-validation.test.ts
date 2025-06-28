@@ -1,28 +1,3 @@
-// Mock Prisma client before any imports
-jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn().mockImplementation(() => ({
-    organisations: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    migrations: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    migration_sessions: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    $disconnect: jest.fn(),
-  })),
-}));
-
 import { ValidationEngine } from '@/lib/migration/templates/core/validation-engine';
 import { SalesforceClient } from '@/lib/salesforce/client';
 import { sessionManager } from '@/lib/salesforce/session-manager';

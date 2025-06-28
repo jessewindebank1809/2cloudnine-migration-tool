@@ -1,5 +1,30 @@
 require("@testing-library/jest-dom");
 
+// Mock Prisma Client globally before any test runs
+jest.mock('@prisma/client', () => ({
+  PrismaClient: jest.fn().mockImplementation(() => ({
+    organisations: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    migrations: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    migration_sessions: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    $disconnect: jest.fn(),
+  })),
+}));
+
 // Polyfill setImmediate for Node.js compatibility
 if (typeof setImmediate === "undefined") {
   global.setImmediate = (callback, ...args) => {
