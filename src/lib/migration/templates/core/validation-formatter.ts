@@ -96,9 +96,9 @@ export class ValidationFormatter {
             }
             
             if (missingTargetName && missingTargetExternalId) {
-                return `${objectTypeName} (name: ${missingTargetName}, external id: ${missingTargetExternalId}) is missing from target org referenced by ${sourceObjectType} (name: '${issue.recordName}')`;
+                return `${objectTypeName} (name: ${missingTargetName}, external id: ${missingTargetExternalId}) is missing from target org`;
             } else if (missingTargetExternalId) {
-                return `${objectTypeName} (external id: ${missingTargetExternalId}) is missing from target org referenced by ${sourceObjectType} (name: '${issue.recordName}')`;
+                return `${objectTypeName} (external id: ${missingTargetExternalId}) is missing from target org`;
             } else {
                 // Fallback to original format
                 const ref = issue.message.match(/'([^']+)'/)?.[1] || "null";
