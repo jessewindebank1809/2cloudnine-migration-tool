@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
-import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw, ExternalLink } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -992,8 +992,12 @@ export function MigrationProjectBuilder() {
                     info={validationResult.issues.filter(issue => issue.severity === 'info')}
                     sourceOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.sourceOrgId)?.name}
                     targetOrgName={connectedOrgs.find((org: Organisation) => org.id === projectData.targetOrgId)?.name}
+                    sourceOrgId={projectData.sourceOrgId}
+                    targetOrgId={projectData.targetOrgId}
+                    onRevalidate={handleValidate}
                     selectedRecords={projectData.selectedRecords}
                     interpretationRuleNames={validationResult.selectedRecordNames || projectData.selectedRecordNames}
+                    isValidating={validateMigration.isPending || currentOperation === 'validating'}
                   />
 
                   {/* Connection Error Action Button */}
@@ -1361,7 +1365,14 @@ export function MigrationProjectBuilder() {
                   className={hasRunningMigration ? 'opacity-50 cursor-not-allowed' : ''}
                   title={hasRunningMigration ? 'Cannot start new migration while another is in progress' : 'Create a new migration'}
                 >
-                  New Migration
+                  {hasRunningMigration ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Migration in Progress
+                    </>
+                  ) : (
+                    'New Migration'
+                  )}
                 </Button>
               </>
             )}
