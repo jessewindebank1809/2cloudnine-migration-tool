@@ -40,6 +40,9 @@ export function EnhancedValidationReport({
     const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
     const [expandedRecords, setExpandedRecords] = React.useState<Set<string>>(new Set());
     const [cloningRecords, setCloningRecords] = React.useState<Set<string>>(new Set());
+    const [clonedSuccessfully, setClonedSuccessfully] = React.useState<Set<string>>(new Set());
+    const [cloneErrors, setCloneErrors] = React.useState<Map<string, string>>(new Map());
+    const [showSuccessMessage, setShowSuccessMessage] = React.useState<string | null>(null);
     // const { toast } = useToast();
     
     // Convert string to title case
@@ -98,21 +101,23 @@ export function EnhancedValidationReport({
     const canShowCloneButton = (issue: any) => {
         if (!sourceOrgId || !targetOrgId) return false;
         
+        const messageText = issue.message || issue.description || '';
         const isPayCodeError = issue.checkName === 'Missing Pay Code Reference' || 
-            (issue.message?.includes('Pay Code') && issue.message?.includes('missing from target org'));
+            (messageText.includes('Pay Code') && messageText.includes('is missing from target org'));
         const isLeaveRuleError = issue.checkName === 'Missing Leave Rule' || 
-            (issue.message?.includes('Leave Rule') && issue.message?.includes('missing from target org'));
+            (messageText.includes('Leave Rule') && messageText.includes('is missing from target org'));
         
         const hasExternalId = issue.context?.missingTargetExternalId || 
-            issue.message?.match(/external id: ([^)]+)\)/)?.[1];
+            messageText.match(/external id: ([^)]+)\)/)?.[1];
         
         return (isPayCodeError || isLeaveRuleError) && hasExternalId;
     };
     
     const handleCloneRecord = async (issue: any) => {
         // Extract the external ID from the issue
+        const messageText = issue.message || issue.description || '';
         const externalId = issue.context?.missingTargetExternalId || 
-            issue.message?.match(/external id: ([^)]+)\)/)?.[1];
+            messageText.match(/external id: ([^)]+)\)/)?.[1];
         
         if (!externalId || !sourceOrgId || !targetOrgId) {
             // toast({
@@ -128,10 +133,29 @@ export function EnhancedValidationReport({
         setCloningRecords(prev => new Set(Array.from(prev).concat(recordKey)));
         
         try {
-            const isPayCode = issue.checkName === 'Missing Pay Code Reference' || 
-                issue.context?.targetObject === 'tc9_pr__Pay_Code__c';
-            const isLeaveRule = issue.checkName === 'Missing Leave Rule' || 
-                issue.context?.targetObject === 'tc9_pr__Leave_Rule__c';
+            // Determine the object type from context first, then fall back to check name
+            let isPayCode = false;
+            let isLeaveRule = false;
+            
+            if (issue.context?.targetObject) {
+                isPayCode = issue.context.targetObject === 'tc9_pr__Pay_Code__c';
+                isLeaveRule = issue.context.targetObject === 'tc9_pr__Leave_Rule__c';
+            } else {
+                // Fall back to check name or message content
+                isPayCode = issue.checkName === 'Missing Pay Code Reference' || 
+                    (messageText.includes('Pay Code') && !messageText.includes('Leave'));
+                isLeaveRule = issue.checkName === 'Missing Leave Rule' || 
+                    messageText.includes('Leave Rule');
+            }
+            
+            console.log('Clone detection:', { 
+                checkName: issue.checkName,
+                targetObject: issue.context?.targetObject,
+                messageText,
+                isPayCode,
+                isLeaveRule,
+                externalId 
+            });
             
             const endpoint = isPayCode 
                 ? '/api/migrations/clone-pay-code'
@@ -150,27 +174,53 @@ export function EnhancedValidationReport({
             const data = await response.json();
             
             if (response.ok && data.success) {
-                // toast({
-                //     title: "Success",
-                //     description: data.message || `${isPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`,
-                // });
-                console.log(data.message || `${isPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`);
+                // Check if it already existed
+                const alreadyExisted = data.message && data.message.includes('already exists');
                 
-                // Trigger re-validation
-                if (onRevalidate) {
-                    onRevalidate();
+                if (alreadyExisted) {
+                    // Show different message for already existing records
+                    const infoMsg = `${isPayCode ? 'Pay code' : 'Leave rule'} already exists in target org (ID: ${data.recordId})`;
+                    setShowSuccessMessage(infoMsg);
+                    console.log(infoMsg);
+                    
+                    // Mark as successfully handled (even though it already existed)
+                    setClonedSuccessfully(prev => new Set(Array.from(prev).concat(recordKey)));
+                } else {
+                    // Mark as successfully cloned
+                    setClonedSuccessfully(prev => new Set(Array.from(prev).concat(recordKey)));
+                    
+                    // Show success message
+                    const successMsg = data.message || `${isPayCode ? 'Pay code' : 'Leave rule'} cloned successfully`;
+                    setShowSuccessMessage(successMsg);
+                    console.log(successMsg);
                 }
+                
+                // Clear success message after 3 seconds
+                setTimeout(() => setShowSuccessMessage(null), 3000);
+                
+                // Don't trigger re-validation immediately - let user click retry button
             } else {
                 throw new Error(data.error || 'Clone operation failed');
             }
         } catch (error) {
             console.error('Clone error:', error);
-            // toast({
-            //     title: "Error",
-            //     description: error instanceof Error ? error.message : 'Failed to clone record',
-            //     variant: "destructive"
-            // });
-            console.error(error instanceof Error ? error.message : 'Failed to clone record');
+            const errorMsg = error instanceof Error ? error.message : 'Failed to clone record';
+            
+            // Store the error for this record
+            setCloneErrors(prev => {
+                const next = new Map(prev);
+                next.set(recordKey, errorMsg);
+                return next;
+            });
+            
+            // Clear error after 5 seconds
+            setTimeout(() => {
+                setCloneErrors(prev => {
+                    const next = new Map(prev);
+                    next.delete(recordKey);
+                    return next;
+                });
+            }, 5000);
         } finally {
             setCloningRecords(prev => {
                 const next = new Set(prev);
@@ -254,29 +304,50 @@ export function EnhancedValidationReport({
                                 )}
                                 
                                 {/* Clone button for missing pay codes and leave rules */}
-                                {canShowCloneButton(exampleIssue) && (
-                                    <div className="mt-3">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleCloneRecord(exampleIssue)}
-                                            disabled={cloningRecords.has(`${exampleIssue.checkName}-${exampleIssue.context?.missingTargetExternalId || exampleIssue.message?.match(/external id: ([^)]+)\)/)?.[1]}`)}
-                                            className="text-xs"
-                                        >
-                                            {cloningRecords.has(`${exampleIssue.checkName}-${exampleIssue.context?.missingTargetExternalId || exampleIssue.message?.match(/external id: ([^)]+)\)/)?.[1]}`) ? (
-                                                <>
-                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                    Cloning...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Copy className="h-3 w-3 mr-1" />
-                                                    Clone from source
-                                                </>
+                                {canShowCloneButton(exampleIssue) && (() => {
+                                    const externalId = exampleIssue.context?.missingTargetExternalId || 
+                                        (exampleIssue.message || exampleIssue.description || '').match(/external id: ([^)]+)\)/)?.[1];
+                                    const recordKey = `${exampleIssue.checkName}-${externalId}`;
+                                    const isCloning = cloningRecords.has(recordKey);
+                                    const isCloned = clonedSuccessfully.has(recordKey);
+                                    
+                                    const hasError = cloneErrors.has(recordKey);
+                                    const errorMessage = cloneErrors.get(recordKey);
+                                    
+                                    return (
+                                        <div className="mt-3 space-y-2">
+                                            <Button
+                                                size="sm"
+                                                variant={isCloned ? "secondary" : hasError ? "destructive" : "outline"}
+                                                onClick={() => handleCloneRecord(exampleIssue)}
+                                                disabled={isCloning || isCloned}
+                                                className={`text-xs ${isCloned ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-50' : ''}`}
+                                            >
+                                                {isCloning ? (
+                                                    <>
+                                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                        Cloning...
+                                                    </>
+                                                ) : isCloned ? (
+                                                    <>
+                                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                        Cloned successfully
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Copy className="h-3 w-3 mr-1" />
+                                                        Clone from source
+                                                    </>
+                                                )}
+                                            </Button>
+                                            {hasError && errorMessage && (
+                                                <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                                                    <strong>Clone failed:</strong> {errorMessage}
+                                                </div>
                                             )}
-                                        </Button>
-                                    </div>
-                                )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                         
@@ -366,6 +437,16 @@ export function EnhancedValidationReport({
                     <p>Target: <span className="font-medium">{toTitleCase(targetOrgName)}</span></p>
                 </div>
             </div>
+            
+            {/* Success message */}
+            {showSuccessMessage && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span className="text-sm text-green-700 font-medium">{showSuccessMessage}</span>
+                    </div>
+                </div>
+            )}
             
             {renderIssueSection('Errors', errors, 'error')}
             {renderIssueSection('Warnings', warnings, 'warning')}

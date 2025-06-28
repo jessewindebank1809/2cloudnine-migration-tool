@@ -326,15 +326,23 @@ function ValidationIssueCard({ issue, sourceOrgId, targetOrgId, onCloneSuccess }
   // const { toast } = useToast();
   
   // Check if this is a missing pay code or leave rule error
-  const isMissingPayCode = issue.checkName === 'Missing Pay Code Reference' && 
-    issue.context?.targetObject === 'tc9_pr__Pay_Code__c';
-  const isMissingLeaveRule = issue.checkName === 'Missing Leave Rule' && 
-    issue.context?.targetObject === 'tc9_pr__Leave_Rule__c';
+  const messageText = issue.message || '';
+  const isMissingPayCode = (issue.checkName === 'Missing Pay Code Reference' || 
+    (messageText.includes('Pay Code') && messageText.includes('is missing from target org'))) && 
+    (issue.context?.targetObject === 'tc9_pr__Pay_Code__c' || messageText.includes('Pay Code'));
+  const isMissingLeaveRule = (issue.checkName === 'Missing Leave Rule' || 
+    (messageText.includes('Leave Rule') && messageText.includes('is missing from target org'))) && 
+    (issue.context?.targetObject === 'tc9_pr__Leave_Rule__c' || messageText.includes('Leave Rule'));
+  
+  // Extract external ID from context or message
+  const externalIdFromMessage = messageText.match(/external id: ([^)]+)\)/)?.[1];
+  const externalId = issue.context?.missingTargetExternalId || externalIdFromMessage;
+  
   const canClone = (isMissingPayCode || isMissingLeaveRule) && 
-    sourceOrgId && targetOrgId && issue.context?.missingTargetExternalId;
+    sourceOrgId && targetOrgId && externalId;
   
   const handleClone = async () => {
-    if (!canClone || !issue.context?.missingTargetExternalId) return;
+    if (!canClone || !externalId) return;
     
     setIsCloning(true);
     
@@ -344,8 +352,8 @@ function ValidationIssueCard({ issue, sourceOrgId, targetOrgId, onCloneSuccess }
         : '/api/migrations/clone-leave-rule';
       
       const body = isMissingPayCode
-        ? { sourceOrgId, targetOrgId, payCodeId: issue.context.missingTargetExternalId }
-        : { sourceOrgId, targetOrgId, leaveRuleId: issue.context.missingTargetExternalId };
+        ? { sourceOrgId, targetOrgId, payCodeId: externalId }
+        : { sourceOrgId, targetOrgId, leaveRuleId: externalId };
       
       const response = await fetch(endpoint, {
         method: 'POST',
