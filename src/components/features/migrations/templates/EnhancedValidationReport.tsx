@@ -3,7 +3,7 @@
 import React from 'react';
 import { ValidationIssue } from '@/lib/migration/templates/core/interfaces';
 import { ValidationFormatter } from '@/lib/migration/templates/core/validation-formatter';
-import { AlertCircle, AlertTriangle, Info, ExternalLink, ChevronDown, ChevronRight, Users, Copy, Loader2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Info, ExternalLink, ChevronDown, ChevronRight, Users, Copy, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ interface EnhancedValidationReportProps {
     onRevalidate?: () => void;
     selectedRecords?: string[];
     interpretationRuleNames?: Record<string, string>; // Map of rule ID to name
+    isValidating?: boolean;
 }
 
 export function EnhancedValidationReport({
@@ -34,6 +35,7 @@ export function EnhancedValidationReport({
     onRevalidate,
     selectedRecords = [],
     interpretationRuleNames = {},
+    isValidating = false,
 }: EnhancedValidationReportProps) {
     const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
     const [expandedRecords, setExpandedRecords] = React.useState<Set<string>>(new Set());
@@ -369,6 +371,29 @@ export function EnhancedValidationReport({
             {renderIssueSection('Warnings', warnings, 'warning')}
             {renderIssueSection('Information', info, 'info')}
             
+            {/* Retry Validation button */}
+            {onRevalidate && (errors.length > 0 || warnings.length > 0) && (
+                <div className="flex justify-end pt-4">
+                    <Button
+                        onClick={onRevalidate}
+                        variant="outline"
+                        disabled={isValidating}
+                        className="flex items-center gap-2"
+                    >
+                        {isValidating ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Validating...
+                            </>
+                        ) : (
+                            <>
+                                <RefreshCw className="h-4 w-4" />
+                                Retry Validation
+                            </>
+                        )}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }

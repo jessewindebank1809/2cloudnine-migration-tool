@@ -89,9 +89,18 @@ export function ValidationReport({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={onRevalidate} className="w-full">
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Run Validation
+          <Button onClick={onRevalidate} className="w-full" disabled={isValidating}>
+            {isValidating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Validating...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Run Validation
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -141,9 +150,18 @@ export function ValidationReport({
 
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onRevalidate}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Re-validate
+            <Button variant="outline" onClick={onRevalidate} disabled={isValidating}>
+              {isValidating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Validating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Re-validate
+                </>
+              )}
             </Button>
             
             {!hasBlockingIssues && canProceed && (
