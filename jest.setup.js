@@ -34,18 +34,32 @@ jest.mock("next/navigation", () => ({
 // Mock fetch globally
 global.fetch = jest.fn();
 
-// Global test setup for Request/Response APIs if in Node environment
-if (typeof window === "undefined") {
-  // Mock Web APIs for server tests
-  try {
-    const { Request, Response, Headers } = require("node-fetch");
-    global.Request = Request;
-    global.Response = Response;
-    global.Headers = Headers;
-  } catch (error) {
-    // Fallback if node-fetch is not available
-    console.warn("node-fetch not available for test environment");
-  }
+// Global test setup for Request/Response APIs
+// Always set up these globals for both server and client tests
+const { Request, Response, Headers } = require("node-fetch");
+if (!global.Request) {
+  global.Request = Request;
+}
+if (!global.Response) {
+  global.Response = Response;
+}
+if (!global.Headers) {
+  global.Headers = Headers;
+}
+
+// Also set up URL and URLSearchParams if not already available
+if (!global.URL) {
+  global.URL = require("url").URL;
+}
+if (!global.URLSearchParams) {
+  global.URLSearchParams = require("url").URLSearchParams;
+}
+
+// Add TextEncoder/TextDecoder for Node.js environment
+if (typeof TextEncoder === "undefined") {
+  const { TextEncoder, TextDecoder } = require("util");
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
 }
 
 // Clean up after each test

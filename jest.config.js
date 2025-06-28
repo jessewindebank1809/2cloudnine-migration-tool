@@ -13,11 +13,14 @@ const customJestConfig = {
   ],
   testPathIgnorePatterns: [
     "<rootDir>/node_modules/",
+    "<rootDir>/tests/unit/components/MigrationProjectBuilder.bun.test.tsx",
+    "<rootDir>/tests/e2e/puppeteer/",
     ...(process.env.CI ? ["<rootDir>/tests/e2e/"] : [])
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
-    "^@prisma/client$": "<rootDir>/__mocks__/@prisma/client.js"
+    "^@prisma/client$": "<rootDir>/__mocks__/@prisma/client.js",
+    "^lucide-react$": "<rootDir>/__mocks__/lucide-react.js"
   },
   modulePathIgnorePatterns: [
     "<rootDir>/.next/"
@@ -29,6 +32,9 @@ const customJestConfig = {
   transform: {
     "^.+\\.(js|jsx|ts|tsx)$": ["babel-jest", { presets: ["next/babel"] }]
   },
+  transformIgnorePatterns: [
+    "/node_modules/(?!(@radix-ui|@tanstack|@floating-ui)/)"
+  ],
   // Handle different environments for specific test types
   testEnvironment: "jest-environment-jsdom",
   collectCoverageFrom: [
