@@ -14,6 +14,7 @@ const customJestConfig = {
   testPathIgnorePatterns: [
     "<rootDir>/node_modules/",
     "<rootDir>/tests/unit/components/MigrationProjectBuilder.bun.test.tsx",
+    "<rootDir>/tests/e2e/puppeteer/",
     ...(process.env.CI ? ["<rootDir>/tests/e2e/"] : [])
   ],
   moduleNameMapper: {
