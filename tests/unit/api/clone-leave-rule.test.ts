@@ -6,7 +6,20 @@ import { CloningService } from '@/lib/migration/cloning-service';
 import { usageTracker } from '@/lib/usage-tracker';
 
 // Mock dependencies
-jest.mock('next/server');
+jest.mock('next/server', () => ({
+  NextRequest: jest.fn(),
+  NextResponse: {
+    json: (data: any, init?: ResponseInit) => {
+      return new Response(JSON.stringify(data), {
+        ...init,
+        headers: {
+          'content-type': 'application/json',
+          ...(init?.headers || {})
+        }
+      });
+    }
+  }
+}));
 jest.mock('@/lib/auth/session-helper');
 jest.mock('@/lib/migration/cloning-service');
 jest.mock('@/lib/usage-tracker');
