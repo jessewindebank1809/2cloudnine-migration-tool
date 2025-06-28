@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MigrationProjectList } from '@/components/features/migrations/MigrationProjectList';
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
@@ -39,8 +39,8 @@ export default function MigrationsPage() {
               disabled={true}
               title="Cannot start new migration while another is in progress"
             >
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Migration in Progress
+              <Plus className="mr-2 h-4 w-4" />
+              New Migration
             </Button>
           ) : (
             <Link href="/migrations/new">

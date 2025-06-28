@@ -89,18 +89,9 @@ export function ValidationReport({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={onRevalidate} className="w-full" disabled={isValidating}>
-            {isValidating ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Validating...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Run Validation
-              </>
-            )}
+          <Button onClick={onRevalidate} className="w-full">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Run Validation
           </Button>
         </CardContent>
       </Card>
@@ -150,18 +141,9 @@ export function ValidationReport({
 
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onRevalidate} disabled={isValidating}>
-              {isValidating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Validating...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Re-validate
-                </>
-              )}
+            <Button variant="outline" onClick={onRevalidate}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Re-validate
             </Button>
             
             {!hasBlockingIssues && canProceed && (
@@ -326,23 +308,15 @@ function ValidationIssueCard({ issue, sourceOrgId, targetOrgId, onCloneSuccess }
   // const { toast } = useToast();
   
   // Check if this is a missing pay code or leave rule error
-  const messageText = issue.message || '';
-  const isMissingPayCode = (issue.checkName === 'Missing Pay Code Reference' || 
-    (messageText.includes('Pay Code') && messageText.includes('is missing from target org'))) && 
-    (issue.context?.targetObject === 'tc9_pr__Pay_Code__c' || messageText.includes('Pay Code'));
-  const isMissingLeaveRule = (issue.checkName === 'Missing Leave Rule' || 
-    (messageText.includes('Leave Rule') && messageText.includes('is missing from target org'))) && 
-    (issue.context?.targetObject === 'tc9_pr__Leave_Rule__c' || messageText.includes('Leave Rule'));
-  
-  // Extract external ID from context or message
-  const externalIdFromMessage = messageText.match(/external id: ([^)]+)\)/)?.[1];
-  const externalId = issue.context?.missingTargetExternalId || externalIdFromMessage;
-  
+  const isMissingPayCode = issue.checkName === 'Missing Pay Code Reference' && 
+    issue.context?.targetObject === 'tc9_pr__Pay_Code__c';
+  const isMissingLeaveRule = issue.checkName === 'Missing Leave Rule' && 
+    issue.context?.targetObject === 'tc9_pr__Leave_Rule__c';
   const canClone = (isMissingPayCode || isMissingLeaveRule) && 
-    sourceOrgId && targetOrgId && externalId;
+    sourceOrgId && targetOrgId && issue.context?.missingTargetExternalId;
   
   const handleClone = async () => {
-    if (!canClone || !externalId) return;
+    if (!canClone || !issue.context?.missingTargetExternalId) return;
     
     setIsCloning(true);
     
@@ -352,8 +326,8 @@ function ValidationIssueCard({ issue, sourceOrgId, targetOrgId, onCloneSuccess }
         : '/api/migrations/clone-leave-rule';
       
       const body = isMissingPayCode
-        ? { sourceOrgId, targetOrgId, payCodeId: externalId }
-        : { sourceOrgId, targetOrgId, leaveRuleId: externalId };
+        ? { sourceOrgId, targetOrgId, payCodeId: issue.context.missingTargetExternalId }
+        : { sourceOrgId, targetOrgId, leaveRuleId: issue.context.missingTargetExternalId };
       
       const response = await fetch(endpoint, {
         method: 'POST',

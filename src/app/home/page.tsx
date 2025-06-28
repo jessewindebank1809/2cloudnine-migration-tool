@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Link from "next/link"
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
@@ -374,8 +374,10 @@ export default function HomePage() {
                     disabled={true}
                     title="Cannot start new migration while another is in progress"
                   >
-                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                    Migration in Progress
+                    <svg className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    Create Migration Project
                   </Button>
                 ) : (
                   <Link href="/migrations/new" className="block">
