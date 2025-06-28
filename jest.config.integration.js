@@ -15,7 +15,7 @@ const customJestConfig = {
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
-    "^@prisma/client$": "<rootDir>/__mocks__/@prisma/client.js"
+    "@prisma/client": "<rootDir>/__mocks__/@prisma/client.js"
   },
   modulePathIgnorePatterns: [
     "<rootDir>/.next/"
