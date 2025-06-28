@@ -76,7 +76,6 @@ export class CloningService {
       // Get field metadata for mapping
       const fieldMap = await this.getFieldMapping(sourceClient, targetClient, objectApiName);
       
-<<<<<<< HEAD
       console.log(`Field mapping for ${objectApiName}:`, {
         mappedFieldsCount: fieldMap.size,
         sourceFieldsCount: Object.keys(sourceRecord).length,
@@ -205,7 +204,6 @@ export class CloningService {
       
     } catch (error) {
       console.error('Error cloning record:', error);
-<<<<<<< HEAD
       
       // Extract meaningful error message
       let errorMessage = 'Unknown error occurred';
@@ -232,11 +230,6 @@ export class CloningService {
       return {
         success: false,
         error: errorMessage
-=======
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
->>>>>>> origin/main
       };
     }
   }
