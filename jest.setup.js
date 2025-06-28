@@ -62,6 +62,31 @@ if (typeof TextEncoder === "undefined") {
   global.TextDecoder = TextDecoder;
 }
 
+// Mock @prisma/client before any imports
+jest.mock('@prisma/client', () => ({
+  PrismaClient: jest.fn().mockImplementation(() => ({
+    organisations: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    migrations: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    migration_sessions: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    $disconnect: jest.fn(),
+  })),
+}));
+
 // Clean up after each test
 afterEach(() => {
   jest.clearAllMocks();

@@ -19,7 +19,6 @@ const customJestConfig = {
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
-    "^@prisma/client$": "<rootDir>/__mocks__/@prisma/client.js",
     "^lucide-react$": "<rootDir>/__mocks__/lucide-react.js"
   },
   modulePathIgnorePatterns: [
