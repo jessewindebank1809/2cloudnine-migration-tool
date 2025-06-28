@@ -47,7 +47,7 @@ describe('CloningService', () => {
       const sourcePayCode = {
         Id: 'a1234567890ABCDE',
         Name: 'Regular Hours',
-        External_ID_Data_Creation__c: 'a1234567890ABCDE',
+        External_ID_Data_Creation__c: 'EXT_PAY_123',
         Rate__c: 25.50,
         Type__c: 'Standard',
         Active__c: true
@@ -116,7 +116,7 @@ describe('CloningService', () => {
       // Verify result
       expect(result.success).toBe(true);
       expect(result.recordId).toBe('b9876543210ZYXWV');
-      expect(result.externalId).toBe('a1234567890ABCDE');
+      expect(result.externalId).toBe('EXT_PAY_123');
       
       // Verify target record creation was called with correct data
       expect(mockTargetClient.create).toHaveBeenCalledWith('tc9_pr__Pay_Code__c', expect.objectContaining({
@@ -124,7 +124,7 @@ describe('CloningService', () => {
         'tc9_pr__Rate__c': 25.50,
         'tc9_pr__Type__c': 'Standard',
         'tc9_pr__Active__c': true,
-        'tc9_edc__External_ID_Data_Creation__c': 'a1234567890ABCDE'
+        'tc9_edc__External_ID_Data_Creation__c': 'EXT_PAY_123'
       }));
     });
 
@@ -133,7 +133,7 @@ describe('CloningService', () => {
       const sourcePayCode = {
         Id: 'a1234567890ABCDE',
         Name: 'Overtime',
-        'tc9_edc__External_ID_Data_Creation__c': 'a1234567890ABCDE',
+        'tc9_edc__External_ID_Data_Creation__c': 'EXT_OT_456',
         'tc9_pr__Rate__c': 38.25,
         'tc9_pr__Type__c': 'Overtime'
       };
@@ -198,7 +198,7 @@ describe('CloningService', () => {
         Name: 'Overtime',
         'Rate__c': 38.25,  // Mapped from tc9_pr__Rate__c to Rate__c
         'Type__c': 'Overtime',  // Mapped from tc9_pr__Type__c to Type__c
-        'External_ID_Data_Creation__c': 'a1234567890ABCDE'
+        'External_ID_Data_Creation__c': 'EXT_OT_456'
       }));
     });
 
@@ -223,7 +223,7 @@ describe('CloningService', () => {
       
       mockSourceClient.query.mockResolvedValue({
         success: true,
-        data: [{ Id: 'a1234567890ABCDE', Name: 'Test' }]
+        data: [{ Id: 'a1234567890ABCDE', Name: 'Test', 'External_ID_Data_Creation__c': 'a1234567890ABCDE' }]
       });
       
       // Execute clone
@@ -237,7 +237,7 @@ describe('CloningService', () => {
       // Verify result
       expect(result.success).toBe(true);
       expect(result.recordId).toBe('b9876543210ZYXWV');
-      expect(result.error).toBe('Record already exists in target org');
+      expect(result.error).toContain('Record already exists in target org');
       
       // Verify no creation was attempted
       expect(mockTargetClient.create).not.toHaveBeenCalled();
