@@ -13,6 +13,7 @@ export class ValidationFormatter {
         overtimePayCodeExists: "Missing Overtime Pay Code",
         dailyPayCodeCapRecordExists: "Missing Daily Pay Code Cap",
         frequencyPayCodeCapRecordExists: "Missing Frequency Pay Code Cap",
+        dailyHoursBreakpointPayCodeNotNull: "Daily Hours Breakpoint Missing Pay Code",
         
         // External ID validations
         sourcePayCodeExternalIdValidation: "Pay Codes Missing External IDs",
