@@ -1,6 +1,7 @@
 import { templateRegistry } from "./core/template-registry";
 import { interpretationRulesTemplate } from "./definitions/payroll/interpretation-rules.template";
 import { payCodesTemplate } from "./definitions/payroll/pay-codes.template";
+import { leaveRulesTemplate } from "./definitions/payroll/leave-rules.template";
 // import { interpretationRulesTestTemplate } from "./definitions/payroll/interpretation-rules-test.template";
 
 // Track whether templates have been registered to avoid redundant calls
@@ -19,6 +20,7 @@ export function registerAllTemplates(): void {
         // Register payroll templates
         templateRegistry.registerTemplate(interpretationRulesTemplate);
         templateRegistry.registerTemplate(payCodesTemplate);
+        templateRegistry.registerTemplate(leaveRulesTemplate);
         // templateRegistry.registerTemplate(interpretationRulesTestTemplate);
         
         templatesAlreadyRegistered = true;
