@@ -3,11 +3,12 @@
 import React from 'react';
 import { ValidationIssue } from '@/lib/migration/templates/core/interfaces';
 import { ValidationFormatter } from '@/lib/migration/templates/core/validation-formatter';
-import { AlertCircle, AlertTriangle, Info, ExternalLink, ChevronDown, ChevronRight, Users, Copy, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Info, ExternalLink, ChevronDown, ChevronRight, Users, Copy, Loader2, CheckCircle2, RefreshCw, Wrench } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { PayCodeSelector } from '@/components/features/migrations/PayCodeSelector';
 // import { useToast } from '@/components/ui/use-toast';
 
 interface EnhancedValidationReportProps {
@@ -42,7 +43,12 @@ export function EnhancedValidationReport({
     const [cloningRecords, setCloningRecords] = React.useState<Set<string>>(new Set());
     const [clonedSuccessfully, setClonedSuccessfully] = React.useState<Set<string>>(new Set());
     const [cloneErrors, setCloneErrors] = React.useState<Map<string, string>>(new Map());
+    const [fixingRecords, setFixingRecords] = React.useState<Set<string>>(new Set());
+    const [fixedSuccessfully, setFixedSuccessfully] = React.useState<Set<string>>(new Set());
+    const [fixErrors, setFixErrors] = React.useState<Map<string, string>>(new Map());
     const [showSuccessMessage, setShowSuccessMessage] = React.useState<string | null>(null);
+    const [payCodeSelectorOpen, setPayCodeSelectorOpen] = React.useState(false);
+    const [selectedBreakpoint, setSelectedBreakpoint] = React.useState<any>(null);
     // const { toast } = useToast();
     
     // Convert string to title case
@@ -111,6 +117,23 @@ export function EnhancedValidationReport({
             messageText.match(/external id: ([^)]+)\)/)?.[1];
         
         return (isPayCodeError || isLeaveRuleError) && hasExternalId;
+    };
+    
+    const canShowFixButton = (issue: any) => {
+        if (!sourceOrgId) return false;
+        
+        const messageText = issue.message || issue.description || '';
+        const checkName = issue.checkName || '';
+        
+        // Check if this is a breakpoint with null pay code error
+        const isBreakpointNullPayCode = checkName.includes('Daily Hours Breakpoint') && 
+            (messageText.includes('null pay codes') || messageText.includes('null pay code'));
+        
+        // Also check for the specific error from the template
+        const isDailyHoursBreakpointError = checkName === 'dailyHoursBreakpointPayCodeNotNull' ||
+            messageText.includes('Daily Hours Breakpoints with null pay codes');
+        
+        return isBreakpointNullPayCode || isDailyHoursBreakpointError;
     };
     
     const handleCloneRecord = async (issue: any) => {
@@ -223,6 +246,71 @@ export function EnhancedValidationReport({
             }, 5000);
         } finally {
             setCloningRecords(prev => {
+                const next = new Set(prev);
+                next.delete(recordKey);
+                return next;
+            });
+        }
+    };
+    
+    const handleFixBreakpoint = async (issue: any) => {
+        setSelectedBreakpoint(issue);
+        setPayCodeSelectorOpen(true);
+    };
+    
+    const handlePayCodeSelected = async (payCodeExternalId: string) => {
+        if (!selectedBreakpoint || !sourceOrgId) {
+            console.error("Missing required information for fixing breakpoint");
+            return;
+        }
+        
+        const breakpointId = selectedBreakpoint.recordId;
+        const recordKey = `fix-${selectedBreakpoint.checkName}-${breakpointId}`;
+        setFixingRecords(prev => new Set(Array.from(prev).concat(recordKey)));
+        
+        try {
+            const response = await fetch('/api/migrations/update-breakpoint-pay-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sourceOrgId,
+                    breakpointId,
+                    payCodeExternalId
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                setFixedSuccessfully(prev => new Set(Array.from(prev).concat(recordKey)));
+                setShowSuccessMessage(data.message || 'Breakpoint updated successfully');
+                
+                // Clear success message after 3 seconds
+                setTimeout(() => setShowSuccessMessage(null), 3000);
+            } else {
+                throw new Error(data.error || 'Failed to update breakpoint');
+            }
+        } catch (error) {
+            console.error('Fix breakpoint error:', error);
+            const errorMsg = error instanceof Error ? error.message : 'Failed to update breakpoint';
+            
+            // Store the error for this record
+            setFixErrors(prev => {
+                const next = new Map(prev);
+                next.set(recordKey, errorMsg);
+                return next;
+            });
+            
+            // Clear error after 5 seconds
+            setTimeout(() => {
+                setFixErrors(prev => {
+                    const next = new Map(prev);
+                    next.delete(recordKey);
+                    return next;
+                });
+            }, 5000);
+        } finally {
+            setFixingRecords(prev => {
                 const next = new Set(prev);
                 next.delete(recordKey);
                 return next;
@@ -343,6 +431,51 @@ export function EnhancedValidationReport({
                                             {hasError && errorMessage && (
                                                 <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
                                                     <strong>Clone failed:</strong> {errorMessage}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                                
+                                {/* Fix button for breakpoints with missing pay codes */}
+                                {canShowFixButton(exampleIssue) && (() => {
+                                    const breakpointId = exampleIssue.recordId;
+                                    const recordKey = `fix-${exampleIssue.checkName}-${breakpointId}`;
+                                    const isFixing = fixingRecords.has(recordKey);
+                                    const isFixed = fixedSuccessfully.has(recordKey);
+                                    
+                                    const hasError = fixErrors.has(recordKey);
+                                    const errorMessage = fixErrors.get(recordKey);
+                                    
+                                    return (
+                                        <div className="mt-3 space-y-2">
+                                            <Button
+                                                size="sm"
+                                                variant={isFixed ? "secondary" : hasError ? "destructive" : "outline"}
+                                                onClick={() => handleFixBreakpoint(exampleIssue)}
+                                                disabled={isFixing || isFixed}
+                                                className={`text-xs ${isFixed ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-50' : ''}`}
+                                            >
+                                                {isFixing ? (
+                                                    <>
+                                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                        Updating...
+                                                    </>
+                                                ) : isFixed ? (
+                                                    <>
+                                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                        Fixed successfully
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Wrench className="h-3 w-3 mr-1" />
+                                                        Fix Missing Pay Code
+                                                    </>
+                                                )}
+                                            </Button>
+                                            {hasError && errorMessage && (
+                                                <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                                                    <strong>Update failed:</strong> {errorMessage}
                                                 </div>
                                             )}
                                         </div>
@@ -475,6 +608,17 @@ export function EnhancedValidationReport({
                     </Button>
                 </div>
             )}
+            
+            {/* Pay Code Selector Modal */}
+            <PayCodeSelector
+                isOpen={payCodeSelectorOpen}
+                onClose={() => {
+                    setPayCodeSelectorOpen(false);
+                    setSelectedBreakpoint(null);
+                }}
+                onSelect={handlePayCodeSelected}
+                breakpointName={selectedBreakpoint?.recordName}
+            />
         </div>
     );
 }

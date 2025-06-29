@@ -60,7 +60,7 @@ describe('Pay Codes Migration Template', () => {
 
             it('should include all essential fields in SOQL query', () => {
                 const query = step.extractConfig?.soqlQuery || '';
-                const essentialFields = ['Id', 'Name', 'tc9_pr__Code__c', 'tc9_pr__Type__c', 'tc9_pr__Status__c', 'tc9_pr__Rate__c'];
+                const essentialFields = ['Id', 'Name', 'tc9_pr__Description__c', 'tc9_pr__Pay_Rate_Multiplier__c', 'tc9_pr__STP_Payment_Type__c', 'tc9_pr__External_ID__c'];
                 
                 essentialFields.forEach(field => {
                     expect(query).toContain(field);
@@ -75,7 +75,7 @@ describe('Pay Codes Migration Template', () => {
         describe('Transform Configuration', () => {
             it('should have field mappings for all essential fields', () => {
                 const fieldMappings = step.transformConfig?.fieldMappings || [];
-                const essentialTargetFields = ['Name', 'tc9_pr__Code__c', 'tc9_pr__Type__c', 'tc9_pr__Status__c', 'tc9_pr__Rate__c'];
+                const essentialTargetFields = ['Name', 'tc9_pr__Description__c', 'tc9_pr__Pay_Rate_Multiplier__c', 'tc9_pr__STP_Payment_Type__c', 'tc9_pr__External_ID__c'];
                 
                 essentialTargetFields.forEach(field => {
                     const mapping = fieldMappings.find(m => m.targetField === field);
@@ -94,10 +94,10 @@ describe('Pay Codes Migration Template', () => {
             it('should mark required fields correctly', () => {
                 const fieldMappings = step.transformConfig?.fieldMappings || [];
                 const nameMapping = fieldMappings.find(m => m.targetField === 'Name');
-                const codeMapping = fieldMappings.find(m => m.targetField === 'tc9_pr__Code__c');
+                const externalIdMapping = fieldMappings.find(m => m.sourceField === 'Id');
                 
                 expect(nameMapping?.isRequired).toBe(true);
-                expect(codeMapping?.isRequired).toBe(true);
+                expect(externalIdMapping?.isRequired).toBe(true);
             });
         });
 
@@ -138,34 +138,28 @@ describe('Pay Codes Migration Template', () => {
                 expect(nameCheck?.severity).toBe('error');
                 expect(nameCheck?.expectedResult).toBe('empty');
                 
-                const codeCheck = checks.find(c => c.checkName === 'code-required');
-                expect(codeCheck).toBeDefined();
-                expect(codeCheck?.severity).toBe('error');
-                expect(codeCheck?.expectedResult).toBe('empty');
+                const externalIdCheck = checks.find(c => c.checkName === 'external-id-check');
+                expect(externalIdCheck).toBeDefined();
+                expect(externalIdCheck?.severity).toBe('warning');
+                expect(externalIdCheck?.expectedResult).toBe('empty');
             });
 
-            it('should have uniqueness validation for Code field', () => {
+            it('should have external ID validation', () => {
                 const checks = step.validationConfig?.dataIntegrityChecks || [];
-                const uniquenessCheck = checks.find(c => c.checkName === 'code-uniqueness');
+                const externalIdCheck = checks.find(c => c.checkName === 'external-id-check');
                 
-                expect(uniquenessCheck).toBeDefined();
-                expect(uniquenessCheck?.severity).toBe('error');
-                expect(uniquenessCheck?.validationQuery).toContain('GROUP BY');
-                expect(uniquenessCheck?.validationQuery).toContain('HAVING COUNT(Id) > 1');
+                expect(externalIdCheck).toBeDefined();
+                expect(externalIdCheck?.severity).toBe('warning');
+                expect(externalIdCheck?.validationQuery).toContain('{externalIdField}');
             });
 
             it('should have picklist validations', () => {
                 const checks = step.validationConfig?.picklistValidationChecks || [];
                 
-                const typeCheck = checks.find(c => c.fieldName === 'tc9_pr__Type__c');
-                expect(typeCheck).toBeDefined();
-                expect(typeCheck?.severity).toBe('warning');
-                expect(typeCheck?.validateAgainstTarget).toBe(true);
-                
-                const statusCheck = checks.find(c => c.fieldName === 'tc9_pr__Status__c');
-                expect(statusCheck).toBeDefined();
-                expect(statusCheck?.severity).toBe('warning');
-                expect(statusCheck?.validateAgainstTarget).toBe(true);
+                const paymentTypeCheck = checks.find(c => c.fieldName === 'tc9_pr__STP_Payment_Type__c');
+                expect(paymentTypeCheck).toBeDefined();
+                expect(paymentTypeCheck?.severity).toBe('warning');
+                expect(paymentTypeCheck?.validateAgainstTarget).toBe(true);
             });
         });
     });
@@ -213,10 +207,10 @@ describe('Pay Codes Migration Template', () => {
             // Essential fields from requirements
             const essentialFields = [
                 { source: 'Name', target: 'Name' },
-                { source: 'tc9_pr__Code__c', target: 'tc9_pr__Code__c' },
-                { source: 'tc9_pr__Type__c', target: 'tc9_pr__Type__c' },
-                { source: 'tc9_pr__Status__c', target: 'tc9_pr__Status__c' },
-                { source: 'tc9_pr__Rate__c', target: 'tc9_pr__Rate__c' }
+                { source: 'tc9_pr__Description__c', target: 'tc9_pr__Description__c' },
+                { source: 'tc9_pr__Pay_Rate_Multiplier__c', target: 'tc9_pr__Pay_Rate_Multiplier__c' },
+                { source: 'tc9_pr__STP_Payment_Type__c', target: 'tc9_pr__STP_Payment_Type__c' },
+                { source: 'tc9_pr__External_ID__c', target: 'tc9_pr__External_ID__c' }
             ];
             
             essentialFields.forEach(field => {
@@ -234,9 +228,9 @@ describe('Pay Codes Migration Template', () => {
             const picklistChecks = payCodesTemplate.etlSteps[0].validationConfig?.picklistValidationChecks || [];
             
             // Required validations from requirements
-            expect(integrityChecks.filter(c => c.checkName.includes('required'))).toHaveLength(2); // Name and Code
-            expect(integrityChecks.filter(c => c.checkName.includes('uniqueness'))).toHaveLength(1); // Code
-            expect(picklistChecks).toHaveLength(2); // Type and Status
+            expect(integrityChecks.filter(c => c.checkName.includes('required'))).toHaveLength(1); // Name only
+            expect(integrityChecks.filter(c => c.checkName.includes('external-id'))).toHaveLength(1); // External ID check
+            expect(picklistChecks).toHaveLength(1); // Payment Type only
         });
     });
 });

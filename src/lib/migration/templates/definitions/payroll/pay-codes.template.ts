@@ -12,8 +12,9 @@ export const payCodesTemplate: MigrationTemplate = {
             stepName: "payCodeMaster",
             stepOrder: 1,
             extractConfig: {
-                soqlQuery: `SELECT Id, Name, tc9_pr__Code__c, tc9_pr__Type__c, 
-                    tc9_pr__Status__c, tc9_pr__Rate__c, {externalIdField} 
+                soqlQuery: `SELECT Id, Name, tc9_pr__Description__c, 
+                    tc9_pr__Pay_Rate_Multiplier__c, tc9_pr__STP_Payment_Type__c, 
+                    tc9_pr__External_ID__c, {externalIdField} 
                     FROM tc9_pr__Pay_Code__c`,
                 objectApiName: "tc9_pr__Pay_Code__c",
                 batchSize: 200,
@@ -33,26 +34,26 @@ export const payCodesTemplate: MigrationTemplate = {
                         transformationType: "direct",
                     },
                     {
-                        sourceField: "tc9_pr__Code__c",
-                        targetField: "tc9_pr__Code__c",
-                        isRequired: true,
-                        transformationType: "direct",
-                    },
-                    {
-                        sourceField: "tc9_pr__Type__c",
-                        targetField: "tc9_pr__Type__c",
+                        sourceField: "tc9_pr__Description__c",
+                        targetField: "tc9_pr__Description__c",
                         isRequired: false,
                         transformationType: "direct",
                     },
                     {
-                        sourceField: "tc9_pr__Status__c",
-                        targetField: "tc9_pr__Status__c",
+                        sourceField: "tc9_pr__Pay_Rate_Multiplier__c",
+                        targetField: "tc9_pr__Pay_Rate_Multiplier__c",
                         isRequired: false,
                         transformationType: "direct",
                     },
                     {
-                        sourceField: "tc9_pr__Rate__c",
-                        targetField: "tc9_pr__Rate__c",
+                        sourceField: "tc9_pr__STP_Payment_Type__c",
+                        targetField: "tc9_pr__STP_Payment_Type__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_pr__External_ID__c",
+                        targetField: "tc9_pr__External_ID__c",
                         isRequired: false,
                         transformationType: "direct",
                     },
@@ -92,39 +93,22 @@ export const payCodesTemplate: MigrationTemplate = {
                         severity: "error"
                     },
                     {
-                        checkName: "code-required",
-                        description: "Ensure Pay Code Code is provided",
-                        validationQuery: "SELECT Id FROM tc9_pr__Pay_Code__c WHERE tc9_pr__Code__c = null",
+                        checkName: "external-id-check",
+                        description: "Check if external ID exists",
+                        validationQuery: "SELECT Id FROM tc9_pr__Pay_Code__c WHERE {externalIdField} = null",
                         expectedResult: "empty",
-                        errorMessage: "Pay Code Code is required",
-                        severity: "error"
-                    },
-                    {
-                        checkName: "code-uniqueness",
-                        description: "Ensure Pay Code Code is unique",
-                        validationQuery: "SELECT tc9_pr__Code__c, COUNT(Id) cnt FROM tc9_pr__Pay_Code__c GROUP BY tc9_pr__Code__c HAVING COUNT(Id) > 1",
-                        expectedResult: "empty",
-                        errorMessage: "Pay Code Code must be unique",
-                        severity: "error"
+                        errorMessage: "Pay Code records missing external ID",
+                        severity: "warning"
                     }
                 ],
                 picklistValidationChecks: [
                     {
-                        checkName: "type-picklist",
-                        description: "Validate Pay Code Type picklist values",
-                        fieldName: "tc9_pr__Type__c",
+                        checkName: "payment-type-picklist",
+                        description: "Validate STP Payment Type picklist values",
+                        fieldName: "tc9_pr__STP_Payment_Type__c",
                         objectName: "tc9_pr__Pay_Code__c",
                         validateAgainstTarget: true,
-                        errorMessage: "Invalid Pay Code Type value",
-                        severity: "warning"
-                    },
-                    {
-                        checkName: "status-picklist",
-                        description: "Validate Pay Code Status picklist values",
-                        fieldName: "tc9_pr__Status__c",
-                        objectName: "tc9_pr__Pay_Code__c",
-                        validateAgainstTarget: true,
-                        errorMessage: "Invalid Pay Code Status value",
+                        errorMessage: "Invalid STP Payment Type value",
                         severity: "warning"
                     }
                 ],
