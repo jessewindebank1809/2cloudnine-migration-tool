@@ -152,6 +152,7 @@ export function AppNavigation({ children }: AppNavigationProps) {
                 width={120}
                 height={40}
                 className="h-10 w-auto"
+                style={{ height: 'auto', maxHeight: '2.5rem' }}
               />
             </div>
             <span className="font-bold text-xl text-white">

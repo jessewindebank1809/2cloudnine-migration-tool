@@ -89,5 +89,5 @@ scripts/
 .swc/
 .cache/
 .parcel-cache/
-__mocks__/
+# __mocks__/ # Needed for Prisma mock
 .env
