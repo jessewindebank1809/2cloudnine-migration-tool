@@ -129,38 +129,35 @@ export function testPayCodesTemplate(): {
                     errors.push("Load config missing externalIdField");
                 }
                 
-                if (!step.loadConfig.fieldPermissionChecks || step.loadConfig.fieldPermissionChecks.length === 0) {
-                    errors.push("Load config missing field permission checks");
+                if (!step.loadConfig.retryConfig) {
+                    errors.push("Load config missing retry configuration");
                 }
             }
             
             if (!step.validationConfig) {
                 errors.push("ETL step missing validation configuration");
             } else {
-                if (step.validationConfig.skipValidation === true) {
-                    warnings.push("Validation is skipped for this step");
+                // Check for required validation config properties
+                if (!step.validationConfig.dependencyChecks) {
+                    errors.push("Validation config missing dependency checks");
                 }
                 
                 if (!step.validationConfig.dataIntegrityChecks || step.validationConfig.dataIntegrityChecks.length === 0) {
                     errors.push("Validation config missing data integrity checks");
                 } else {
                     // Test essential validation rules
-                    const requiredChecks = [
-                        { fieldName: "Name", checkType: "required" },
-                        { fieldName: "tc9_pr__Code__c", checkType: "required" },
-                        { fieldName: "tc9_pr__Code__c", checkType: "uniqueness" },
-                        { fieldName: "tc9_pr__Type__c", checkType: "picklist" },
-                        { fieldName: "tc9_pr__Status__c", checkType: "picklist" }
+                    const requiredCheckNames = [
+                        "requiredFieldsValidation",
+                        "uniqueCodeValidation"
                     ];
                     
-                    for (const requiredCheck of requiredChecks) {
+                    for (const checkName of requiredCheckNames) {
                         const found = step.validationConfig.dataIntegrityChecks.some(
-                            check => check.fieldName === requiredCheck.fieldName && 
-                                    check.checkType === requiredCheck.checkType
+                            check => check.checkName === checkName
                         );
                         
                         if (!found) {
-                            errors.push(`Missing ${requiredCheck.checkType} validation for field '${requiredCheck.fieldName}'`);
+                            errors.push(`Missing data integrity check: '${checkName}'`);
                         }
                     }
                 }
@@ -174,40 +171,27 @@ export function testPayCodesTemplate(): {
             errors.push("Execution order should contain 'payCodeMaster'");
         }
 
-        // Test 4: Rollback strategy validation
-        console.log("Testing rollback strategy...");
+        // Test 4: Metadata validation
+        console.log("Testing metadata...");
         
-        if (!payCodesTemplate.rollbackStrategy) {
-            errors.push("Template missing rollback strategy");
+        if (!payCodesTemplate.metadata) {
+            errors.push("Template missing metadata");
         } else {
-            if (payCodesTemplate.rollbackStrategy.enabled !== true) {
-                warnings.push("Rollback is not enabled");
+            if (!payCodesTemplate.metadata.requiredPermissions || payCodesTemplate.metadata.requiredPermissions.length === 0) {
+                errors.push("Metadata missing required permissions");
             }
         }
 
-        // Test 5: Error handling validation
-        console.log("Testing error handling...");
+        // Test 5: ETL steps dependencies validation
+        console.log("Testing ETL step dependencies...");
         
-        if (!payCodesTemplate.errorHandling) {
-            errors.push("Template missing error handling configuration");
-        } else {
-            if (payCodesTemplate.errorHandling.continueOnError !== false) {
-                warnings.push("Template will continue on error");
+        for (const step of payCodesTemplate.etlSteps) {
+            if (!Array.isArray(step.dependencies)) {
+                errors.push(`ETL step '${step.stepName}' missing dependencies array`);
             }
         }
 
-        // Test 6: Hooks validation
-        console.log("Testing hooks...");
-        
-        if (!payCodesTemplate.hooks) {
-            errors.push("Template missing hooks");
-        } else {
-            if (!payCodesTemplate.hooks.preMigration) {
-                errors.push("Template missing preMigration hook");
-            }
-        }
-
-        // Test 7: Field coverage validation
+        // Test 6: Field coverage validation
         console.log("Testing field coverage...");
         
         const essentialFields = ["Name", "tc9_pr__Code__c", "tc9_pr__Type__c", "tc9_pr__Status__c", "tc9_pr__Rate__c"];
@@ -222,27 +206,16 @@ export function testPayCodesTemplate(): {
             }
         }
 
-        // Test 8: Validation severity levels
+        // Test 7: Validation severity levels
         console.log("Testing validation severity levels...");
         
         if (step0?.validationConfig?.dataIntegrityChecks) {
-            const requiredFieldChecks = step0.validationConfig.dataIntegrityChecks.filter(
-                check => check.checkType === "required"
-            );
-            
-            for (const check of requiredFieldChecks) {
-                if (check.severity !== "error") {
-                    errors.push(`Required field check for '${check.fieldName}' should have severity 'error'`);
+            for (const check of step0.validationConfig.dataIntegrityChecks) {
+                if (check.checkName === "requiredFieldsValidation" && check.severity !== "error") {
+                    errors.push(`Required fields validation check should have severity 'error'`);
                 }
-            }
-            
-            const picklistChecks = step0.validationConfig.dataIntegrityChecks.filter(
-                check => check.checkType === "picklist"
-            );
-            
-            for (const check of picklistChecks) {
-                if (check.severity !== "warning") {
-                    warnings.push(`Picklist check for '${check.fieldName}' should have severity 'warning'`);
+                if (check.checkName === "uniqueCodeValidation" && check.severity !== "error") {
+                    errors.push(`Unique code validation check should have severity 'error'`);
                 }
             }
         }

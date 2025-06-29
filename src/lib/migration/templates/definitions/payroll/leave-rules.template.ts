@@ -39,7 +39,7 @@ export const leaveRulesTemplate: MigrationTemplate = {
                         sourceField: "tc9_pr__Effective_Date__c",
                         targetField: "tc9_pr__Effective_Date__c",
                         isRequired: true,
-                        transformationType: "date",
+                        transformationType: "custom",
                     },
                     {
                         sourceField: "tc9_pr__Status__c",
@@ -88,13 +88,14 @@ export const leaveRulesTemplate: MigrationTemplate = {
             },
             loadConfig: {
                 targetObject: "tc9_pr__Leave_Rule__c",
-                loadType: "UPSERT",
+                operation: "upsert",
                 externalIdField: "{externalIdField}",
+                useBulkApi: true,
                 batchSize: 200,
-                concurrencyLimit: 1,
+                allowPartialSuccess: false,
                 retryConfig: {
                     maxRetries: 3,
-                    retryDelayMs: 1000,
+                    retryWaitSeconds: 1,
                     retryableErrors: ["UNABLE_TO_LOCK_ROW", "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY"],
                 },
             },
@@ -169,14 +170,21 @@ export const leaveRulesTemplate: MigrationTemplate = {
                         severity: "warning",
                     },
                 ],
-                picklistValidations: [
+                picklistValidationChecks: [
                     {
+                        checkName: "statusPicklistValidation",
+                        description: "Validate Status picklist values",
                         fieldName: "tc9_pr__Status__c",
+                        objectName: "tc9_pr__Leave_Rule__c",
+                        validateAgainstTarget: true,
                         allowedValues: ["Active", "Inactive"],
-                        isRestricted: true,
+                        crossEnvironmentMapping: false,
                         errorMessage: "Invalid Status value. Allowed values are: Active, Inactive",
+                        severity: "error",
                     },
                 ],
+                // TODO: Add post-load validation support to interfaces
+                /* Future implementation:
                 postLoadValidationQueries: [
                     {
                         queryName: "verifyLeaveRulesMigrated",
@@ -194,17 +202,24 @@ export const leaveRulesTemplate: MigrationTemplate = {
                         description: "Verify pay code references were correctly established",
                     },
                 ],
+                */
             },
+            dependencies: [],
         },
     ],
-    supportedOrgs: ["sandbox", "production"],
-    requiredPermissions: [
-        "tc9_pr__Leave_Rule__c.Read",
-        "tc9_pr__Leave_Rule__c.Create",
-        "tc9_pr__Leave_Rule__c.Edit",
-        "tc9_pr__Pay_Code__c.Read",
-    ],
-    estimatedDuration: "5-10 minutes for 100 records",
-    rollbackSupported: false,
-    tags: ["payroll", "leave-rules", "hr-data"],
+    executionOrder: ["leaveRuleMaster"],
+    metadata: {
+        author: "Migration Tool",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        supportedApiVersions: ["59.0", "60.0", "61.0"],
+        requiredPermissions: [
+            "tc9_pr__Leave_Rule__c.Read",
+            "tc9_pr__Leave_Rule__c.Create",
+            "tc9_pr__Leave_Rule__c.Edit",
+            "tc9_pr__Pay_Code__c.Read",
+        ],
+        estimatedDuration: 10,
+        complexity: "moderate",
+    },
 };

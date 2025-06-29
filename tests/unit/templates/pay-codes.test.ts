@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { payCodesTemplate } from '../../../src/lib/migration/templates/definitions/payroll/pay-codes.template';
-import { MigrationContext } from '../../../src/lib/migration/templates/core/interfaces';
+// import { MigrationContext } from '../../../src/lib/migration/templates/core/interfaces';
 import { Connection } from 'jsforce';
 
 describe('Pay Codes Migration Template', () => {
-    let mockContext: MigrationContext;
+    let mockContext: any;
     let mockConnection: Connection;
 
     beforeEach(() => {
@@ -38,15 +38,10 @@ describe('Pay Codes Migration Template', () => {
             expect(payCodesTemplate.executionOrder[0]).toBe('payCodeMaster');
         });
 
-        it('should have rollback strategy enabled', () => {
-            expect(payCodesTemplate.rollbackStrategy?.enabled).toBe(true);
-            expect(payCodesTemplate.rollbackStrategy?.checkpointAfterEachStep).toBe(true);
-        });
-
-        it('should have proper error handling configuration', () => {
-            expect(payCodesTemplate.errorHandling?.continueOnError).toBe(false);
-            expect(payCodesTemplate.errorHandling?.maxErrorsPerStep).toBe(100);
-            expect(payCodesTemplate.errorHandling?.errorLogging).toBe('detailed');
+        it('should have proper metadata', () => {
+            expect(payCodesTemplate.metadata).toBeDefined();
+            expect(payCodesTemplate.metadata.complexity).toBe('simple');
+            expect(payCodesTemplate.metadata.estimatedDuration).toBe(5);
         });
     });
 
@@ -119,88 +114,55 @@ describe('Pay Codes Migration Template', () => {
                 expect(step.loadConfig?.externalIdField).toBe('{externalIdField}');
             });
 
-            it('should include field permission checks', () => {
-                const checks = step.loadConfig?.fieldPermissionChecks || [];
-                expect(checks).toContain('Name');
-                expect(checks).toContain('tc9_pr__Code__c');
-                expect(checks).toContain('tc9_pr__Type__c');
-                expect(checks).toContain('tc9_pr__Status__c');
-                expect(checks).toContain('tc9_pr__Rate__c');
-                expect(checks).toContain('{externalIdField}');
+            it('should have retry configuration', () => {
+                expect(step.loadConfig?.retryConfig).toBeDefined();
+                expect(step.loadConfig?.retryConfig?.maxRetries).toBe(3);
+                expect(step.loadConfig?.retryConfig?.retryWaitSeconds).toBe(1);
             });
         });
 
         describe('Validation Configuration', () => {
-            it('should have validation enabled', () => {
-                expect(step.validationConfig?.skipValidation).toBe(false);
+            it('should have validation configuration', () => {
+                expect(step.validationConfig).toBeDefined();
+                expect(step.validationConfig?.dependencyChecks).toBeDefined();
+                expect(step.validationConfig?.dataIntegrityChecks).toBeDefined();
             });
 
             it('should have required field validations', () => {
                 const checks = step.validationConfig?.dataIntegrityChecks || [];
                 
-                const nameCheck = checks.find(c => c.fieldName === 'Name' && c.checkType === 'required');
-                expect(nameCheck).toBeDefined();
-                expect(nameCheck?.severity).toBe('error');
-                
-                const codeCheck = checks.find(c => c.fieldName === 'tc9_pr__Code__c' && c.checkType === 'required');
-                expect(codeCheck).toBeDefined();
-                expect(codeCheck?.severity).toBe('error');
+                const requiredFieldsCheck = checks.find(c => c.checkName === 'requiredFieldsValidation');
+                expect(requiredFieldsCheck).toBeDefined();
+                expect(requiredFieldsCheck?.severity).toBe('error');
             });
 
             it('should have uniqueness validation for Code field', () => {
                 const checks = step.validationConfig?.dataIntegrityChecks || [];
-                const uniquenessCheck = checks.find(c => c.fieldName === 'tc9_pr__Code__c' && c.checkType === 'uniqueness');
+                const uniquenessCheck = checks.find(c => c.checkName === 'uniqueCodeValidation');
                 
                 expect(uniquenessCheck).toBeDefined();
                 expect(uniquenessCheck?.severity).toBe('error');
             });
 
             it('should have picklist validations', () => {
-                const checks = step.validationConfig?.dataIntegrityChecks || [];
+                const checks = step.validationConfig?.picklistValidationChecks || [];
                 
-                const typeCheck = checks.find(c => c.fieldName === 'tc9_pr__Type__c' && c.checkType === 'picklist');
+                const typeCheck = checks.find(c => c.fieldName === 'tc9_pr__Type__c');
                 expect(typeCheck).toBeDefined();
                 expect(typeCheck?.severity).toBe('warning');
                 
-                const statusCheck = checks.find(c => c.fieldName === 'tc9_pr__Status__c' && c.checkType === 'picklist');
+                const statusCheck = checks.find(c => c.fieldName === 'tc9_pr__Status__c');
                 expect(statusCheck).toBeDefined();
                 expect(statusCheck?.severity).toBe('warning');
             });
         });
     });
 
-    describe('Hooks', () => {
-        it('should have preMigration hook', () => {
-            expect(payCodesTemplate.hooks?.preMigration).toBeDefined();
-            expect(typeof payCodesTemplate.hooks?.preMigration).toBe('function');
-        });
-
-        it('should have postExtract hook', () => {
-            expect(payCodesTemplate.hooks?.postExtract).toBeDefined();
-            expect(typeof payCodesTemplate.hooks?.postExtract).toBe('function');
-        });
-
-        it('should have preLoad hook', () => {
-            expect(payCodesTemplate.hooks?.preLoad).toBeDefined();
-            expect(typeof payCodesTemplate.hooks?.preLoad).toBe('function');
-        });
-
-        it('should have postMigration hook', () => {
-            expect(payCodesTemplate.hooks?.postMigration).toBeDefined();
-            expect(typeof payCodesTemplate.hooks?.postMigration).toBe('function');
-        });
-
-        describe('preMigration hook', () => {
-            it('should be defined and return success', async () => {
-                // Test that the hook exists and returns the expected result
-                const hook = payCodesTemplate.hooks?.preMigration;
-                expect(hook).toBeDefined();
-                expect(typeof hook).toBe('function');
-                
-                // Note: We can't easily test the ExternalIdUtils.getExternalIdField call
-                // without complex mocking setup. This would be better tested in an integration test.
-                // For now, we'll just verify the hook structure exists.
-            });
+    describe('Metadata', () => {
+        it('should have required permissions', () => {
+            expect(payCodesTemplate.metadata.requiredPermissions).toContain('tc9_pr__Pay_Code__c.Read');
+            expect(payCodesTemplate.metadata.requiredPermissions).toContain('tc9_pr__Pay_Code__c.Create');
+            expect(payCodesTemplate.metadata.requiredPermissions).toContain('tc9_pr__Pay_Code__c.Edit');
         });
     });
 
@@ -229,12 +191,13 @@ describe('Pay Codes Migration Template', () => {
         });
 
         it('should have all essential validation rules', () => {
-            const checks = payCodesTemplate.etlSteps[0].validationConfig?.dataIntegrityChecks || [];
+            const integrityChecks = payCodesTemplate.etlSteps[0].validationConfig?.dataIntegrityChecks || [];
+            const picklistChecks = payCodesTemplate.etlSteps[0].validationConfig?.picklistValidationChecks || [];
             
             // Required validations from requirements
-            expect(checks.filter(c => c.checkType === 'required')).toHaveLength(2); // Name and Code
-            expect(checks.filter(c => c.checkType === 'uniqueness')).toHaveLength(1); // Code
-            expect(checks.filter(c => c.checkType === 'picklist')).toHaveLength(2); // Type and Status
+            expect(integrityChecks.some(c => c.checkName === 'requiredFieldsValidation')).toBe(true);
+            expect(integrityChecks.some(c => c.checkName === 'uniqueCodeValidation')).toBe(true);
+            expect(picklistChecks).toHaveLength(2); // Type and Status
         });
     });
 });

@@ -57,125 +57,81 @@ export const payCodesTemplate: MigrationTemplate = {
                         transformationType: "direct",
                     },
                 ] as FieldMapping[],
-                defaultValues: {},
-                calculatedFields: {},
+                lookupMappings: [],
+                externalIdHandling: ExternalIdUtils.createDefaultConfig(),
             },
             loadConfig: {
                 targetObject: "tc9_pr__Pay_Code__c",
                 operation: "upsert",
                 externalIdField: "{externalIdField}",
-                fieldPermissionChecks: [
-                    "Name",
-                    "tc9_pr__Code__c",
-                    "tc9_pr__Type__c",
-                    "tc9_pr__Status__c",
-                    "tc9_pr__Rate__c",
-                    "{externalIdField}"
-                ],
+                useBulkApi: true,
+                batchSize: 200,
+                allowPartialSuccess: false,
+                retryConfig: {
+                    maxRetries: 3,
+                    retryWaitSeconds: 1,
+                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY"],
+                },
             },
             validationConfig: {
-                skipValidation: false,
-                maxErrors: 100,
+                dependencyChecks: [],
                 dataIntegrityChecks: [
                     {
-                        checkType: "required",
-                        fieldName: "Name",
-                        errorMessage: "Pay Code Name is required",
+                        checkName: "requiredFieldsValidation",
+                        description: "Validate that required fields are populated",
+                        validationQuery: `SELECT Id, Name, tc9_pr__Code__c FROM tc9_pr__Pay_Code__c WHERE Name = null OR tc9_pr__Code__c = null`,
+                        expectedResult: "empty",
+                        errorMessage: "Migration cannot proceed: Found pay codes with missing required fields (Name or Code)",
                         severity: "error",
                     },
                     {
-                        checkType: "required",
-                        fieldName: "tc9_pr__Code__c",
-                        errorMessage: "Pay Code Code is required",
+                        checkName: "uniqueCodeValidation",
+                        description: "Validate that pay code codes are unique",
+                        validationQuery: `SELECT tc9_pr__Code__c, COUNT(Id) FROM tc9_pr__Pay_Code__c GROUP BY tc9_pr__Code__c HAVING COUNT(Id) > 1`,
+                        expectedResult: "empty",
+                        errorMessage: "Migration cannot proceed: Found duplicate pay code codes. Each code must be unique",
                         severity: "error",
                     },
+                ],
+                picklistValidationChecks: [
                     {
-                        checkType: "uniqueness",
-                        fieldName: "tc9_pr__Code__c",
-                        errorMessage: "Pay Code Code must be unique",
-                        severity: "error",
-                    },
-                    {
-                        checkType: "picklist",
+                        checkName: "typePicklistValidation",
+                        description: "Validate Type picklist values",
                         fieldName: "tc9_pr__Type__c",
+                        objectName: "tc9_pr__Pay_Code__c",
+                        validateAgainstTarget: true,
+                        crossEnvironmentMapping: false,
                         errorMessage: "Invalid Pay Code Type value",
                         severity: "warning",
                     },
                     {
-                        checkType: "picklist",
+                        checkName: "statusPicklistValidation",
+                        description: "Validate Status picklist values",
                         fieldName: "tc9_pr__Status__c",
+                        objectName: "tc9_pr__Pay_Code__c",
+                        validateAgainstTarget: true,
+                        crossEnvironmentMapping: false,
                         errorMessage: "Invalid Pay Code Status value",
                         severity: "warning",
                     },
-                ] as DataIntegrityCheck[],
-                customValidations: [],
-            } as ValidationConfig,
+                ],
+                preValidationQueries: [],
+            },
+            dependencies: [],
         },
     ],
     executionOrder: ["payCodeMaster"],
-    rollbackStrategy: {
-        enabled: true,
-        checkpointAfterEachStep: true,
-    },
-    errorHandling: {
-        continueOnError: false,
-        maxErrorsPerStep: 100,
-        errorLogging: "detailed",
-    },
-    hooks: {
-        preMigration: async (context) => {
-            // Set external ID field based on org configuration
-            const externalIdField = await ExternalIdUtils.getExternalIdField(
-                context.targetOrgConnection,
-                "tc9_pr__Pay_Code__c"
-            );
-            
-            // Replace placeholders in all configurations
-            context.template.etlSteps.forEach(step => {
-                // Update SOQL query
-                if (step.extractConfig?.soqlQuery) {
-                    step.extractConfig.soqlQuery = step.extractConfig.soqlQuery.replace(
-                        /{externalIdField}/g,
-                        externalIdField
-                    );
-                }
-                
-                // Update field mappings
-                if (step.transformConfig?.fieldMappings) {
-                    step.transformConfig.fieldMappings.forEach(mapping => {
-                        if (mapping.targetField === "{externalIdField}") {
-                            mapping.targetField = externalIdField;
-                        }
-                    });
-                }
-                
-                // Update load config
-                if (step.loadConfig?.externalIdField === "{externalIdField}") {
-                    step.loadConfig.externalIdField = externalIdField;
-                }
-                
-                // Update field permission checks
-                if (step.loadConfig?.fieldPermissionChecks) {
-                    step.loadConfig.fieldPermissionChecks = step.loadConfig.fieldPermissionChecks.map(
-                        field => field === "{externalIdField}" ? externalIdField : field
-                    );
-                }
-            });
-            
-            console.log(`Using external ID field: ${externalIdField}`);
-            return { success: true };
-        },
-        postExtract: async (data, context) => {
-            console.log(`Extracted ${data.length} pay codes`);
-            return data;
-        },
-        preLoad: async (data, context) => {
-            console.log(`Preparing to load ${data.length} pay codes`);
-            return data;
-        },
-        postMigration: async (results, context) => {
-            console.log("Pay code migration completed");
-            return { success: true };
-        },
+    metadata: {
+        author: "Migration Tool",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        supportedApiVersions: ["59.0", "60.0", "61.0"],
+        requiredPermissions: [
+            "tc9_pr__Pay_Code__c.Read",
+            "tc9_pr__Pay_Code__c.Create",
+            "tc9_pr__Pay_Code__c.Edit",
+        ],
+        estimatedDuration: 5,
+        complexity: "simple",
     },
 };
