@@ -363,14 +363,9 @@ export default function MigrationProjectPage({ params }: PageProps) {
                   const hasParentInfo = parentRecordInfo.attempted > 0;
                   
                   return (
-                    <div key={session.id} className="border rounded-lg p-3">
+                    <div key={session.id} className="border rounded-lg p-3 relative">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">{getTemplateName(session.object_type)}</div>
-                          <span className="text-sm text-muted-foreground">
-                            {formatMigrationTime(session.created_at)}
-                          </span>
-                        </div>
+                        <div className="font-medium">{getTemplateName(session.object_type)}</div>
                         <Badge variant={session.status === 'COMPLETED' ? 'completed' : 'pending'}>
                           {session.status}
                         </Badge>
@@ -411,6 +406,10 @@ export default function MigrationProjectPage({ params }: PageProps) {
                         </div>
                       )}
                       
+                      {/* Timestamp in bottom right */}
+                      <div className="text-xs text-muted-foreground absolute bottom-3 right-3">
+                        {formatMigrationTime(session.created_at)}
+                      </div>
                     </div>
                   );
                 })}
