@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Link from "next/link"
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
@@ -206,12 +206,10 @@ export default function HomePage() {
           {hasRunningMigration ? (
             <Button 
               disabled={true}
-              variant="secondary"
-              className="opacity-50 cursor-not-allowed"
               title="Cannot start new migration while another is in progress"
             >
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Migration in Progress
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Migrating...
             </Button>
           ) : (
             <Link href="/migrations/new">
@@ -376,8 +374,8 @@ export default function HomePage() {
                     disabled={true}
                     title="Cannot start new migration while another is in progress"
                   >
-                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                    Migration in Progress
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-3"></div>
+                    Migrating...
                   </Button>
                 ) : (
                   <Link href="/migrations/new" className="block">

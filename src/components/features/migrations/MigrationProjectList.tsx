@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Play, Trash2, Edit, MoreVertical, Loader2 } from 'lucide-react';
+import { Plus, Play, Trash2, Edit, MoreVertical } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -194,12 +194,10 @@ export function MigrationProjectList() {
           {hasRunningMigration ? (
             <Button 
               disabled={true}
-              variant="secondary"
-              className="opacity-50 cursor-not-allowed"
               title="Cannot start new migration while another is in progress"
             >
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Migration in Progress
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Migrating...
             </Button>
           ) : (
             <Link href="/migrations/new">
