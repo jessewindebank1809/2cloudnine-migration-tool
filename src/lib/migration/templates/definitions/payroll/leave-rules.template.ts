@@ -144,15 +144,21 @@ export const leaveRulesTemplate: MigrationTemplate = {
                     {
                         checkName: "sourcePayCodeExternalIdValidation",
                         description: "Validate that all source pay codes referenced by leave rules have external ID values",
-                        validationQuery: `SELECT COUNT() FROM tc9_pr__Pay_Code__c 
-                            WHERE (
-                                Id IN (SELECT tc9_pr__Pay_Code__c FROM tc9_pr__Leave_Rule__c WHERE tc9_pr__Pay_Code__c != null)
-                                OR 
-                                Id IN (SELECT tc9_pr__Unpaid_Pay_Code__c FROM tc9_pr__Leave_Rule__c WHERE tc9_pr__Unpaid_Pay_Code__c != null)
-                            )
+                        validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
+                            WHERE Id IN (SELECT tc9_pr__Pay_Code__c FROM tc9_pr__Leave_Rule__c WHERE tc9_pr__Pay_Code__c != null)
                             AND {externalIdField} = null`,
                         expectedResult: "empty",
                         errorMessage: "Migration cannot proceed: Found pay codes referenced by leave rules that are missing external ID values. All referenced pay codes must have external IDs for cross-environment migration",
+                        severity: "error",
+                    },
+                    {
+                        checkName: "sourceUnpaidPayCodeExternalIdValidation",
+                        description: "Validate that all source unpaid pay codes referenced by leave rules have external ID values",
+                        validationQuery: `SELECT Id, Name FROM tc9_pr__Pay_Code__c 
+                            WHERE Id IN (SELECT tc9_pr__Unpaid_Pay_Code__c FROM tc9_pr__Leave_Rule__c WHERE tc9_pr__Unpaid_Pay_Code__c != null)
+                            AND {externalIdField} = null`,
+                        expectedResult: "empty",
+                        errorMessage: "Migration cannot proceed: Found unpaid pay codes referenced by leave rules that are missing external ID values. All referenced pay codes must have external IDs for cross-environment migration",
                         severity: "error",
                     },
                     {
