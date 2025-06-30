@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Play, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Play, AlertCircle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -19,9 +19,11 @@ interface PageProps {
 
 export default function MigrationExecutePage({ params }: PageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
+  const isReprocessing = searchParams.get('reprocess') === 'true';
 
   // Unwrap the params promise
   const { id } = React.use(params);
@@ -62,8 +64,15 @@ export default function MigrationExecutePage({ params }: PageProps) {
     },
   });
 
+  // Auto-execute when reprocessing
+  useEffect(() => {
+    if (isReprocessing && project && !isExecuting && !executeMigration.isPending) {
+      executeMigration.mutate();
+    }
+  }, [isReprocessing, project, isExecuting, executeMigration]);
+
   const handleExecute = async () => {
-    if (selectedObjects.length === 0) {
+    if (!isReprocessing && selectedObjects.length === 0) {
       alert('Please select at least one object to migrate');
       return;
     }
@@ -113,56 +122,88 @@ export default function MigrationExecutePage({ params }: PageProps) {
         </Link>
         <h1 className="text-3xl font-bold">{project.name}</h1>
         <p className="text-muted-foreground mt-2">
-          {isExecuting ? 'Migration in progress...' : 'Select objects to migrate'}
+          {isExecuting ? 'Migration in progress...' : isReprocessing ? 'Reprocessing migration...' : 'Select objects to migrate'}
         </p>
       </div>
 
       {!isExecuting ? (
         <div className="space-y-6">
-          {/* Migration Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Migration Configuration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <p className="text-sm font-medium">Source Organisation</p>
-                  <p className="text-sm text-muted-foreground">{project.sourceOrg.name}</p>
+          {isReprocessing ? (
+            // Show reprocessing state
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <RefreshCw className="mr-2 h-5 w-5" />
+                  Reprocessing Migration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <p className="text-sm font-medium">Source Organisation</p>
+                    <p className="text-sm text-muted-foreground">{project.sourceOrg.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Target Organisation</p>
+                    <p className="text-sm text-muted-foreground">{project.targetOrg.name}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">Target Organisation</p>
-                  <p className="text-sm text-muted-foreground">{project.targetOrg.name}</p>
-                </div>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Migration is being reprocessed with the same configuration as before. The validation step has been skipped.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Migration Configuration */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Migration Configuration</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <p className="text-sm font-medium">Source Organisation</p>
+                      <p className="text-sm text-muted-foreground">{project.sourceOrg.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Target Organisation</p>
+                      <p className="text-sm text-muted-foreground">{project.targetOrg.name}</p>
+                    </div>
+                  </div>
+
+                  <ObjectSelection
+                    sourceOrgId={project.source_org_id}
+                    onSelectionChange={setSelectedObjects}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Execute Button */}
+              <div className="flex justify-end">
+                <Button
+                  size="lg"
+                  onClick={handleExecute}
+                  disabled={selectedObjects.length === 0 || executeMigration.isPending}
+                >
+                  {executeMigration.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Starting Migration...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="mr-2 h-4 w-4" />
+                      Start Migration
+                    </>
+                  )}
+                </Button>
               </div>
-
-              <ObjectSelection
-                sourceOrgId={project.source_org_id}
-                onSelectionChange={setSelectedObjects}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Execute Button */}
-          <div className="flex justify-end">
-            <Button
-              size="lg"
-              onClick={handleExecute}
-              disabled={selectedObjects.length === 0 || executeMigration.isPending}
-            >
-              {executeMigration.isPending ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Starting Migration...
-                </>
-              ) : (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Start Migration
-                </>
-              )}
-            </Button>
-          </div>
+            </>
+          )}
 
           {executeMigration.error && (
             <div className="space-y-4">
