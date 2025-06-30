@@ -39,7 +39,7 @@ export async function validateSelectedRecords(
       throw new Error('Failed to query records from source org');
     }
     
-    const foundIds = results.data.map((r: any) => r.Id);
+    const foundIds = results.data.records.map((r: any) => r.Id);
     const invalidIds = recordIds.filter(id => !foundIds.includes(id));
     
     // Format the object name for display
