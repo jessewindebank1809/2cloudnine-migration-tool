@@ -142,7 +142,7 @@ export function AppNavigation({ children }: AppNavigationProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b border-[#2491EB]/20 bg-[#2491EB]">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="h-12 w-auto flex items-center justify-center">
