@@ -134,7 +134,7 @@ export async function POST(
         }
 
         // Create session ID early for tracking
-        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const sessionId = crypto.randomUUID();
         
         // Track migration start with full context
         await usageTracker.trackMigrationStart(
@@ -1100,7 +1100,7 @@ export async function POST(
         // Track the failure if we're authenticated
         try {
           const authSession = await requireAuth(request);
-          const sessionId = `session_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const sessionId = crypto.randomUUID();
           await usageTracker.trackMigrationFailure(
             migrationId,
             sessionId,
