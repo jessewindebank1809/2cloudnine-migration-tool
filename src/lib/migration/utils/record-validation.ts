@@ -40,6 +40,7 @@ export async function validateSelectedRecords(
     }
     
     const foundIds = results.data.map((r: any) => r.Id);
+
     const invalidIds = recordIds.filter(id => !foundIds.includes(id));
     
     // Format the object name for display
