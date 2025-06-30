@@ -4,7 +4,16 @@ import { ExternalIdUtils } from '@/lib/migration/templates/utils/external-id-uti
 
 // Mock dependencies
 jest.mock('@/lib/salesforce/session-manager');
-jest.mock('@/lib/migration/templates/utils/external-id-utils');
+jest.mock('@/lib/migration/templates/utils/external-id-utils', () => ({
+  ExternalIdUtils: {
+    detectExternalIdField: jest.fn(),
+    getAllPossibleExternalIdFields: jest.fn().mockReturnValue([
+      'tc9_edc__External_ID_Data_Creation__c',
+      'External_ID_Data_Creation__c',
+      'External_Id__c'
+    ])
+  }
+}));
 
 describe('CloningService', () => {
   const mockSourceClient = {
