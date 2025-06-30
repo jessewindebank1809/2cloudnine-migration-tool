@@ -4,8 +4,8 @@ import { registerAllTemplates } from '@/lib/migration/templates/registry';
 
 // Force dynamic rendering with caching optimization  
 export const dynamic = 'force-dynamic';
-// Use edge runtime for better performance since no database access needed
-export const runtime = 'edge';
+// Using Node.js runtime to support complex template imports
+// export const runtime = 'edge'; // Edge runtime has issues with large module imports
 export const revalidate = 3600; // Cache templates for 1 hour as they don't change frequently
 
 export async function GET(_request: NextRequest) {
