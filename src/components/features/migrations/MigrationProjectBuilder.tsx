@@ -998,7 +998,6 @@ export function MigrationProjectBuilder() {
                     selectedRecords={projectData.selectedRecords}
                     interpretationRuleNames={validationResult.selectedRecordNames || projectData.selectedRecordNames}
                     isValidating={validateMigration.isPending || currentOperation === 'validating'}
-                    isMigrating={executeMigration.isPending}
                   />
 
                   {/* Connection Error Action Button */}
