@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Play, Calendar, Database, Plus } from 'lucide-react';
+import { ArrowLeft, Play, Calendar, Database, Plus, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,6 +76,7 @@ const statusLabels = {
 } as const;
 
 export default function MigrationProjectPage({ params }: PageProps) {
+  const router = useRouter();
   const { hasRunningMigration } = useRunningMigrations();
   
   // Unwrap the params promise
@@ -106,6 +107,26 @@ export default function MigrationProjectPage({ params }: PageProps) {
       }
       const data = await response.json();
       return data.templates as Template[];
+    },
+  });
+
+  // Reprocess mutation
+  const reprocessMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/migrations/${id}/reprocess`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to reprocess migration');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Navigate to the execute page with reprocess flag
+      if (data.redirectUrl) {
+        router.push(data.redirectUrl);
+      }
     },
   });
 
@@ -237,22 +258,6 @@ export default function MigrationProjectPage({ params }: PageProps) {
             </div>
           </div>
           <div className="flex gap-2">
-            {hasRunningMigration ? (
-              <Button 
-                disabled={true}
-                title="Cannot start new migration while another is in progress"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Migration
-              </Button>
-            ) : (
-              <Link href="/migrations/new">
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Migration
-                </Button>
-              </Link>
-            )}
             {project.status === 'DRAFT' && (
               <Link href={`/migrations/${id}/execute`}>
                 <Button>
@@ -260,6 +265,16 @@ export default function MigrationProjectPage({ params }: PageProps) {
                   Execute Migration
                 </Button>
               </Link>
+            )}
+            {(project.status === 'COMPLETED' || project.status === 'FAILED') && (
+              <Button
+                onClick={() => reprocessMutation.mutate()}
+                disabled={reprocessMutation.isPending || hasRunningMigration}
+                variant="default"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {reprocessMutation.isPending ? 'Processing...' : 'Rerun'}
+              </Button>
             )}
           </div>
         </div>

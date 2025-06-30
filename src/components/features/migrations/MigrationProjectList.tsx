@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Play, Trash2, Edit, MoreVertical, Loader2 } from 'lucide-react';
+import { Plus, Play, Trash2, Edit, MoreVertical, Loader2, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
 interface MigrationProject {
@@ -71,6 +72,7 @@ const statusLabels: Record<string, string> = {
 
 export function MigrationProjectList() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { hasRunningMigration } = useRunningMigrations();
   
   const { data, isLoading, error } = useQuery({
@@ -106,6 +108,25 @@ export function MigrationProjectList() {
     },
   });
 
+  const reprocessMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      const response = await fetch(`/api/migrations/${projectId}/reprocess`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to reprocess project');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Navigate to the execute page with reprocess flag
+      if (data.redirectUrl) {
+        router.push(data.redirectUrl);
+      }
+    },
+  });
+
   const handleDelete = async (project: MigrationProject) => {
     if (project.status === 'RUNNING') {
       alert('Cannot delete a running migration');
@@ -118,6 +139,24 @@ export function MigrationProjectList() {
       } catch (error) {
         alert(error instanceof Error ? error.message : 'Failed to delete project');
       }
+    }
+  };
+
+  const handleReprocess = async (project: MigrationProject) => {
+    if (hasRunningMigration) {
+      alert('Cannot reprocess while another migration is running');
+      return;
+    }
+
+    if (project.status !== 'COMPLETED' && project.status !== 'FAILED') {
+      alert('Can only reprocess completed or failed migrations');
+      return;
+    }
+
+    try {
+      await reprocessMutation.mutateAsync(project.id);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to reprocess migration');
     }
   };
 
@@ -292,6 +331,15 @@ export function MigrationProjectList() {
                             Execute Migration
                           </DropdownMenuItem>
                         </Link>
+                      )}
+                      {(project.status === 'COMPLETED' || project.status === 'FAILED') && (
+                        <DropdownMenuItem 
+                          onClick={() => handleReprocess(project)}
+                          disabled={reprocessMutation.isPending || hasRunningMigration}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          {reprocessMutation.isPending ? 'Processing...' : 'Reprocess Migration'}
+                        </DropdownMenuItem>
                       )}
                       <DropdownMenuItem 
                         className="text-destructive"
