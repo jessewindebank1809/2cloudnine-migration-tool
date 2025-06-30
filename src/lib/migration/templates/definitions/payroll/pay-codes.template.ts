@@ -14,7 +14,7 @@ export const payCodesTemplate: MigrationTemplate = {
             extractConfig: {
                 soqlQuery: `SELECT Id, Name, tc9_pr__Description__c, 
                     tc9_pr__Pay_Rate_Multiplier__c, tc9_pr__STP_Payment_Type__c, 
-                    tc9_pr__External_ID__c, {externalIdField} 
+                    tc9_pr__External_ID__c, tc9_pr__Pay_Advice_Description__c, {externalIdField} 
                     FROM tc9_pr__Pay_Code__c`,
                 objectApiName: "tc9_pr__Pay_Code__c",
                 batchSize: 200,
@@ -54,6 +54,12 @@ export const payCodesTemplate: MigrationTemplate = {
                     {
                         sourceField: "tc9_pr__External_ID__c",
                         targetField: "tc9_pr__External_ID__c",
+                        isRequired: false,
+                        transformationType: "direct",
+                    },
+                    {
+                        sourceField: "tc9_pr__Pay_Advice_Description__c",
+                        targetField: "tc9_pr__Pay_Advice_Description__c",
                         isRequired: false,
                         transformationType: "direct",
                     },

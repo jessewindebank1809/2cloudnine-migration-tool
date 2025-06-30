@@ -134,7 +134,22 @@ export async function POST(
         }
 
         // Create session ID early for tracking
-        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const sessionId = crypto.randomUUID();
+        
+        // Create migration session record immediately to satisfy foreign key constraints
+        await prisma.migration_sessions.create({
+          data: {
+            id: sessionId,
+            project_id: migrationId,
+            object_type: templateId,
+            status: 'PENDING',
+            total_records: selectedRecords.length,
+            processed_records: 0,
+            successful_records: 0,
+            failed_records: 0,
+            error_log: []
+          }
+        });
         
         // Track migration start with full context
         await usageTracker.trackMigrationStart(
@@ -151,6 +166,19 @@ export async function POST(
           targetClient = await sessionManager.getClient(targetOrg.id);
         } catch (error: unknown) {
           console.error('Failed to get authenticated clients:', error);
+          
+          // Update session status back to FAILED since authentication failed
+          await prisma.migration_sessions.update({
+            where: { id: sessionId },
+            data: {
+              status: 'FAILED',
+              error_log: [{
+                timestamp: new Date().toISOString(),
+                error: error instanceof Error ? error.message : String(error),
+                type: 'authentication_failure'
+              }]
+            }
+          });
           
           // Enhanced error context for Sentry
           Sentry.setContext("authentication", {
@@ -264,6 +292,15 @@ export async function POST(
           externalIdConfig.targetField = externalIdField;
         }
 
+        // Update session status to RUNNING now that authentication is successful
+        await prisma.migration_sessions.update({
+          where: { id: sessionId },
+          data: {
+            status: 'RUNNING',
+            started_at: new Date()
+          }
+        });
+
         // Create execution context with properly authenticated org data
         const executionContext: ExecutionContext = {
           sourceOrg: {
@@ -302,7 +339,28 @@ export async function POST(
 
         // Execute the template
         console.log('Starting template execution...');
-        const result = await executionEngine.executeTemplate(executionContext);
+        let result;
+        try {
+          result = await executionEngine.executeTemplate(executionContext);
+        } catch (executionError: unknown) {
+          console.error('Template execution failed:', executionError);
+          
+          // Update session status to FAILED since execution failed
+          await prisma.migration_sessions.update({
+            where: { id: sessionId },
+            data: {
+              status: 'FAILED',
+              completed_at: new Date(),
+              error_log: [{
+                timestamp: new Date().toISOString(),
+                error: executionError instanceof Error ? executionError.message : String(executionError),
+                type: 'execution_failure'
+              }]
+            }
+          });
+          
+          throw executionError;
+        }
         
         // Log execution summary first
         console.log('Template execution completed with summary:', {
@@ -461,12 +519,10 @@ export async function POST(
           }
         }
 
-        // Create migration session record
-        const session = await prisma.migration_sessions.create({
+        // Update migration session record with final results
+        const session = await prisma.migration_sessions.update({
+          where: { id: sessionId },
           data: {
-            id: sessionId,
-            project_id: migrationId,
-            object_type: templateId,
             status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
             total_records: result.totalRecords,
             processed_records: result.successfulRecords + result.failedRecords,
@@ -1100,7 +1156,7 @@ export async function POST(
         // Track the failure if we're authenticated
         try {
           const authSession = await requireAuth(request);
-          const sessionId = `session_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const sessionId = crypto.randomUUID();
           await usageTracker.trackMigrationFailure(
             migrationId,
             sessionId,
