@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, differenceInHours } from 'date-fns';
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
 interface PageProps {
@@ -74,6 +74,26 @@ const statusLabels = {
   COMPLETED: 'Completed',
   FAILED: 'Failed',
 } as const;
+
+// Format time according to requirements:
+// - time from now (54m, 14h, up to 48h, then 25 June)
+const formatMigrationTime = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const hoursAgo = differenceInHours(now, date);
+  
+  if (hoursAgo < 1) {
+    // Less than 1 hour - show minutes
+    const minutesAgo = Math.max(1, Math.floor((now.getTime() - date.getTime()) / 60000));
+    return `${minutesAgo}m`;
+  } else if (hoursAgo <= 48) {
+    // Between 1 hour and 48 hours - show hours
+    return `${hoursAgo}h`;
+  } else {
+    // More than 48 hours - show date
+    return format(date, 'd MMM');
+  }
+};
 
 export default function MigrationProjectPage({ params }: PageProps) {
   const router = useRouter();
@@ -345,7 +365,12 @@ export default function MigrationProjectPage({ params }: PageProps) {
                   return (
                     <div key={session.id} className="border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium">{getTemplateName(session.object_type)}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{getTemplateName(session.object_type)}</div>
+                          <span className="text-sm text-muted-foreground">
+                            {formatMigrationTime(session.created_at)}
+                          </span>
+                        </div>
                         <Badge variant={session.status === 'COMPLETED' ? 'completed' : 'pending'}>
                           {session.status}
                         </Badge>
