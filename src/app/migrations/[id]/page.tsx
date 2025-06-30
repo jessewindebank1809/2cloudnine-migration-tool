@@ -381,7 +381,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
                       
                       {parentRecordInfo.records.length > 0 && (
                         <div className="text-xs text-muted-foreground mt-2">
-                          <span className="font-medium">Records:</span>
+                          <span className="font-medium">Target Records:</span>
                           <ul className="mt-1 ml-4 space-y-1">
                             {parentRecordInfo.records.map((record: any) => (
                               <li key={record.sourceId} className="list-disc">
