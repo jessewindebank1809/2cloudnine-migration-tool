@@ -22,6 +22,7 @@ interface EnhancedValidationReportProps {
     selectedRecords?: string[];
     interpretationRuleNames?: Record<string, string>; // Map of rule ID to name
     isValidating?: boolean;
+    isMigrating?: boolean;
 }
 
 export function EnhancedValidationReport({
@@ -36,6 +37,7 @@ export function EnhancedValidationReport({
     selectedRecords = [],
     interpretationRuleNames = {},
     isValidating = false,
+    isMigrating = false,
 }: EnhancedValidationReportProps) {
     const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
     const [expandedRecords, setExpandedRecords] = React.useState<Set<string>>(new Set());
@@ -320,8 +322,8 @@ export function EnhancedValidationReport({
                                                 size="sm"
                                                 variant={isCloned ? "secondary" : hasError ? "destructive" : "outline"}
                                                 onClick={() => handleCloneRecord(exampleIssue)}
-                                                disabled={isCloning || isCloned}
-                                                className={`text-xs ${isCloned ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-50' : ''}`}
+                                                disabled={isCloning || isCloned || isMigrating}
+                                                className={`text-xs ${isCloned ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-50' : ''} ${isMigrating ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 {isCloning ? (
                                                     <>
@@ -430,7 +432,18 @@ export function EnhancedValidationReport({
     
     return (
         <div className="space-y-6">
-            <div className="bg-gray-50 rounded-lg p-4">
+            {/* Migration in progress banner */}
+            {isMigrating && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    <div>
+                        <p className="font-medium text-blue-900">Migration in Progress</p>
+                        <p className="text-sm text-blue-700">This validation report is read-only while migration is executing.</p>
+                    </div>
+                </div>
+            )}
+            
+            <div className={`bg-gray-50 rounded-lg p-4 ${isMigrating ? 'opacity-60' : ''}`}>
                 <h3 className="font-medium text-gray-900 mb-2">Validation Summary</h3>
                 <div className="text-sm text-gray-600 space-y-1">
                     <p>Source: <span className="font-medium">{toTitleCase(sourceOrgName)}</span></p>
@@ -448,9 +461,11 @@ export function EnhancedValidationReport({
                 </div>
             )}
             
-            {renderIssueSection('Errors', errors, 'error')}
-            {renderIssueSection('Warnings', warnings, 'warning')}
-            {renderIssueSection('Information', info, 'info')}
+            <div className={isMigrating ? 'opacity-60' : ''}>
+                {renderIssueSection('Errors', errors, 'error')}
+                {renderIssueSection('Warnings', warnings, 'warning')}
+                {renderIssueSection('Information', info, 'info')}
+            </div>
             
             {/* Retry Validation button */}
             {onRevalidate && (errors.length > 0 || warnings.length > 0) && (
@@ -458,8 +473,8 @@ export function EnhancedValidationReport({
                     <Button
                         onClick={onRevalidate}
                         variant="outline"
-                        disabled={isValidating}
-                        className="flex items-center gap-2"
+                        disabled={isValidating || isMigrating}
+                        className={`flex items-center gap-2 ${isMigrating ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         {isValidating ? (
                             <>
