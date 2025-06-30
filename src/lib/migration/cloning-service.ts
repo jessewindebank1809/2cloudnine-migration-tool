@@ -254,8 +254,11 @@ export class CloningService {
         if (field.type === 'address' || field.type === 'location') {
           return false;
         }
-        // Exclude non-queryable fields
-        if (!field.createable && !field.updateable && field.name !== 'Id' && field.name !== 'Name' && !field.name.includes('__c')) {
+        // Exclude non-queryable fields, but always include external ID fields
+        const isExternalIdField = field.name === 'tc9_edc__External_ID_Data_Creation__c' || 
+                                 field.name === 'External_ID_Data_Creation__c' || 
+                                 field.name === 'External_Id__c';
+        if (!field.createable && !field.updateable && field.name !== 'Id' && field.name !== 'Name' && !field.name.includes('__c') && !isExternalIdField) {
           return false;
         }
         // Exclude relationship fields that end with __r
@@ -359,6 +362,12 @@ export class CloningService {
       
       // Get all possible external ID fields
       const possibleExternalIdFields = ExternalIdUtils.getAllPossibleExternalIdFields();
+      console.log(`Possible external ID fields to try: ${possibleExternalIdFields.join(', ')}`);
+      console.log(`Total queryable fields found: ${queryableFields.length}`);
+      
+      // Check which external ID fields exist in queryable fields
+      const availableExternalIdFields = possibleExternalIdFields.filter(field => queryableFields.includes(field));
+      console.log(`Available external ID fields on ${objectApiName}: ${availableExternalIdFields.join(', ') || 'NONE'}`);
       
       // Try each possible external ID field
       for (const tryExternalIdField of possibleExternalIdFields) {
@@ -368,8 +377,11 @@ export class CloningService {
           continue;
         }
         
-        query = `SELECT ${allFieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${tryExternalIdField} = '${recordId}' LIMIT 1`;
+        // Escape single quotes in recordId to prevent SOQL injection
+        const escapedRecordId = recordId.replace(/'/g, "\\'");
+        query = `SELECT ${allFieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${tryExternalIdField} = '${escapedRecordId}' LIMIT 1`;
         console.log(`Trying query with external ID field: ${tryExternalIdField}`);
+        console.log(`Full query: ${query}`);
         
         try {
           queryResult = await client.query(query);
@@ -382,7 +394,7 @@ export class CloningService {
           // If the query fails due to invalid relationship fields, try without them
           if (error.message && error.message.includes('No such column')) {
             console.warn('Query failed with relationship fields, retrying without them');
-            const basicQuery = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${tryExternalIdField} = '${recordId}' LIMIT 1`;
+            const basicQuery = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${tryExternalIdField} = '${escapedRecordId}' LIMIT 1`;
             
             try {
               queryResult = await client.query(basicQuery);
@@ -393,6 +405,18 @@ export class CloningService {
               }
             } catch (basicError) {
               console.log(`Failed to query with ${tryExternalIdField}: ${basicError}`);
+              
+              // Try a minimal query to debug
+              try {
+                const debugQuery = `SELECT Id, ${tryExternalIdField} FROM ${objectApiName} WHERE ${tryExternalIdField} = '${escapedRecordId}' LIMIT 1`;
+                console.log(`Trying minimal debug query: ${debugQuery}`);
+                const debugResult = await client.query(debugQuery);
+                if (debugResult.success) {
+                  console.log(`Debug query result:`, debugResult.data);
+                }
+              } catch (debugError) {
+                console.log(`Debug query also failed: ${debugError}`);
+              }
             }
           } else {
             console.log(`Failed to query with ${tryExternalIdField}: ${error.message}`);
