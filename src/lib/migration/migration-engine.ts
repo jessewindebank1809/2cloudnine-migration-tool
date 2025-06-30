@@ -189,7 +189,7 @@ export class MigrationEngine {
     options: MigrationOptions
   ): Promise<MigrationResult> {
     let batchNumber = 0;
-    let totalBatches = 0;
+    const totalBatches = 0;
 
     // Extract and load data in batches
     const extractor = this.dataExtractor.extractRecordsBatched(

@@ -76,7 +76,7 @@ export class ObjectDiscoveryEngine {
         const describeResult = await connection.describeGlobal();
         
         // Filter objects based on options
-        let objects = describeResult.sobjects.filter((obj: DescribeGlobalSObject) => {
+        const objects = describeResult.sobjects.filter((obj: DescribeGlobalSObject) => {
           if (!obj.queryable) return false;
           if (!includeStandard && !obj.custom) return false;
           if (!includeCustom && obj.custom) return false;
