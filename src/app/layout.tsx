@@ -11,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: '2cloudnine Migration Tool',
-  description: 'Seamless Salesforce data migration platform',
+  description: 'Seamless 2cloudnine data migration platform',
   keywords: ['Salesforce', 'migration', 'data', 'automation', '2cloudnine'],
   authors: [{ name: '2cloudnine' }],
 }
