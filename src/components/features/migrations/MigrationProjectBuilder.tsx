@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
-import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Info, RefreshCw, ExternalLink } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1338,7 +1338,7 @@ export function MigrationProjectBuilder() {
                 </Button>
                 <Button
                   onClick={() => {
-                    if (!hasRunningMigration) {
+                    if (!executeMigration.isPending && !hasRunningMigration) {
                       if (currentStep === 'view-results') {
                         // Reset component state to start a fresh migration
                         setCurrentStep('project-setup');
@@ -1361,15 +1361,18 @@ export function MigrationProjectBuilder() {
                       }
                     }
                   }}
-                  variant="default"
-                  disabled={hasRunningMigration}
-                  className={hasRunningMigration ? 'opacity-50 cursor-not-allowed' : ''}
-                  title={hasRunningMigration ? 'Cannot start new migration while another is in progress' : 'Create a new migration'}
+                  disabled={executeMigration.isPending || hasRunningMigration}
+                  title={executeMigration.isPending || hasRunningMigration ? 'Cannot start new migration while another is in progress' : 'Create a new migration'}
                 >
-                  {hasRunningMigration ? (
+                  {executeMigration.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Migration in Progress
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Migrating...
+                    </>
+                  ) : hasRunningMigration ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Migrating...
                     </>
                   ) : (
                     'New Migration'
