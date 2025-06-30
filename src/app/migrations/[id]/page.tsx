@@ -1,16 +1,16 @@
 'use client';
 
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Play, Calendar, Database, Plus } from 'lucide-react';
+import { ArrowLeft, Play, Calendar, Database, Plus, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, differenceInHours } from 'date-fns';
 import { useRunningMigrations } from '@/hooks/useRunningMigrations';
 
 interface PageProps {
@@ -75,7 +75,28 @@ const statusLabels = {
   FAILED: 'Failed',
 } as const;
 
+// Format time according to requirements:
+// - time from now (54m, 14h, up to 48h, then 25 June)
+const formatMigrationTime = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const hoursAgo = differenceInHours(now, date);
+  
+  if (hoursAgo < 1) {
+    // Less than 1 hour - show minutes
+    const minutesAgo = Math.max(1, Math.floor((now.getTime() - date.getTime()) / 60000));
+    return `${minutesAgo}m`;
+  } else if (hoursAgo <= 48) {
+    // Between 1 hour and 48 hours - show hours
+    return `${hoursAgo}h`;
+  } else {
+    // More than 48 hours - show date
+    return format(date, 'd MMM');
+  }
+};
+
 export default function MigrationProjectPage({ params }: PageProps) {
+  const router = useRouter();
   const { hasRunningMigration } = useRunningMigrations();
   
   // Unwrap the params promise
@@ -106,6 +127,26 @@ export default function MigrationProjectPage({ params }: PageProps) {
       }
       const data = await response.json();
       return data.templates as Template[];
+    },
+  });
+
+  // Reprocess mutation
+  const reprocessMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/migrations/${id}/reprocess`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to reprocess migration');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Navigate to the execute page with reprocess flag
+      if (data.redirectUrl) {
+        router.push(data.redirectUrl);
+      }
     },
   });
 
@@ -237,22 +278,6 @@ export default function MigrationProjectPage({ params }: PageProps) {
             </div>
           </div>
           <div className="flex gap-2">
-            {hasRunningMigration ? (
-              <Button 
-                disabled={true}
-                title="Cannot start new migration while another is in progress"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Migration
-              </Button>
-            ) : (
-              <Link href="/migrations/new">
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Migration
-                </Button>
-              </Link>
-            )}
             {project.status === 'DRAFT' && (
               <Link href={`/migrations/${id}/execute`}>
                 <Button>
@@ -260,6 +285,16 @@ export default function MigrationProjectPage({ params }: PageProps) {
                   Execute Migration
                 </Button>
               </Link>
+            )}
+            {(project.status === 'COMPLETED' || project.status === 'FAILED') && (
+              <Button
+                onClick={() => reprocessMutation.mutate()}
+                disabled={reprocessMutation.isPending || hasRunningMigration}
+                variant="default"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {reprocessMutation.isPending ? 'Processing...' : 'Rerun'}
+              </Button>
             )}
           </div>
         </div>
@@ -328,7 +363,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
                   const hasParentInfo = parentRecordInfo.attempted > 0;
                   
                   return (
-                    <div key={session.id} className="border rounded-lg p-3">
+                    <div key={session.id} className="border rounded-lg p-3 relative">
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-medium">{getTemplateName(session.object_type)}</div>
                         <Badge variant={session.status === 'COMPLETED' ? 'completed' : 'pending'}>
@@ -346,7 +381,7 @@ export default function MigrationProjectPage({ params }: PageProps) {
                       
                       {parentRecordInfo.records.length > 0 && (
                         <div className="text-xs text-muted-foreground mt-2">
-                          <span className="font-medium">Records:</span>
+                          <span className="font-medium">Target Records:</span>
                           <ul className="mt-1 ml-4 space-y-1">
                             {parentRecordInfo.records.map((record: any) => (
                               <li key={record.sourceId} className="list-disc">
@@ -371,6 +406,10 @@ export default function MigrationProjectPage({ params }: PageProps) {
                         </div>
                       )}
                       
+                      {/* Timestamp in bottom right */}
+                      <div className="text-xs text-muted-foreground absolute bottom-3 right-3">
+                        {formatMigrationTime(session.created_at)}
+                      </div>
                     </div>
                   );
                 })}

@@ -678,7 +678,10 @@ export async function POST(
           // Get actual child record counts from target org for all migrated records
           const actualChildCounts = new Map<string, Map<string, number>>(); // sourceParentId -> stepName -> count
           
-          if (successfulParentIds.length > 0 && targetClient && sourceClient) {
+          // Only query for child records if this template has child steps
+          const hasChildSteps = stepResults.length > 1 && stepResults.some(step => step.stepName !== 'interpretationRuleMaster' && step.stepName !== 'payCodeMaster' && step.stepName !== 'leaveRuleMaster');
+          
+          if (successfulParentIds.length > 0 && targetClient && sourceClient && hasChildSteps) {
             try {
               // Get target IDs for selected parents from lookup mappings
               const selectedTargetIds = successfulParentIds.map(sourceId => lookupMappings[sourceId]).filter(Boolean);
@@ -692,26 +695,37 @@ export async function POST(
               // Query each child object type separately in SOURCE org first for comparison
               const sourceChildCounts = new Map<string, Map<string, number>>(); // sourceParentId -> stepName -> count
               
-              const childObjectQueries = [
-                {
-                  stepName: 'interpretationBreakpointLeaveHeader',
-                  objectType: 'tc9_et__Interpretation_Breakpoint__c',
-                  parentField: 'tc9_et__Interpretation_Rule__c',
-                  whereClause: `RecordType.Name = 'Leave Breakpoint' AND tc9_et__Breakpoint_Type__c = 'Leave Header'`
-                },
-                {
-                  stepName: 'interpretationBreakpointPayCodeCap',
-                  objectType: 'tc9_et__Interpretation_Breakpoint__c',
-                  parentField: 'tc9_et__Interpretation_Rule__c',
-                  whereClause: `(RecordType.Name = 'Pay Code Cap' OR RecordType.Name = 'Leave Breakpoint') AND tc9_et__Breakpoint_Type__c != 'Leave Header'`
-                },
-                {
-                  stepName: 'interpretationBreakpointOther',
-                  objectType: 'tc9_et__Interpretation_Breakpoint__c',
-                  parentField: 'tc9_et__Interpretation_Rule__c',
-                  whereClause: `RecordType.Name != 'Pay Code Cap' AND RecordType.Name != 'Leave Breakpoint'`
-                }
-              ];
+              // Define child object queries based on template type
+              let childObjectQueries: Array<{stepName: string, objectType: string, parentField: string, whereClause: string}> = [];
+              
+              // Only define queries for templates that have child records
+              if (templateId === 'payroll-interpretation-rules') {
+                childObjectQueries = [
+                  {
+                    stepName: 'interpretationBreakpointLeaveHeader',
+                    objectType: 'tc9_et__Interpretation_Breakpoint__c',
+                    parentField: 'tc9_et__Interpretation_Rule__c',
+                    whereClause: `RecordType.Name = 'Leave Breakpoint' AND tc9_et__Breakpoint_Type__c = 'Leave Header'`
+                  },
+                  {
+                    stepName: 'interpretationBreakpointPayCodeCap',
+                    objectType: 'tc9_et__Interpretation_Breakpoint__c',
+                    parentField: 'tc9_et__Interpretation_Rule__c',
+                    whereClause: `(RecordType.Name = 'Pay Code Cap' OR RecordType.Name = 'Leave Breakpoint') AND tc9_et__Breakpoint_Type__c != 'Leave Header'`
+                  },
+                  {
+                    stepName: 'interpretationBreakpointOther',
+                    objectType: 'tc9_et__Interpretation_Breakpoint__c',
+                    parentField: 'tc9_et__Interpretation_Rule__c',
+                    whereClause: `RecordType.Name != 'Pay Code Cap' AND RecordType.Name != 'Leave Breakpoint'`
+                  }
+                ];
+              }
+              // Pay Codes and Leave Rules don't have child records in the current templates
+              
+              if (childObjectQueries.length === 0) {
+                console.log('🔍 DEBUGGING: No child queries needed for this template type');
+              } else {
 
               // First, query SOURCE org for baseline comparison
               console.log('🔍 DEBUGGING: === QUERYING SOURCE ORG ===');
@@ -844,6 +858,7 @@ export async function POST(
                   console.log(`🔍 DEBUGGING: Missing counts for parent ${sourceParentId} - SOURCE:${!!sourceStepCounts} TARGET:${!!targetStepCounts}`);
                 }
               });
+              } // End of else block for childObjectQueries.length check
             } catch (error: unknown) {
               console.error('Error querying child record counts:', error);
             }
@@ -863,7 +878,8 @@ export async function POST(
           // Process each step result
           for (const step of stepResults) {
             // Update record results based on step outcomes
-            if (step.stepName === 'interpretationRuleMaster') {
+            const parentStepNames = ['interpretationRuleMaster', 'payCodeMaster', 'leaveRuleMaster'];
+            if (parentStepNames.includes(step.stepName)) {
               // This is the parent record step
               step.errors?.forEach((error) => {
                 const sourceId = (error as any).sourceRecordId || error.recordId;

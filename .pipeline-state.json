@@ -1,54 +1,54 @@
-{
-  "tracking_id": "fix-external-id-cloning",
-  "current_phase": 6,
-  "issue_detail": "Fix external ID field handling for managed/unmanaged packages in cloning service",
+  "tracking_id": "reprocess-feature-2025-06-30",
+  "current_phase": 1,
   "phases": {
     "phase_1": {
       "status": "completed",
-      "issue_number": "#156",
-      "issue_url": "https://github.com/jessewindebank1809/2cloudnine-migration-tool/issues/156"
+      "issue_number": "#164",
+      "issue_url": "https://github.com/jessewindebank1809/2cloudnine-migration-tool/issues/164",
+      "timestamp": "2025-06-30T10:45:00"
     },
     "phase_2": {
       "status": "completed",
-      "root_cause": "The CloningService.fetchSourceRecord method only tries a single external ID field when querying for records. It does not handle the case where the source org might use a different external ID field (managed vs unmanaged).",
-      "files_to_modify": [
-        "src/lib/migration/cloning-service.ts"
-      ],
-      "related_issues": [],
-      "investigation_summary": "The issue occurs because when pcPAYPenalty130 is passed as a record ID, the system assumes it should query using the detected external ID field, but if the source org uses a different field name (External_ID_Data_Creation__c vs tc9_edc__External_ID_Data_Creation__c), the query fails."
+      "investigation_findings": {
+        "root_cause": "Users need to reprocess migrations without going through validation again",
+        "files_to_modify": [
+          "src/components/features/migrations/MigrationProjectList.tsx",
+          "src/app/migrations/[id]/page.tsx",
+          "src/app/api/migrations/[id]/reprocess/route.ts"
+        ],
+        "key_findings": [
+          "Execute endpoint requires migration config with templateId and selectedRecords",
+          "Can reuse existing execute logic but skip validation",
+          "Need to add reprocess buttons in list view and detail view",
+          "Should create new migration session for reprocessing"
+        ]
+      }
     },
     "phase_3": {
       "status": "completed",
-      "design_decisions": [
-        "Implement a multi-field query approach in fetchSourceRecord method",
-        "Try all possible external ID fields: tc9_edc__External_ID_Data_Creation__c, External_ID_Data_Creation__c, External_Id__c",
-        "Add comprehensive logging to track which field is being used",
-        "Improve error messages to show which fields were attempted",
-        "Maintain backward compatibility with existing functionality"
-      ],
-      "implementation_plan": "Update the fetchSourceRecord method to iterate through all possible external ID fields when the recordId is not a Salesforce ID format. This ensures compatibility with both managed and unmanaged package scenarios."
+      "design_decisions": {
+        "api_approach": "Create dedicated reprocess endpoint that reuses execute logic",
+        "ui_approach": "Add reprocess option to both list and detail views",
+        "validation_approach": "Skip validation entirely, go straight to execution",
+        "session_handling": "Create new session for each reprocess attempt",
+        "status_requirements": "Only allow for COMPLETED or FAILED migrations"
+      },
+      "implementation_plan": [
+        "Create /api/migrations/[id]/reprocess route",
+        "Add reprocess option to MigrationProjectList dropdown",
+        "Add reprocess button to migration detail page",
+        "Handle navigation to execute page with reprocess flag",
+        "Test with completed and failed migrations"
+      ]
     },
     "phase_4": {
-      "status": "completed",
-      "branch_name": "issue/156-fix-external-id-cloning",
-      "files_modified": [
-        "src/lib/migration/cloning-service.ts"
-      ],
-      "commit_sha": "535b36b"
+      "status": "pending"
     },
     "phase_5": {
-      "status": "completed",
-      "validation_results": {
-        "typescript": "passed",
-        "eslint": "passed with warnings",
-        "tests": "not run - no test changes required"
-      },
-      "tests_passed": true
+      "status": "pending"
     },
     "phase_6": {
-      "status": "completed",
-      "pr_number": "#157",
-      "pr_url": "https://github.com/jessewindebank1809/2cloudnine-migration-tool/pull/157"
+      "status": "pending"
     }
   }
 }
