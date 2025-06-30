@@ -331,8 +331,12 @@ export class CloningService {
     let queryResult = null;
     let result = null;
     
-    if (recordId.match(/^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/)) {
-      // This looks like a Salesforce ID (15 or 18 characters)
+    // Salesforce IDs start with object key prefix (3 chars) followed by 12 or 15 more alphanumeric chars
+    // Common prefixes: a0Q, a5Y, 001, 003, etc. They never start with lowercase letters like 'pc'
+    const salesforceIdPattern = /^[a-zA-Z0-9]{3}[A-Z0-9]{12}$|^[a-zA-Z0-9]{3}[A-Z0-9]{12}[a-zA-Z0-9]{3}$/;
+    
+    if (salesforceIdPattern.test(recordId) && !recordId.startsWith('pc')) {
+      // This looks like a Salesforce ID (15 or 18 characters with proper format)
       query = `SELECT ${allFieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
       console.log(`Querying with Salesforce ID`);
       
