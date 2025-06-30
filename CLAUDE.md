@@ -18,11 +18,10 @@ npm install @salesforce/cli --global
 
 ## Git Workflow & Pull Requests
 
-**IMPORTANT: Always create PRs against `staging` branch, NOT `main`**
-- Feature branches should be created from `staging`
-- All PRs should target `staging` as the base branch
-- Only `staging` gets merged to `main` (not done by individual developers)
-- Example: `gh pr create --base staging`
+**IMPORTANT: Always create PRs against `main` branch**
+- Feature branches should be created from `main`
+- All PRs should target `main` as the base branch
+- Example: `gh pr create --base main`
 
 ## CLI Commands
 
