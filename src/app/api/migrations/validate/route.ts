@@ -5,6 +5,7 @@ import { ValidationEngine } from '@/lib/migration/templates/core/validation-engi
 import '@/lib/migration/templates/registry';
 import { usageTracker } from '@/lib/usage-tracker';
 import { requireAuth } from '@/lib/auth/session-helper';
+import { validateSelectedRecords } from '@/lib/migration/utils/record-validation';
 
 interface ValidationIssue {
   id: string;
@@ -63,6 +64,43 @@ export async function POST(request: NextRequest) {
         { error: 'Template not found' },
         { status: 404 }
       );
+    }
+
+    // Validate selected records exist and are of correct type
+    const recordValidation = await validateSelectedRecords(
+      sourceOrgId,
+      selectedRecords,
+      template.etlSteps[0]?.extractConfig?.objectApiName || 'tc9_et__Interpretation_Rule__c'
+    );
+
+    // If selected records are invalid, return validation errors
+    if (!recordValidation.valid) {
+      const issues: ValidationIssue[] = recordValidation.errors.map((error, index) => ({
+        id: `record-validation-error-${index}`,
+        severity: 'error' as const,
+        title: 'Invalid Record Selection',
+        description: error,
+        recordId: recordValidation.invalidRecords[index],
+        suggestion: 'Ensure the selected record exists and is of the correct type'
+      }));
+
+      const validationResult: ValidationResult = {
+        isValid: false,
+        hasErrors: true,
+        hasWarnings: false,
+        issues,
+        summary: {
+          errors: issues.length,
+          warnings: 0,
+          info: 0,
+        },
+        selectedRecordNames: selectedRecordNames || {}
+      };
+
+      return NextResponse.json({
+        success: false,
+        validation: validationResult
+      });
     }
 
     // Use the template's validation engine
