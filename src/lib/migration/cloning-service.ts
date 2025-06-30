@@ -45,7 +45,7 @@ export class CloningService {
       if (!sourceRecord) {
         return {
           success: false,
-          error: `Source record ${sourceRecordId} not found`
+          error: `Source record ${sourceRecordId} not found in ${objectApiName}. Tried external ID fields: ${ExternalIdUtils.getAllPossibleExternalIdFields().join(', ')}`
         };
       }
       
@@ -238,6 +238,8 @@ export class CloningService {
    * Fetch source record with all fields
    */
   private static async fetchSourceRecord(client: SalesforceClient, objectApiName: string, recordId: string, externalIdField: string): Promise<any> {
+    console.log(`Fetching source record for ${objectApiName} with ID/ExternalID: ${recordId}, using external ID field: ${externalIdField}`);
+    
     // Get all fields for the object
     const describeResult = await client.getObjectMetadata(objectApiName);
     if (!describeResult.success) {
@@ -252,8 +254,11 @@ export class CloningService {
         if (field.type === 'address' || field.type === 'location') {
           return false;
         }
-        // Exclude non-queryable fields
-        if (!field.createable && !field.updateable && field.name !== 'Id' && field.name !== 'Name' && !field.name.includes('__c')) {
+        // Exclude non-queryable fields, but always include external ID fields
+        const isExternalIdField = field.name === 'tc9_edc__External_ID_Data_Creation__c' || 
+                                 field.name === 'External_ID_Data_Creation__c' || 
+                                 field.name === 'External_Id__c';
+        if (!field.createable && !field.updateable && field.name !== 'Id' && field.name !== 'Name' && !field.name.includes('__c') && !isExternalIdField) {
           return false;
         }
         // Exclude relationship fields that end with __r
@@ -323,51 +328,124 @@ export class CloningService {
     
     // Build query - check if recordId is actually an external ID or a Salesforce ID
     let query: string;
-    if (recordId.match(/^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/)) {
-      // This looks like a Salesforce ID (15 or 18 characters)
+    let queryResult = null;
+    let result = null;
+    
+    // Salesforce IDs start with object key prefix (3 chars) followed by 12 or 15 more alphanumeric chars
+    // Common prefixes: a0Q, a5Y, 001, 003, etc. They never start with lowercase letters like 'pc'
+    const salesforceIdPattern = /^[a-zA-Z0-9]{3}[A-Z0-9]{12}$|^[a-zA-Z0-9]{3}[A-Z0-9]{12}[a-zA-Z0-9]{3}$/;
+    
+    if (salesforceIdPattern.test(recordId) && !recordId.startsWith('pc')) {
+      // This looks like a Salesforce ID (15 or 18 characters with proper format)
       query = `SELECT ${allFieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
+      console.log(`Querying with Salesforce ID`);
+      
+      try {
+        queryResult = await client.query(query);
+        if (!queryResult.success) {
+          throw new Error(`Failed to query: ${queryResult.error}`);
+        }
+        result = { records: queryResult.data };
+      } catch (error: any) {
+        // If the query fails due to invalid relationship fields, try without them
+        if (error.message && error.message.includes('No such column')) {
+          console.warn('Query failed with relationship fields, retrying without them');
+          const basicQuery = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
+          queryResult = await client.query(basicQuery);
+          if (!queryResult.success) {
+            throw new Error(`Failed to query: ${queryResult.error}`);
+          }
+          result = { records: queryResult.data };
+        } else {
+          throw error;
+        }
+      }
     } else {
-      // This is likely an external ID - try external ID field first
-      query = `SELECT ${allFieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${externalIdField} = '${recordId}' LIMIT 1`;
-    }
-    
-    console.log(`Fetching source record with enhanced query for ${objectApiName}`);
-    console.log(`Including ${relationshipFields.length} relationship fields`);
-    
-    let queryResult;
-    try {
-      queryResult = await client.query(query);
-    } catch (error: any) {
-      // If the query fails due to invalid relationship fields, try without them
-      if (error.message && error.message.includes('No such column')) {
-        console.warn('Query failed with relationship fields, retrying without them');
-        const basicQuery = recordId.match(/^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/) 
-          ? `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`
-          : `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${externalIdField} = '${recordId}' LIMIT 1`;
+      // This is likely an external ID - we need to try multiple possible external ID fields
+      console.log(`Record ID "${recordId}" appears to be an external ID, trying multiple field options`);
+      
+      // Get all possible external ID fields
+      const possibleExternalIdFields = ExternalIdUtils.getAllPossibleExternalIdFields();
+      console.log(`Possible external ID fields to try: ${possibleExternalIdFields.join(', ')}`);
+      console.log(`Total queryable fields found: ${queryableFields.length}`);
+      
+      // Check which external ID fields exist in queryable fields
+      const availableExternalIdFields = possibleExternalIdFields.filter(field => queryableFields.includes(field));
+      console.log(`Available external ID fields on ${objectApiName}: ${availableExternalIdFields.join(', ') || 'NONE'}`);
+      
+      // Try each possible external ID field
+      for (const tryExternalIdField of possibleExternalIdFields) {
+        // Check if this field exists in the queryable fields
+        if (!queryableFields.includes(tryExternalIdField)) {
+          console.log(`Skipping ${tryExternalIdField} - field not found on object`);
+          continue;
+        }
         
-        queryResult = await client.query(basicQuery);
-      } else {
-        throw error;
+        // Escape single quotes in recordId to prevent SOQL injection
+        const escapedRecordId = recordId.replace(/'/g, "\\'");
+        query = `SELECT ${allFieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${tryExternalIdField} = '${escapedRecordId}' LIMIT 1`;
+        console.log(`Trying query with external ID field: ${tryExternalIdField}`);
+        console.log(`Full query: ${query}`);
+        
+        try {
+          queryResult = await client.query(query);
+          if (queryResult.success && queryResult.data && queryResult.data.length > 0) {
+            console.log(`Found record using external ID field: ${tryExternalIdField}`);
+            result = { records: queryResult.data };
+            break;
+          }
+        } catch (error: any) {
+          // If the query fails due to invalid relationship fields, try without them
+          if (error.message && error.message.includes('No such column')) {
+            console.warn('Query failed with relationship fields, retrying without them');
+            const basicQuery = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectApiName} WHERE ${tryExternalIdField} = '${escapedRecordId}' LIMIT 1`;
+            
+            try {
+              queryResult = await client.query(basicQuery);
+              if (queryResult.success && queryResult.data && queryResult.data.length > 0) {
+                console.log(`Found record using external ID field (without relationships): ${tryExternalIdField}`);
+                result = { records: queryResult.data };
+                break;
+              }
+            } catch (basicError) {
+              console.log(`Failed to query with ${tryExternalIdField}: ${basicError}`);
+              
+              // Try a minimal query to debug
+              try {
+                const debugQuery = `SELECT Id, ${tryExternalIdField} FROM ${objectApiName} WHERE ${tryExternalIdField} = '${escapedRecordId}' LIMIT 1`;
+                console.log(`Trying minimal debug query: ${debugQuery}`);
+                const debugResult = await client.query(debugQuery);
+                if (debugResult.success) {
+                  console.log(`Debug query result:`, debugResult.data);
+                }
+              } catch (debugError) {
+                console.log(`Debug query also failed: ${debugError}`);
+              }
+            }
+          } else {
+            console.log(`Failed to query with ${tryExternalIdField}: ${error.message}`);
+          }
+        }
+      }
+      
+      // If still no record found, try using the recordId as a Salesforce ID as last resort
+      if (!result || !result.records || result.records.length === 0) {
+        console.log(`No record found with any external ID field, trying with Id field as last resort`);
+        query = `SELECT ${allFieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
+        
+        try {
+          const fallbackQueryResult = await client.query(query);
+          if (fallbackQueryResult.success && fallbackQueryResult.data && fallbackQueryResult.data.length > 0) {
+            console.log(`Found record using Id field`);
+            return fallbackQueryResult.data[0];
+          }
+        } catch (error) {
+          console.log(`Failed to query with Id field: ${error}`);
+        }
       }
     }
     
-    if (!queryResult.success) {
-      throw new Error(`Failed to query: ${queryResult.error}`);
-    }
-    const result = { records: queryResult.data };
-    
-    // If no record found with external ID, try ID as fallback
-    if (!result.records[0] && !recordId.match(/^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/)) {
-      console.log(`No record found with external ID, trying with Id field`);
-      query = `SELECT ${allFieldsToQuery.join(', ')} FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`;
-      const fallbackQueryResult = await client.query(query);
-      if (!fallbackQueryResult.success) {
-        return null;
-      }
-      return fallbackQueryResult.data?.[0];
-    }
-    
-    return result.records[0];
+    return result?.records?.[0] || null;
   }
   
   /**
