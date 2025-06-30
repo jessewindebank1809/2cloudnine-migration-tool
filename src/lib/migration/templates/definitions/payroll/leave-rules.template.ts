@@ -145,14 +145,10 @@ export const leaveRulesTemplate: MigrationTemplate = {
                         checkName: "sourcePayCodeExternalIdValidation",
                         description: "Validate that all source pay codes referenced by leave rules have external ID values",
                         validationQuery: `SELECT COUNT() FROM tc9_pr__Pay_Code__c 
-                            WHERE Id IN (
-                                SELECT tc9_pr__Pay_Code__c 
-                                FROM tc9_pr__Leave_Rule__c 
-                                WHERE tc9_pr__Pay_Code__c != null
-                                UNION
-                                SELECT tc9_pr__Unpaid_Pay_Code__c 
-                                FROM tc9_pr__Leave_Rule__c 
-                                WHERE tc9_pr__Unpaid_Pay_Code__c != null
+                            WHERE (
+                                Id IN (SELECT tc9_pr__Pay_Code__c FROM tc9_pr__Leave_Rule__c WHERE tc9_pr__Pay_Code__c != null)
+                                OR 
+                                Id IN (SELECT tc9_pr__Unpaid_Pay_Code__c FROM tc9_pr__Leave_Rule__c WHERE tc9_pr__Unpaid_Pay_Code__c != null)
                             )
                             AND {externalIdField} = null`,
                         expectedResult: "empty",
