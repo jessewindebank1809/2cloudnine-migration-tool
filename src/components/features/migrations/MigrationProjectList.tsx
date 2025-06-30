@@ -338,7 +338,7 @@ export function MigrationProjectList() {
                           disabled={reprocessMutation.isPending || hasRunningMigration}
                         >
                           <RefreshCw className="mr-2 h-4 w-4" />
-                          {reprocessMutation.isPending ? 'Processing...' : 'Reprocess Migration'}
+                          {reprocessMutation.isPending ? 'Processing...' : 'Rerun'}
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem 
