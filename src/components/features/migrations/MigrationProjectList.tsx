@@ -194,6 +194,8 @@ export function MigrationProjectList() {
           {hasRunningMigration ? (
             <Button 
               disabled={true}
+              variant="secondary"
+              className="opacity-50 cursor-not-allowed"
               title="Cannot start new migration while another is in progress"
             >
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
