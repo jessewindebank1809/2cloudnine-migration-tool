@@ -8,6 +8,7 @@ import { sessionManager } from '@/lib/salesforce/session-manager';
 import { TokenManager } from '@/lib/salesforce/token-manager';
 import type { SalesforceOrg } from '@/types';
 import type { Prisma } from '@prisma/client';
+import { validateSelectedRecords } from '@/lib/migration/utils/record-validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -119,9 +120,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get selected records
-    const selectedRecordIds = config.selectedRecords || [];
+    // Get selected records - handle both array and object formats
+    let selectedRecordIds: string[] = [];
+    if (Array.isArray(config.selectedRecords)) {
+      selectedRecordIds = config.selectedRecords;
+    } else if (config.selectedRecords && typeof config.selectedRecords === 'object') {
+      // Extract all record IDs from the object
+      selectedRecordIds = Object.values(config.selectedRecords).flat();
+    }
     console.log('Selected records:', selectedRecordIds.length);
+
+    // Validate selected records exist and are of correct type
+    const recordValidation = await validateSelectedRecords(
+      config.sourceOrgId,
+      selectedRecordIds,
+      template.etlSteps[0]?.extractConfig?.objectApiName || 'tc9_et__Interpretation_Rule__c'
+    );
+
+    if (!recordValidation.valid) {
+      return NextResponse.json({
+        status: 'failed',
+        errors: recordValidation.errors,
+        summary: {
+          total: selectedRecordIds.length,
+          success: 0,
+          failed: recordValidation.invalidRecords.length,
+          errors: recordValidation.errors
+        }
+      });
+    }
 
     // Initialize execution engine
     const engine = new ExecutionEngine();
@@ -147,7 +174,7 @@ export async function POST(request: NextRequest) {
       template,
       sourceOrg: sourceOrgData,
       targetOrg: targetOrgData,
-      selectedRecords: selectedRecordIds,
+      selectedRecords: { [primaryObjectType]: selectedRecordIds },
       externalIdField: externalIdConfig.targetField,
       externalIdConfig: externalIdConfig,
       config: DEFAULT_EXECUTION_CONFIG
