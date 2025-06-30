@@ -106,4 +106,4 @@ jobs:
           .next/
           node_modules/.prisma/
           node_modules/@prisma/
-        retention-days: 1 
+        retention-days: 7 
