@@ -95,7 +95,9 @@ export const payCodesTemplate: MigrationTemplate = {
                     {
                         checkName: "external-id-check",
                         description: "Check if external ID exists",
-                        validationQuery: "SELECT Id FROM tc9_pr__Pay_Code__c WHERE {externalIdField} = null",
+
+                        validationQuery: "SELECT Id FROM tc9_pr__Pay_Code__c WHERE Id IN ({selectedRecordIds}) AND {externalIdField} = null",
+
                         expectedResult: "empty",
                         errorMessage: "Pay Code records missing external ID",
                         severity: "warning"
