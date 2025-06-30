@@ -296,16 +296,6 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
-              <div className="text-xs text-muted-foreground">
-                <p>Your email: {session?.user?.email || "Not logged in"}</p>
-                <p>
-                  Current page:{" "}
-                  {typeof window !== "undefined"
-                    ? window.location.pathname
-                    : ""}
-                </p>
-              </div>
             </div>
           )}
 
