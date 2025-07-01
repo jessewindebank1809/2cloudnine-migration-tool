@@ -55,6 +55,8 @@ model User {
   migration_projects    migration_projects[]
   organisations         organisations[]
   usage_events          usage_events[]
+
+  @@index([role])
 }
 
 model verification {
@@ -100,6 +102,11 @@ model migration_records {
   record_data        Json
   created_at         DateTime           @default(now())
   migration_sessions migration_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id])
+  @@index([object_type])
+  @@index([session_id, status])
+  @@index([created_at])
 }
 
 model migration_sessions {
@@ -118,6 +125,11 @@ model migration_sessions {
   migration_records  migration_records[]
   migration_projects migration_projects  @relation(fields: [project_id], references: [id], onDelete: Cascade)
   usage_events       usage_events[]
+
+  @@index([project_id])
+  @@index([status])
+  @@index([created_at])
+  @@index([project_id, status])
 }
 
 model object_definitions {
@@ -150,6 +162,8 @@ model organisations {
   usage_events                                                       usage_events[]
 
   @@unique([salesforce_org_id, user_id])
+  @@index([user_id])
+  @@index([instance_url])
 }
 
 model migration_templates {
