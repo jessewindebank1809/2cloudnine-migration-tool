@@ -61,8 +61,10 @@ export const auth = betterAuth({
             prompt: "login",
           },
           mapProfileToUser: (profile) => {
-            // Debug: Log the profile to see what fields are available
-            console.log('Salesforce profile data:', JSON.stringify(profile, null, 2));
+            // Debug: Log the profile to see what fields are available (development only)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Salesforce profile data:', JSON.stringify(profile, null, 2));
+            }
             
             // Create a unique identifier using email + org ID to prevent user collision
             const orgId = profile.organization_id || 'unknown';

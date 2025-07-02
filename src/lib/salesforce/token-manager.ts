@@ -73,19 +73,25 @@ export class TokenManager {
           this.refreshPromises.set(orgId, refreshPromise);
         }
         
-        const refreshSuccess = await refreshPromise;
-        this.refreshPromises.delete(orgId);
-        
-        if (!refreshSuccess) {
-          console.error(`Failed to refresh token for org ${orgId}`);
-          this.tokenCache.delete(orgId);
-          return null;
-        }
-        
-        // Get updated token info
-        tokenInfo = this.tokenCache.get(orgId);
-        if (!tokenInfo) {
-          return null;
+        try {
+          const refreshSuccess = await refreshPromise;
+          
+          if (!refreshSuccess) {
+            console.error(`Failed to refresh token for org ${orgId}`);
+            this.tokenCache.delete(orgId);
+            this.refreshPromises.delete(orgId);
+            return null;
+          }
+          
+          // Get updated token info after successful refresh
+          tokenInfo = this.tokenCache.get(orgId);
+          if (!tokenInfo) {
+            console.error(`Token cache inconsistency for org ${orgId}`);
+            return null;
+          }
+        } finally {
+          // Always clean up the refresh promise
+          this.refreshPromises.delete(orgId);
         }
       }
 
@@ -155,10 +161,20 @@ export class TokenManager {
         return false;
       }
 
-      // Update cache with new token info
+      // Validate new tokens before updating cache
+      const newAccessToken = tempClient.accessToken;
+      const newRefreshToken = tempClient.refreshToken;
+      
+      if (!newAccessToken || !newRefreshToken) {
+        console.error(`Token refresh returned invalid tokens for org ${orgId}`);
+        await this.monitor.recordRefreshAttempt(orgId, false, 'Invalid tokens returned');
+        return false;
+      }
+
+      // Update cache with new token info atomically
       const newTokenInfo: TokenInfo = {
-        accessToken: tempClient.accessToken || currentTokenInfo.accessToken,
-        refreshToken: tempClient.refreshToken || currentTokenInfo.refreshToken,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
         expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
         lastRefreshed: new Date()
       };
