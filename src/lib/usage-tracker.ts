@@ -77,30 +77,42 @@ export class UsageTracker {
    * Track migration completion event
    */
   async trackMigrationComplete(migrationId: string, sessionId: string, userId: string, result: { success: boolean; recordsProcessed: number; duration: number }): Promise<void> {
-    await this.trackEvent({
-      eventType: 'migration_completed',
-      userId,
-      migrationId,
-      sessionId,
-      metadata: {
-        success: result.success,
-        recordsProcessed: result.recordsProcessed,
-        durationMs: result.duration,
-      },
-    });
+    try {
+      await this.trackEvent({
+        eventType: 'migration_completed',
+        userId,
+        migrationId,
+        sessionId,
+        metadata: {
+          success: result.success,
+          recordsProcessed: result.recordsProcessed,
+          durationMs: result.duration,
+        },
+      });
 
-    // Record performance metrics
-    await this.recordMetric({
-      metricName: 'migration_duration',
-      metricValue: result.duration / 1000, // Convert to seconds
-      tags: { migrationId, success: result.success },
-    });
+      // Record performance metrics with proper error handling
+      try {
+        await this.recordMetric({
+          metricName: 'migration_duration',
+          metricValue: result.duration / 1000, // Convert to seconds
+          tags: { migrationId, success: result.success },
+        });
+      } catch (error) {
+        console.error('Failed to record migration duration metric:', error);
+      }
 
-    await this.recordMetric({
-      metricName: 'records_processed',
-      metricValue: result.recordsProcessed,
-      tags: { migrationId, success: result.success },
-    });
+      try {
+        await this.recordMetric({
+          metricName: 'records_processed',
+          metricValue: result.recordsProcessed,
+          tags: { migrationId, success: result.success },
+        });
+      } catch (error) {
+        console.error('Failed to record records processed metric:', error);
+      }
+    } catch (error) {
+      console.error('Failed to track migration completion:', error);
+    }
   }
 
   /**
