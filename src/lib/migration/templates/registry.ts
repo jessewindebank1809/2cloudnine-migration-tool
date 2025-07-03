@@ -5,6 +5,7 @@ import { leaveRulesTemplate } from "./definitions/payroll/leave-rules.template";
 import { awardClassificationsAndLevelsTemplate } from "./definitions/payroll/award-classifications-and-levels.template";
 import { minimumPayRateTemplate } from "./definitions/payroll/minimum-pay-rate.template";
 import { payrateLoadingTemplate } from "./definitions/payroll/payrate-loading.template";
+import { calculationMethodTemplate } from "./definitions/payroll/calculation-method.template";
 // import { interpretationRulesTestTemplate } from "./definitions/payroll/interpretation-rules-test.template";
 
 // Track whether templates have been registered to avoid redundant calls
@@ -27,6 +28,7 @@ export function registerAllTemplates(): void {
         templateRegistry.registerTemplate(awardClassificationsAndLevelsTemplate);
         templateRegistry.registerTemplate(minimumPayRateTemplate);
         templateRegistry.registerTemplate(payrateLoadingTemplate);
+        templateRegistry.registerTemplate(calculationMethodTemplate);
         // templateRegistry.registerTemplate(interpretationRulesTestTemplate);
         
         templatesAlreadyRegistered = true;
