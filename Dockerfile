@@ -1,4 +1,5 @@
 # Multi-stage build for production
+# Cache bust: 2025-07-03 - Fix prisma migrations manual directory issue
 FROM oven/bun:1 AS base
 
 # Install dependencies only when needed
