@@ -45,4 +45,7 @@ logs
 
 # Temp files
 *.tmp
-*.temp 
+*.temp
+
+# Manual migrations (removed)
+prisma/migrations/manual 
