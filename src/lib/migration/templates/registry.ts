@@ -2,6 +2,9 @@ import { templateRegistry } from "./core/template-registry";
 import { interpretationRulesTemplate } from "./definitions/payroll/interpretation-rules.template";
 import { payCodesTemplate } from "./definitions/payroll/pay-codes.template";
 import { leaveRulesTemplate } from "./definitions/payroll/leave-rules.template";
+import { awardClassificationsAndLevelsTemplate } from "./definitions/payroll/award-classifications-and-levels.template";
+import { minimumPayRateTemplate } from "./definitions/payroll/minimum-pay-rate.template";
+import { projectCodeTemplate } from "./definitions/payroll/project-code.template";
 // import { interpretationRulesTestTemplate } from "./definitions/payroll/interpretation-rules-test.template";
 
 // Track whether templates have been registered to avoid redundant calls
@@ -21,6 +24,9 @@ export function registerAllTemplates(): void {
         templateRegistry.registerTemplate(interpretationRulesTemplate);
         templateRegistry.registerTemplate(payCodesTemplate);
         templateRegistry.registerTemplate(leaveRulesTemplate);
+        templateRegistry.registerTemplate(awardClassificationsAndLevelsTemplate);
+        templateRegistry.registerTemplate(minimumPayRateTemplate);
+        templateRegistry.registerTemplate(projectCodeTemplate);
         // templateRegistry.registerTemplate(interpretationRulesTestTemplate);
         
         templatesAlreadyRegistered = true;
@@ -67,4 +73,4 @@ export function searchTemplates(searchTerm: string) {
 }
 
 // Auto-register templates when module is imported
-registerAllTemplates(); 
+registerAllTemplates();
