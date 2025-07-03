@@ -117,7 +117,6 @@ export default function OrganisationsPage() {
     if (reconnectOrgId && data?.organisations) {
       const orgToReconnect = data.organisations.find((org: Organisation) => org.id === reconnectOrgId);
       if (orgToReconnect) {
-        console.log(`Auto-reconnecting organisation: ${orgToReconnect.name}`);
         handleReconnect(orgToReconnect);
       }
     }
@@ -125,10 +124,9 @@ export default function OrganisationsPage() {
     // Handle org_not_connected error by auto-triggering reconnection
     if (error === 'org_not_connected' && errorOrgId && data?.organisations) {
       const orgToReconnect = data.organisations.find((org: Organisation) => org.id === errorOrgId);
-      if (orgToReconnect) {
-        console.log(`Organisation not connected, auto-reconnecting: ${orgToReconnect.name}`);
-        handleReconnectForDisconnectedOrg(orgToReconnect);
-      }
+              if (orgToReconnect) {
+          handleReconnectForDisconnectedOrg(orgToReconnect);
+        }
     }
   }, [searchParams, data]);
 
@@ -156,7 +154,6 @@ export default function OrganisationsPage() {
         
         // If OAuth URL is provided, redirect to authenticate with the org
         if (result.oauthUrl) {
-          console.log('Redirecting to OAuth for organisation authentication...');
           window.location.href = result.oauthUrl;
         } else {
           refetch(); // Refresh the organisation list
