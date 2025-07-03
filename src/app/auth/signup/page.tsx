@@ -43,16 +43,14 @@ export default function SignUpPage() {
     setError('');
     
     try {
-      console.log('Starting Salesforce OAuth flow...');
-      console.log('Auth client baseURL:', 'client-info');
-      console.log('Current window origin:', typeof window !== 'undefined' ? window.location.origin : 'N/A');
+      // Starting Salesforce OAuth flow
       
       const result = await authClient.signIn.oauth2({
         providerId: "salesforce",
         callbackURL: "/home",
       });
       
-      console.log('OAuth result:', result);
+      // OAuth result processed
     } catch (error) {
       console.error('Salesforce sign up error:', error);
       setError(`Salesforce sign up failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -63,7 +61,7 @@ export default function SignUpPage() {
 
   const handleSignInClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    console.log('Sign in link clicked - navigating to /auth/signin');
+    // Navigate to sign in page
     router.push('/auth/signin');
   };
 
