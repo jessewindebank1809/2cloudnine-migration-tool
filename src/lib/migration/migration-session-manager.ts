@@ -153,25 +153,27 @@ export class MigrationSessionManager extends EventEmitter {
     targetRecordId: string,
     recordData: any
   ): Promise<void> {
-    await prisma.migration_records.create({
-      data: {
-        id: crypto.randomUUID(),
-        session_id: sessionId,
-        source_record_id: sourceRecordId,
-        target_record_id: targetRecordId,
-        object_type: this.activeSession?.object_type || '',
-        status: 'SUCCESS',
-        record_data: recordData,
-      }
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.migration_records.create({
+        data: {
+          id: crypto.randomUUID(),
+          session_id: sessionId,
+          source_record_id: sourceRecordId,
+          target_record_id: targetRecordId,
+          object_type: this.activeSession?.object_type || '',
+          status: 'SUCCESS',
+          record_data: recordData,
+        }
+      });
 
-    // Update session counters
-    await prisma.migration_sessions.update({
-      where: { id: sessionId },
-      data: {
-        processed_records: { increment: 1 },
-        successful_records: { increment: 1 },
-      }
+      // Update session counters
+      await tx.migration_sessions.update({
+        where: { id: sessionId },
+        data: {
+          processed_records: { increment: 1 },
+          successful_records: { increment: 1 },
+        }
+      });
     });
   }
 
@@ -184,26 +186,28 @@ export class MigrationSessionManager extends EventEmitter {
     error: string,
     recordData: any
   ): Promise<void> {
-    // Create migration record
-    await prisma.migration_records.create({
-      data: {
-        id: crypto.randomUUID(),
-        session_id: sessionId,
-        source_record_id: sourceRecordId,
-        object_type: this.activeSession?.object_type || '',
-        status: 'FAILED',
-        error_message: error,
-        record_data: recordData,
-      }
-    });
+    await prisma.$transaction(async (tx) => {
+      // Create migration record
+      await tx.migration_records.create({
+        data: {
+          id: crypto.randomUUID(),
+          session_id: sessionId,
+          source_record_id: sourceRecordId,
+          object_type: this.activeSession?.object_type || '',
+          status: 'FAILED',
+          error_message: error,
+          record_data: recordData,
+        }
+      });
 
-    // Update session counters
-    await prisma.migration_sessions.update({
-      where: { id: sessionId },
-      data: {
-        processed_records: { increment: 1 },
-        failed_records: { increment: 1 },
-      }
+      // Update session counters
+      await tx.migration_sessions.update({
+        where: { id: sessionId },
+        data: {
+          processed_records: { increment: 1 },
+          failed_records: { increment: 1 },
+        }
+      });
     });
   }
 

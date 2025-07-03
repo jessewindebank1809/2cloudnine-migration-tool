@@ -519,72 +519,77 @@ export async function POST(
           }
         }
 
-        // Update migration session record with final results
-        const session = await prisma.migration_sessions.update({
-          where: { id: sessionId },
-          data: {
-            status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
-            total_records: result.totalRecords,
-            processed_records: result.successfulRecords + result.failedRecords,
-            successful_records: result.successfulRecords,
-            failed_records: result.failedRecords,
-            error_log: [
-              // Store parent record names as metadata
-              {
-                type: 'metadata',
-                parentRecordNames: Object.fromEntries(recordNames),
-                successfulParentRecords: Object.entries(result.lookupMappings)
-                  .filter(([sourceId]) => recordNames.has(sourceId))
-                  .map(([sourceId, targetId]) => ({
-                    sourceId,
-                    targetId,
-                    name: recordNames.get(sourceId)
-                  })),
-                parentRecordStats: {
-                  attempted: selectedRecords.length,
-                  successful: Object.entries(result.lookupMappings)
-                    .filter(([sourceId]) => recordNames.has(sourceId)).length
-                }
-              },
-              // Include step errors
-              ...result.stepResults.flatMap(step => 
-                step.errors?.map((error: any) => ({
-                  stepName: step.stepName,
-                  recordId: error.recordId,
-                  error: error.error,
-                  retryable: error.retryable
-                })) || []
-              )
-            ],
-            started_at: new Date(Date.now() - result.executionTimeMs),
-            completed_at: new Date()
-          }
-        });
-
-        // Store record mappings for successful records
-        const recordMappings = Object.entries(result.lookupMappings).map(([sourceId, targetId], index) => ({
-          id: `record_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
-          session_id: session.id,
-          source_record_id: sourceId,
-          target_record_id: targetId,
-          object_type: templateId,
-          status: 'SUCCESS' as const,
-          record_data: {}
-        }));
-
-        if (recordMappings.length > 0) {
-          await prisma.migration_records.createMany({
-            data: recordMappings
+        // Wrap all final result operations in a transaction
+        const session = await prisma.$transaction(async (tx) => {
+          // Update migration session record with final results
+          const updatedSession = await tx.migration_sessions.update({
+            where: { id: sessionId },
+            data: {
+              status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
+              total_records: result.totalRecords,
+              processed_records: result.successfulRecords + result.failedRecords,
+              successful_records: result.successfulRecords,
+              failed_records: result.failedRecords,
+              error_log: [
+                // Store parent record names as metadata
+                {
+                  type: 'metadata',
+                  parentRecordNames: Object.fromEntries(recordNames),
+                  successfulParentRecords: Object.entries(result.lookupMappings)
+                    .filter(([sourceId]) => recordNames.has(sourceId))
+                    .map(([sourceId, targetId]) => ({
+                      sourceId,
+                      targetId,
+                      name: recordNames.get(sourceId)
+                    })),
+                  parentRecordStats: {
+                    attempted: selectedRecords.length,
+                    successful: Object.entries(result.lookupMappings)
+                      .filter(([sourceId]) => recordNames.has(sourceId)).length
+                  }
+                },
+                // Include step errors
+                ...result.stepResults.flatMap(step => 
+                  step.errors?.map((error: any) => ({
+                    stepName: step.stepName,
+                    recordId: error.recordId,
+                    error: error.error,
+                    retryable: error.retryable
+                  })) || []
+                )
+              ],
+              started_at: new Date(Date.now() - result.executionTimeMs),
+              completed_at: new Date()
+            }
           });
-        }
 
-        // Update migration project status
-        await prisma.migration_projects.update({
-          where: { id: migrationId },
-          data: {
-            status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
-            updated_at: new Date()
+          // Store record mappings for successful records
+          const recordMappings = Object.entries(result.lookupMappings).map(([sourceId, targetId], index) => ({
+            id: `record_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+            session_id: updatedSession.id,
+            source_record_id: sourceId,
+            target_record_id: targetId,
+            object_type: templateId,
+            status: 'SUCCESS' as const,
+            record_data: {}
+          }));
+
+          if (recordMappings.length > 0) {
+            await tx.migration_records.createMany({
+              data: recordMappings
+            });
           }
+
+          // Update migration project status
+          await tx.migration_projects.update({
+            where: { id: migrationId },
+            data: {
+              status: result.status === 'success' ? 'COMPLETED' : 'FAILED',
+              updated_at: new Date()
+            }
+          });
+
+          return updatedSession;
         });
 
         // Helper function to get detailed record results grouped by parent records

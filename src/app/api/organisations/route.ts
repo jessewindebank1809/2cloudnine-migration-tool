@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     // Get session using unified auth helper
     const session = await requireAuth(request);
-    console.log('Creating organisation for user:', session.user.id, session.user.email);
+    // Creating organisation for authenticated user
 
     const body = await request.json();
     const { name, orgType, instanceUrl } = body;

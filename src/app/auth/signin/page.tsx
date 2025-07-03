@@ -45,7 +45,7 @@ function SignInContent() {
     setError('');
     
     try {
-      console.log('Starting Salesforce OAuth flow...');
+      // Starting Salesforce OAuth flow
       
       // Use Better Auth's OAuth flow
       const { authClient } = await import('@/lib/auth/client');

@@ -36,7 +36,7 @@ export async function GET(_request: NextRequest) {
       }
     }
     
-    console.log(`Returning ${finalTemplates.length} templates`);
+    // Returning templates to client
     
     return NextResponse.json({
       success: true,

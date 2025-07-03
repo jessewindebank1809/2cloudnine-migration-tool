@@ -90,4 +90,16 @@ scripts/
 .cache/
 .parcel-cache/
 # __mocks__/ # Needed for Prisma mock
+
+# Development state files
+.pipeline-state.json
+*.pipeline-state.json
+
+# Claude AI documentation (local development only)
+CLAUDE.md
+.claude/
+
+# Lock files - standardizing on npm
+bun.lock
+
 .env
