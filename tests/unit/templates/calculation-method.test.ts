@@ -161,7 +161,7 @@ describe('calculationMethodTemplate', () => {
       expect(metadata.requiredPermissions).toContain('tc9_et__Calculation_Method__c.Create');
       expect(metadata.requiredPermissions).toContain('tc9_et__Calculation_Method__c.Edit');
       expect(metadata.estimatedDuration).toBe(15);
-      expect(metadata.complexity).toBe('medium');
+      expect(metadata.complexity).toBe('moderate');
     });
   });
 
