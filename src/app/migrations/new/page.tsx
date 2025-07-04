@@ -1,10 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { MigrationProjectBuilder } from '@/components/features/migrations/MigrationProjectBuilder';
+
+function MigrationBuilderWithParams() {
+  const searchParams = useSearchParams();
+  const templateId = searchParams.get('template');
+  
+  return <MigrationProjectBuilder defaultTemplateId={templateId} />;
+}
 
 export default function NewMigrationPage() {
   return (
@@ -22,7 +30,9 @@ export default function NewMigrationPage() {
         </p>
       </div>
 
-      <MigrationProjectBuilder />
+      <Suspense fallback={<div>Loading...</div>}>
+        <MigrationBuilderWithParams />
+      </Suspense>
     </div>
   );
 } 
