@@ -122,7 +122,12 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
     queryKey: ['organisations'],
     queryFn: async () => {
       const result = await apiCall<{ orgs: Organisation[] }>(() => fetch('/api/organisations'));
-      if (!result) throw new Error('Failed to fetch organisations');
+      // If API call fails, return empty orgs array instead of throwing
+      // This allows users to continue and use the manual reconnection flow
+      if (!result) {
+        console.warn('Failed to fetch organisations, returning empty array');
+        return { orgs: [] };
+      }
       return result;
     },
     retry: 3,
@@ -631,31 +636,28 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
             <div className="space-y-8">
               {orgsLoading ? (
                 <div className="text-center py-8">Loading organisations...</div>
-              ) : orgsError ? (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="flex items-center justify-between">
-                    <span>Failed to load organisations. Please try again.</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="ml-4"
-                      onClick={() => refetchOrgs()}
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Retry
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              ) : connectedOrgs.length < 2 ? (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    At least two connected organisations are required to create a migration. Please connect more organisations first.
-                  </AlertDescription>
-                </Alert>
               ) : (
                 <>
+                  {/* Show warning if no connected orgs found, but still allow user to proceed */}
+                  {connectedOrgs.length === 0 && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        No connected organisations found. You&apos;ll need to connect at least two organisations to create a migration.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {/* Show info message if only one org is connected */}
+                  {connectedOrgs.length === 1 && (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        You need at least two connected organisations. Please connect one more organisation to proceed.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
                   <div>
                     <Label htmlFor="name">Project Name *</Label>
                     <Input
