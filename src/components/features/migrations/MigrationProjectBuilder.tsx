@@ -118,13 +118,17 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
   const [hasSetDefaultTemplate, setHasSetDefaultTemplate] = useState(false);
 
   // Fetch available organisations
-  const { data: orgsData, isLoading: orgsLoading } = useQuery({
+  const { data: orgsData, isLoading: orgsLoading, error: orgsError, refetch: refetchOrgs } = useQuery({
     queryKey: ['organisations'],
     queryFn: async () => {
       const result = await apiCall<{ orgs: Organisation[] }>(() => fetch('/api/organisations'));
       if (!result) throw new Error('Failed to fetch organisations');
       return result;
     },
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   // Fetch available templates
@@ -627,6 +631,22 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
             <div className="space-y-8">
               {orgsLoading ? (
                 <div className="text-center py-8">Loading organisations...</div>
+              ) : orgsError ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>Failed to load organisations. Please try again.</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-4"
+                      onClick={() => refetchOrgs()}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
               ) : connectedOrgs.length < 2 ? (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
