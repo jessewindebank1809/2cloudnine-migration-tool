@@ -89,7 +89,11 @@ interface ValidationResult {
   selectedRecordNames?: Record<string, string>;
 }
 
-export function MigrationProjectBuilder() {
+interface MigrationProjectBuilderProps {
+  defaultTemplateId?: string | null;
+}
+
+export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectBuilderProps) {
   const router = useRouter();
   const { apiCall } = useAutoReconnect();
   const { hasRunningMigration } = useRunningMigrations();
@@ -102,7 +106,7 @@ export function MigrationProjectBuilder() {
   const validationTimeoutRef = useRef<{[key: string]: NodeJS.Timeout}>({});
   const [projectData, setProjectData] = useState({
     name: '',
-    templateId: '', // Will be set to interpretation rules template when templates load
+    templateId: '', // Will be set based on defaultTemplateId or interpretation rules template when templates load
     sourceOrgId: '',
     targetOrgId: '',
     selectedRecords: [] as string[],
@@ -150,12 +154,29 @@ export function MigrationProjectBuilder() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  // Set default template to interpretation rules when templates load
+  // Set default template when templates load
   React.useEffect(() => {
     // Only attempt to set default template once, and only when templates are loaded
     if (templatesData?.templates && templatesData.templates.length > 0 && !hasSetDefaultTemplate) {
       console.log('Setting default template. Available templates:', templatesData.templates.map(t => t.name));
       
+      // First priority: Use the template ID from URL if provided and valid
+      if (defaultTemplateId) {
+        const requestedTemplate = templatesData.templates.find(
+          (template: MigrationTemplate) => template.id === defaultTemplateId
+        );
+        
+        if (requestedTemplate) {
+          console.log('Using requested template from URL:', requestedTemplate.name);
+          setProjectData(prev => ({ ...prev, templateId: requestedTemplate.id }));
+          setHasSetDefaultTemplate(true);
+          return;
+        } else {
+          console.warn('Requested template ID not found:', defaultTemplateId);
+        }
+      }
+      
+      // Second priority: Fall back to interpretation rules template
       const interpretationRulesTemplate = templatesData.templates.find(
         (template: MigrationTemplate) => 
           template.name.toLowerCase().includes('interpretation') || 
@@ -167,13 +188,13 @@ export function MigrationProjectBuilder() {
         setProjectData(prev => ({ ...prev, templateId: interpretationRulesTemplate.id }));
         setHasSetDefaultTemplate(true);
       } else if (templatesData.templates.length > 0) {
-        // Fallback to first template if interpretation rules not found
+        // Final fallback: Use first template if interpretation rules not found
         console.log('Interpretation rules template not found, using first template:', templatesData.templates[0].name);
         setProjectData(prev => ({ ...prev, templateId: templatesData.templates[0].id }));
         setHasSetDefaultTemplate(true);
       }
     }
-  }, [templatesData, hasSetDefaultTemplate]);
+  }, [templatesData, hasSetDefaultTemplate, defaultTemplateId]);
 
   // Validation mutation
   const validateMigration = useMutation({
