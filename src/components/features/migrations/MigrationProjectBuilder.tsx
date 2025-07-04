@@ -22,6 +22,7 @@ import {
 import { TemplateRecordSelection } from './TemplateRecordSelection';
 import { DetailedMigrationResults } from './DetailedMigrationResults';
 import { EnhancedValidationReport } from './templates/EnhancedValidationReport';
+import type { MigrationExecutionError, MigrationStepError, MigrationUniqueError } from '@/types/api';
 
 interface Organisation {
   id: string;
@@ -120,7 +121,7 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
   const { data: orgsData, isLoading: orgsLoading } = useQuery({
     queryKey: ['organisations'],
     queryFn: async () => {
-      const result = await apiCall<any>(() => fetch('/api/organisations'));
+      const result = await apiCall<{ orgs: Organisation[] }>(() => fetch('/api/organisations'));
       if (!result) throw new Error('Failed to fetch organisations');
       return result;
     },
@@ -306,22 +307,23 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
       if (!response.ok) {
         const error = new Error(responseData.error || 'Failed to execute migration');
         // Attach detailed error information for better debugging
-        (error as any).details = responseData.details;
-        (error as any).result = responseData.result;
-        (error as any).sessionId = responseData.sessionId;
-        (error as any).uniqueErrors = responseData.uniqueErrors;
-        (error as any).recordResults = responseData.recordResults; // Add record results
-        throw error;
+        const migrationError = error as MigrationExecutionError;
+        migrationError.details = responseData.details;
+        migrationError.result = responseData.result;
+        migrationError.sessionId = responseData.sessionId;
+        migrationError.uniqueErrors = responseData.uniqueErrors;
+        migrationError.recordResults = responseData.recordResults; // Add record results
+        throw migrationError;
       }
       
       // Check for warnings (partial migrations with significant errors)
       if (responseData.warning) {
-        const warning = new Error(responseData.warning);
-        (warning as any).isWarning = true;
-        (warning as any).result = responseData.result;
-        (warning as any).sessionId = responseData.sessionId;
-        (warning as any).uniqueErrors = responseData.uniqueErrors;
-        (warning as any).recordResults = responseData.recordResults; // Add record results
+        const warning = new Error(responseData.warning) as MigrationExecutionError;
+        warning.isWarning = true;
+        warning.result = responseData.result;
+        warning.sessionId = responseData.sessionId;
+        warning.uniqueErrors = responseData.uniqueErrors;
+        warning.recordResults = responseData.recordResults; // Add record results
         throw warning;
       }
       
@@ -1185,7 +1187,7 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
                           {executeMigration.error && (executeMigration.error as any)?.uniqueErrors && (
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Unique Error Types:</h4>
-                              {(executeMigration.error as any).uniqueErrors.map((uniqueError: any, index: number) => (
+                              {(executeMigration.error as MigrationExecutionError).uniqueErrors?.map((uniqueError: MigrationUniqueError, index: number) => (
                                 <div key={index} className="p-3 bg-red-50 border border-red-200 rounded text-sm">
                                   <div className="font-medium text-red-800 mb-2">
                                     {uniqueError.message}
@@ -1209,7 +1211,7 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
                           {executeMigration.error && (executeMigration.error as any)?.details && !(executeMigration.error as any)?.uniqueErrors && (
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Step Results:</h4>
-                              {(executeMigration.error as any).details.map((step: any, index: number) => (
+                              {(executeMigration.error as MigrationExecutionError).details?.map((step: MigrationStepError, index: number) => (
                                 <div key={index} className={`p-2 border rounded text-sm ${
                                   step.status === 'failed' 
                                     ? 'bg-red-50 border-red-200' 
@@ -1228,7 +1230,7 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
                                   </div>
                                   {step.errors && step.errors.length > 0 && (
                                     <div className="mt-1 text-xs">
-                                      {step.errors.slice(0, 3).map((error: any, errorIndex: number) => (
+                                      {step.errors.slice(0, 3).map((error, errorIndex) => (
                                         <div key={errorIndex} className="mt-1">
                                           {error.error}
                                         </div>
