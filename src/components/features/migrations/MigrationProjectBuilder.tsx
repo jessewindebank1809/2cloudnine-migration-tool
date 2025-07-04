@@ -450,7 +450,7 @@ export function MigrationProjectBuilder({ defaultTemplateId }: MigrationProjectB
     await createProject.mutateAsync(projectData);
   };
 
-  const connectedOrgs = orgsData?.organisations?.filter(
+  const connectedOrgs = orgsData?.orgs?.filter(
     (org: Organisation) => org.salesforce_org_id !== null
   ) || [];
 

@@ -38,6 +38,9 @@ export interface TechnicalErrorDetails {
   field?: string;
   invalidValue?: string;
   retryable: boolean;
+  missingFields?: string[];
+  validationRule?: string;
+  breakpointName?: string;
   technicalDetails?: {
     stackTrace?: string;
     originalError?: unknown;

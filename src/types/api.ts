@@ -3,6 +3,7 @@
  */
 
 import { MigrationResult, MigrationError } from './migration';
+import { StepExecutionError } from './migration-execution';
 
 // API Error types
 export interface ApiError extends Error {
@@ -24,12 +25,14 @@ export interface MigrationExecutionError extends ApiError {
 export interface MigrationStepError {
   step: string;
   stepName: string;
+  status: 'success' | 'failed' | 'partial';
   errorCount: number;
-  errors: MigrationError[];
+  errors: StepExecutionError[];
 }
 
 export interface MigrationUniqueError {
   type: string;
+  message: string;
   count: number;
   examples: string[];
 }

@@ -12,6 +12,11 @@ import type { ExecutionProgress, MigrationTemplate } from '@/lib/migration/templ
 import type { Prisma } from '@prisma/client';
 import { SalesforceClient } from '@/lib/salesforce/client';
 import { usageTracker } from '@/lib/usage-tracker';
+import type { 
+  StepExecutionError, 
+  TechnicalErrorDetails, 
+  UniqueErrorSummary 
+} from '@/types/migration-execution';
 
 export async function POST(
   request: NextRequest,
