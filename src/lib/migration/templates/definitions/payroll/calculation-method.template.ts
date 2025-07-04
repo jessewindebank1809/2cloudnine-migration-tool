@@ -409,7 +409,7 @@ export const calculationMethodTemplate: MigrationTemplate = {
         supportedApiVersions: ["59.0", "60.0", "61.0"],
         requiredPermissions: ["tc9_et__Calculation_Method__c.Create", "tc9_et__Calculation_Method__c.Edit"],
         estimatedDuration: 15,
-        complexity: "medium"
+        complexity: "moderate"
     }
 };
 

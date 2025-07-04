@@ -1,177 +1,151 @@
 import { describe, it, expect } from '@jest/globals';
-import { payrateLoadingTemplate, type PayrateLoadingRecord } from '../../../src/lib/migration/templates/definitions/payroll/payrate-loading.template';
+import { payrateLoadingTemplate } from '../../../src/lib/migration/templates/definitions/payroll/payrate-loading.template';
 
 describe('PayRate Loading Template', () => {
-  describe('Template Configuration', () => {
-    it('should have correct basic configuration', () => {
-      expect(payrateLoadingTemplate.id).toBe('payroll-payrate-loading');
-      expect(payrateLoadingTemplate.name).toBe('PayRate Loading');
-      expect(payrateLoadingTemplate.category).toBe('payroll');
-      expect(payrateLoadingTemplate.version).toBe('1.0.0');
+  it('should have the correct basic configuration', () => {
+    expect(payrateLoadingTemplate.id).toBe('payroll-payrate-loading');
+    expect(payrateLoadingTemplate.name).toBe('PayRate Loading');
+    expect(payrateLoadingTemplate.category).toBe('payroll');
+    expect(payrateLoadingTemplate.version).toBe('1.0.0');
+  });
+
+  describe('ETL Steps', () => {
+    it('should have correct number of ETL steps', () => {
+      expect(payrateLoadingTemplate.etlSteps).toHaveLength(1);
+      const step = payrateLoadingTemplate.etlSteps[0];
+      expect(step.stepName).toBe('payrateLoadingMaster');
+      expect(step.stepOrder).toBe(1);
     });
 
-    it('should have ETL steps configured', () => {
-      expect(payrateLoadingTemplate.etlSteps).toHaveLength(4);
+    it('should have correct extract configuration', () => {
+      const extractConfig = payrateLoadingTemplate.etlSteps[0].extractConfig;
+      expect(extractConfig.objectApiName).toBe('tc9_et__PayRate_Loading__c');
+      expect(extractConfig.batchSize).toBe(2000);
+      expect(extractConfig.soqlQuery).toContain('SELECT Id, Name');
+      expect(extractConfig.soqlQuery).toContain('tc9_et__PayRate_Loading__c');
+    });
+
+    it('should have comprehensive field mappings', () => {
+      const fieldMappings = payrateLoadingTemplate.etlSteps[0].transformConfig.fieldMappings;
       
-      const extractStep = payrateLoadingTemplate.etlSteps[0];
-      expect(extractStep.operation).toBe('extract');
-      expect(extractStep.sourceObject).toBe('tc9_et__PayRate_Loading__c');
-      expect(extractStep.batchSize).toBe(2000);
+      // Check system fields
+      expect(fieldMappings.find(m => m.sourceField === 'Id')).toBeDefined();
+      expect(fieldMappings.find(m => m.sourceField === 'Name')).toBeDefined();
+      expect(fieldMappings.find(m => m.sourceField === 'OwnerId')).toBeDefined();
       
-      const transformStep = payrateLoadingTemplate.etlSteps[1];
-      expect(transformStep.operation).toBe('transform');
-      expect(transformStep.fieldMappings).toBeDefined();
+      // Check custom fields
+      const customFields = [
+        'tc9_et__Agency_Client__c',
+        'tc9_et__Approval_Date__c',
+        'tc9_et__Award__c',
+        'tc9_et__Business_Group__c',
+        'tc9_et__Client__c',
+        'tc9_et__Effective_Date__c',
+        'tc9_et__End_Date__c',
+        'tc9_et__Status__c',
+        'tc9_et__Rate_Loading_Type__c',
+        'tc9_et__Margin_Type__c',
+        'tc9_et__Compliance_Type__c'
+      ];
       
-      const validateStep = payrateLoadingTemplate.etlSteps[2];
-      expect(validateStep.operation).toBe('validate');
-      expect(validateStep.validations).toBeDefined();
+      customFields.forEach(field => {
+        const mapping = fieldMappings.find(m => m.sourceField === field);
+        expect(mapping).toBeDefined();
+        expect(mapping?.targetField).toBe(field);
+        expect(mapping?.transformationType).toBe('direct');
+      });
+    });
+
+    it('should map all source fields correctly', () => {
+      const fieldMappings = payrateLoadingTemplate.etlSteps[0].transformConfig.fieldMappings;
+      const soqlQuery = payrateLoadingTemplate.etlSteps[0].extractConfig.soqlQuery;
       
-      const loadStep = payrateLoadingTemplate.etlSteps[3];
-      expect(loadStep.operation).toBe('load');
-      expect(loadStep.targetObject).toBe('tc9_et__PayRate_Loading__c');
-      expect(loadStep.mode).toBe('upsert');
-      expect(loadStep.externalIdField).toBe('tc9_et__External_ID__c');
+      // Extract field names from SOQL query
+      const fieldsInQuery = soqlQuery
+        .match(/SELECT\s+([\s\S]+?)\s+FROM/i)?.[1]
+        .split(',')
+        .map(f => f.trim())
+        .filter(f => f && !f.includes('{externalIdField}')) || [];
+      
+      // Check that all fields in query have mappings
+      fieldsInQuery.forEach(field => {
+        if (field !== 'CreatedDate' && field !== 'CreatedById' && 
+            field !== 'LastModifiedDate' && field !== 'LastModifiedById' &&
+            field !== 'SystemModstamp' && field !== 'LastActivityDate' &&
+            field !== 'LastViewedDate' && field !== 'LastReferencedDate') {
+          const mapping = fieldMappings.find(m => m.sourceField === field);
+          expect(mapping).toBeDefined();
+        }
+      });
+    });
+
+    it('should have correct load configuration', () => {
+      const loadConfig = payrateLoadingTemplate.etlSteps[0].loadConfig;
+      expect(loadConfig.targetObject).toBe('tc9_et__PayRate_Loading__c');
+      expect(loadConfig.operation).toBe('upsert');
+      expect(loadConfig.externalIdField).toBe('{externalIdField}');
+      expect(loadConfig.bulkApiConfig?.useBulkApi).toBe(true);
+      expect(loadConfig.bulkApiConfig?.batchSize).toBe(10000);
     });
   });
 
-  describe('Field Mappings', () => {
-    it('should map all fields correctly', () => {
-      const transformStep = payrateLoadingTemplate.etlSteps.find(step => step.operation === 'transform');
-      const fieldMappings = transformStep?.fieldMappings || [];
+  describe('Validation Configuration', () => {
+    const validationConfig = payrateLoadingTemplate.etlSteps[0].validationConfig;
+
+    it('should have data integrity checks', () => {
+      expect(validationConfig).toBeDefined();
+      expect(validationConfig?.dataIntegrityChecks).toHaveLength(3);
       
-      // Check key field mappings
-      expect(fieldMappings).toContainEqual({ sourceField: 'Id', targetField: 'tc9_et__External_ID__c' });
-      expect(fieldMappings).toContainEqual({ sourceField: 'Name', targetField: 'Name' });
-      expect(fieldMappings).toContainEqual({ sourceField: 'tc9_et__Rate_Loading_Type__c', targetField: 'tc9_et__Rate_Loading_Type__c' });
-      expect(fieldMappings).toContainEqual({ sourceField: 'tc9_et__Rate_Loading_Code__c', targetField: 'tc9_et__Rate_Loading_Code__c' });
-      expect(fieldMappings).toContainEqual({ sourceField: 'tc9_et__Percentage__c', targetField: 'tc9_et__Percentage__c' });
-      expect(fieldMappings).toContainEqual({ sourceField: 'tc9_et__Multiplier__c', targetField: 'tc9_et__Multiplier__c' });
-      expect(fieldMappings).toContainEqual({ sourceField: 'tc9_et__Margin_Type__c', targetField: 'tc9_et__Margin_Type__c' });
-      expect(fieldMappings).toContainEqual({ sourceField: 'tc9_et__Priority__c', targetField: 'tc9_et__Priority__c' });
+      const nameCheck = validationConfig?.dataIntegrityChecks.find(c => c.checkName === 'name-required');
+      expect(nameCheck).toBeDefined();
+      expect(nameCheck?.severity).toBe('error');
+      
+      const externalIdCheck = validationConfig?.dataIntegrityChecks.find(c => c.checkName === 'external-id-check');
+      expect(externalIdCheck).toBeDefined();
+      expect(externalIdCheck?.severity).toBe('warning');
+      
+      const dateCheck = validationConfig?.dataIntegrityChecks.find(c => c.checkName === 'effective-date-check');
+      expect(dateCheck).toBeDefined();
+      expect(dateCheck?.severity).toBe('error');
     });
 
-    it('should have 1:1 mapping for all custom fields', () => {
-      const transformStep = payrateLoadingTemplate.etlSteps.find(step => step.operation === 'transform');
-      const fieldMappings = transformStep?.fieldMappings || [];
+    it('should have picklist validation checks', () => {
+      const picklistChecks = validationConfig?.picklistValidationChecks;
+      expect(picklistChecks).toHaveLength(4);
       
-      // All mappings should be 1:1 (sourceField matches targetField for custom fields)
-      const customFieldMappings = fieldMappings.filter(mapping => 
-        mapping.sourceField.startsWith('tc9_et__') && 
-        mapping.targetField.startsWith('tc9_et__')
-      );
+      const expectedPicklists = [
+        'status-picklist',
+        'rate-loading-type-picklist',
+        'margin-type-picklist',
+        'compliance-type-picklist'
+      ];
       
-      customFieldMappings.forEach(mapping => {
-        expect(mapping.sourceField).toBe(mapping.targetField);
+      expectedPicklists.forEach(checkName => {
+        const check = picklistChecks?.find(c => c.checkName === checkName);
+        expect(check).toBeDefined();
+        expect(check?.validateAgainstTarget).toBe(true);
+        expect(check?.severity).toBe('warning');
       });
     });
   });
 
-  describe('Validation Rules', () => {
-    it('should have required field validation', () => {
-      const validateStep = payrateLoadingTemplate.etlSteps.find(step => step.operation === 'validate');
-      const validations = validateStep?.validations || [];
-      
-      const requiredValidation = validations.find(v => v.type === 'required' && v.field === 'tc9_et__Rate_Loading_Type__c');
-      expect(requiredValidation).toBeDefined();
-      expect(requiredValidation?.message).toBe('Rate Loading Type is required');
-    });
-
-    it('should have picklist validations', () => {
-      const validateStep = payrateLoadingTemplate.etlSteps.find(step => step.operation === 'validate');
-      const validations = validateStep?.validations || [];
-      
-      const rateLoadingTypeValidation = validations.find(v => 
-        v.type === 'picklist' && v.field === 'tc9_et__Rate_Loading_Type__c'
-      );
-      expect(rateLoadingTypeValidation).toBeDefined();
-      expect((rateLoadingTypeValidation as any)?.allowedValues).toEqual([
-        'Casual', 'Leave', 'Penalty', 'Other', 'Public Holiday', 'Overtime', 'Expense'
-      ]);
-      
-      const marginTypeValidation = validations.find(v => 
-        v.type === 'picklist' && v.field === 'tc9_et__Margin_Type__c'
-      );
-      expect(marginTypeValidation).toBeDefined();
-      expect((marginTypeValidation as any)?.allowedValues).toEqual(['Amount', 'Percentage']);
-    });
-
-    it('should have date range validation', () => {
-      const validateStep = payrateLoadingTemplate.etlSteps.find(step => step.operation === 'validate');
-      const validations = validateStep?.validations || [];
-      
-      const dateRangeValidation = validations.find(v => v.type === 'dateRange');
-      expect(dateRangeValidation).toBeDefined();
-      expect((dateRangeValidation as any)?.startDateField).toBe('tc9_et__Effective_Date__c');
-      expect((dateRangeValidation as any)?.endDateField).toBe('tc9_et__End_Date__c');
-      expect(dateRangeValidation?.message).toBe('Effective Date cannot be after End Date');
-    });
-
-    it('should have numeric range validations', () => {
-      const validateStep = payrateLoadingTemplate.etlSteps.find(step => step.operation === 'validate');
-      const validations = validateStep?.validations || [];
-      
-      const percentageValidation = validations.find(v => 
-        v.type === 'range' && v.field === 'tc9_et__Percentage__c'
-      );
-      expect(percentageValidation).toBeDefined();
-      expect((percentageValidation as any)?.min).toBe(0);
-      expect((percentageValidation as any)?.max).toBe(100);
-      
-      const multiplierValidation = validations.find(v => 
-        v.type === 'range' && v.field === 'tc9_et__Multiplier__c'
-      );
-      expect(multiplierValidation).toBeDefined();
-      expect((multiplierValidation as any)?.min).toBe(0);
-      
-      const priorityValidation = validations.find(v => 
-        v.type === 'range' && v.field === 'tc9_et__Priority__c'
-      );
-      expect(priorityValidation).toBeDefined();
-      expect((priorityValidation as any)?.min).toBe(0);
+  describe('Metadata', () => {
+    it('should have correct metadata configuration', () => {
+      const metadata = payrateLoadingTemplate.metadata;
+      expect(metadata.author).toBe('System');
+      expect(metadata.supportedApiVersions).toContain('59.0');
+      expect(metadata.supportedApiVersions).toContain('60.0');
+      expect(metadata.supportedApiVersions).toContain('61.0');
+      expect(metadata.requiredPermissions).toContain('tc9_et__PayRate_Loading__c.Create');
+      expect(metadata.requiredPermissions).toContain('tc9_et__PayRate_Loading__c.Edit');
+      expect(metadata.estimatedDuration).toBe(30);
+      expect(metadata.complexity).toBe('moderate');
     });
   });
 
-  describe('Data Integrity Rules', () => {
-    it('should have unique rate loading code validation', () => {
-      const dataIntegrityRule = payrateLoadingTemplate.validationRules?.find(
-        rule => rule.name === 'unique-rate-loading-code'
-      );
-      
-      expect(dataIntegrityRule).toBeDefined();
-      expect(dataIntegrityRule?.type).toBe('dataIntegrity');
-      expect((dataIntegrityRule as any)?.fields).toEqual(['tc9_et__Rate_Loading_Code__c']);
-      expect((dataIntegrityRule as any)?.checkType).toBe('uniqueness');
-    });
-  });
-
-  describe('Execution Metrics', () => {
-    it('should have execution metrics configured', () => {
-      expect(payrateLoadingTemplate.executionMetrics).toBeDefined();
-      expect(payrateLoadingTemplate.executionMetrics?.estimatedDuration).toBe(15);
-      expect(payrateLoadingTemplate.executionMetrics?.resourceRequirements).toEqual({
-        memory: 'medium',
-        cpu: 'low'
-      });
-    });
-  });
-
-  describe('Type Definitions', () => {
-    it('should correctly type PayrateLoadingRecord', () => {
-      const validRecord: PayrateLoadingRecord = {
-        Id: 'a0X1234567890ABC',
-        Name: 'PRL-000001',
-        tc9_et__Rate_Loading_Type__c: 'Casual',
-        tc9_et__Rate_Loading_Code__c: 'CAS001',
-        tc9_et__Percentage__c: 25.0,
-        tc9_et__Multiplier__c: 1.25,
-        tc9_et__Margin_Type__c: 'Percentage',
-        tc9_et__Priority__c: 1,
-        tc9_et__is_Active__c: true
-      };
-      
-      // TypeScript should compile this without errors
-      expect(validRecord.tc9_et__Rate_Loading_Type__c).toBe('Casual');
-      expect(validRecord.tc9_et__Margin_Type__c).toBe('Percentage');
+  describe('Execution Order', () => {
+    it('should have correct execution order', () => {
+      expect(payrateLoadingTemplate.executionOrder).toEqual(['payrateLoadingMaster']);
     });
   });
 });
