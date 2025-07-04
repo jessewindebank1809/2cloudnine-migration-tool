@@ -92,19 +92,20 @@ describe('calculationMethodTemplate', () => {
     const validationConfig = calculationMethodTemplate.etlSteps[0].validationConfig;
 
     it('should have data integrity checks', () => {
-      expect(validationConfig.dataIntegrityChecks).toHaveLength(2);
+      expect(validationConfig).toBeDefined();
+      expect(validationConfig?.dataIntegrityChecks).toHaveLength(2);
       
-      const nameCheck = validationConfig.dataIntegrityChecks.find(c => c.checkName === 'name-required');
+      const nameCheck = validationConfig?.dataIntegrityChecks.find(c => c.checkName === 'name-required');
       expect(nameCheck).toBeDefined();
       expect(nameCheck?.severity).toBe('error');
       
-      const externalIdCheck = validationConfig.dataIntegrityChecks.find(c => c.checkName === 'external-id-check');
+      const externalIdCheck = validationConfig?.dataIntegrityChecks.find(c => c.checkName === 'external-id-check');
       expect(externalIdCheck).toBeDefined();
       expect(externalIdCheck?.severity).toBe('warning');
     });
 
     it('should have picklist validation checks for all picklist fields', () => {
-      const picklistChecks = validationConfig.picklistValidationChecks;
+      const picklistChecks = validationConfig?.picklistValidationChecks;
       
       const expectedPicklists = [
         'rebilling-method-picklist',
@@ -120,7 +121,7 @@ describe('calculationMethodTemplate', () => {
       ];
       
       expectedPicklists.forEach(checkName => {
-        const check = picklistChecks.find(c => c.checkName === checkName);
+        const check = picklistChecks?.find(c => c.checkName === checkName);
         expect(check).toBeDefined();
         expect(check?.validateAgainstTarget).toBe(true);
         expect(check?.severity).toBe('warning');

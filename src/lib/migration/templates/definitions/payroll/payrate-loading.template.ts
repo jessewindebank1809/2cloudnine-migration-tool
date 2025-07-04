@@ -9,218 +9,252 @@ export const payrateLoadingTemplate: MigrationTemplate = {
     version: "1.0.0",
     etlSteps: [
         {
-            stepId: "extract-payrate-loading",
-            operation: "extract",
-            sourceObject: "tc9_et__PayRate_Loading__c",
-            query: "SELECT Id, Name, OwnerId, RecordTypeId, CreatedDate, CreatedById, LastModifiedDate, LastModifiedById, SystemModstamp, LastActivityDate, LastViewedDate, LastReferencedDate, tc9_et__Agency_Client__c, tc9_et__Approval_Date__c, tc9_et__Award__c, tc9_et__Business_Group__c, tc9_et__Client__c, tc9_et__Effective_Date__c, tc9_et__End_Date__c, tc9_et__Job_Class__c, tc9_et__Job_Request__c, tc9_et__Job_Role__c, tc9_et__Multiplier__c, tc9_et__Pay_Rate_Name__c, tc9_et__Percentage__c, tc9_et__Rate_Description__c, tc9_et__Rate_Loading_Code__c, tc9_et__Rate_Loading_Group__c, tc9_et__Rate_Loading_Type__c, tc9_et__Shift_Type__c, tc9_et__Status__c, tc9_et__Version_Number__c, tc9_et__Work_Order__c, tc9_et__Work_Order_Margin__c, tc9_et__XERO_Code__c, tc9_et__is_Active__c, tc9_et__GUID__c, tc9_et__Job_Board__c, tc9_et__Pay_Report_Exclude__c, tc9_et__Rate_Exemptions__c, tc9_et__Rate_Loading_Selection__c, tc9_et__Recruitment_Company__c, tc9_et__Site__c, tc9_et__State__c, tc9_et__Xero_Code_Long__c, tc9_et__Branch__c, tc9_et__External_ID__c, tc9_et__Compliance_Type__c, tc9_et__Recalculate_Rates__c, tc9_et__Ignore_for_RRD__c, tc9_et__Pay_Exempt__c, tc9_et__Margin_Type__c, tc9_et__Bill_Exempt__c, tc9_et__Bill_Report_Exclude__c, tc9_et__Bill_Rounding__c, tc9_et__Bill_Rounding_Margin__c, tc9_et__Pay_Rounding__c, tc9_et__Pay_Rounding_Margin__c, tc9_et__Priority__c, tc9_et__Test_Score__c, tc9_et__Employment_Company__c, tc9_et__GUID_Migration_Mapping__c, tc9_et__All_States__c, tc9_et__All_Sites__c, tc9_et__All_Branches__c FROM tc9_et__PayRate_Loading__c",
-            fields: ["Id", "Name", "OwnerId", "RecordTypeId", "CreatedDate", "CreatedById", "LastModifiedDate", "LastModifiedById", "SystemModstamp", "LastActivityDate", "LastViewedDate", "LastReferencedDate", "tc9_et__Agency_Client__c", "tc9_et__Approval_Date__c", "tc9_et__Award__c", "tc9_et__Business_Group__c", "tc9_et__Client__c", "tc9_et__Effective_Date__c", "tc9_et__End_Date__c", "tc9_et__Job_Class__c", "tc9_et__Job_Request__c", "tc9_et__Job_Role__c", "tc9_et__Multiplier__c", "tc9_et__Pay_Rate_Name__c", "tc9_et__Percentage__c", "tc9_et__Rate_Description__c", "tc9_et__Rate_Loading_Code__c", "tc9_et__Rate_Loading_Group__c", "tc9_et__Rate_Loading_Type__c", "tc9_et__Shift_Type__c", "tc9_et__Status__c", "tc9_et__Version_Number__c", "tc9_et__Work_Order__c", "tc9_et__Work_Order_Margin__c", "tc9_et__XERO_Code__c", "tc9_et__is_Active__c", "tc9_et__GUID__c", "tc9_et__Job_Board__c", "tc9_et__Pay_Report_Exclude__c", "tc9_et__Rate_Exemptions__c", "tc9_et__Rate_Loading_Selection__c", "tc9_et__Recruitment_Company__c", "tc9_et__Site__c", "tc9_et__State__c", "tc9_et__Xero_Code_Long__c", "tc9_et__Branch__c", "tc9_et__External_ID__c", "tc9_et__Compliance_Type__c", "tc9_et__Recalculate_Rates__c", "tc9_et__Ignore_for_RRD__c", "tc9_et__Pay_Exempt__c", "tc9_et__Margin_Type__c", "tc9_et__Bill_Exempt__c", "tc9_et__Bill_Report_Exclude__c", "tc9_et__Bill_Rounding__c", "tc9_et__Bill_Rounding_Margin__c", "tc9_et__Pay_Rounding__c", "tc9_et__Pay_Rounding_Margin__c", "tc9_et__Priority__c", "tc9_et__Test_Score__c", "tc9_et__Employment_Company__c", "tc9_et__GUID_Migration_Mapping__c", "tc9_et__All_States__c", "tc9_et__All_Sites__c", "tc9_et__All_Branches__c"],
-            filters: [],
-            batchSize: 2000
-        },
-        {
-            stepId: "transform-payrate-loading",
-            operation: "transform",
-            transformations: [],
-            fieldMappings: [
-                // System fields
-                { sourceField: "Id", targetField: "tc9_et__External_ID__c" },
-                { sourceField: "Name", targetField: "Name" },
-                { sourceField: "OwnerId", targetField: "OwnerId" },
-                { sourceField: "RecordTypeId", targetField: "RecordTypeId" },
-                
-                // Custom fields - 1:1 mapping
-                { sourceField: "tc9_et__Agency_Client__c", targetField: "tc9_et__Agency_Client__c" },
-                { sourceField: "tc9_et__Approval_Date__c", targetField: "tc9_et__Approval_Date__c" },
-                { sourceField: "tc9_et__Award__c", targetField: "tc9_et__Award__c" },
-                { sourceField: "tc9_et__Business_Group__c", targetField: "tc9_et__Business_Group__c" },
-                { sourceField: "tc9_et__Client__c", targetField: "tc9_et__Client__c" },
-                { sourceField: "tc9_et__Effective_Date__c", targetField: "tc9_et__Effective_Date__c" },
-                { sourceField: "tc9_et__End_Date__c", targetField: "tc9_et__End_Date__c" },
-                { sourceField: "tc9_et__Job_Class__c", targetField: "tc9_et__Job_Class__c" },
-                { sourceField: "tc9_et__Job_Request__c", targetField: "tc9_et__Job_Request__c" },
-                { sourceField: "tc9_et__Job_Role__c", targetField: "tc9_et__Job_Role__c" },
-                { sourceField: "tc9_et__Multiplier__c", targetField: "tc9_et__Multiplier__c" },
-                { sourceField: "tc9_et__Pay_Rate_Name__c", targetField: "tc9_et__Pay_Rate_Name__c" },
-                { sourceField: "tc9_et__Percentage__c", targetField: "tc9_et__Percentage__c" },
-                { sourceField: "tc9_et__Rate_Description__c", targetField: "tc9_et__Rate_Description__c" },
-                { sourceField: "tc9_et__Rate_Loading_Code__c", targetField: "tc9_et__Rate_Loading_Code__c" },
-                { sourceField: "tc9_et__Rate_Loading_Group__c", targetField: "tc9_et__Rate_Loading_Group__c" },
-                { sourceField: "tc9_et__Rate_Loading_Type__c", targetField: "tc9_et__Rate_Loading_Type__c" },
-                { sourceField: "tc9_et__Shift_Type__c", targetField: "tc9_et__Shift_Type__c" },
-                { sourceField: "tc9_et__Status__c", targetField: "tc9_et__Status__c" },
-                { sourceField: "tc9_et__Version_Number__c", targetField: "tc9_et__Version_Number__c" },
-                { sourceField: "tc9_et__Work_Order__c", targetField: "tc9_et__Work_Order__c" },
-                { sourceField: "tc9_et__Work_Order_Margin__c", targetField: "tc9_et__Work_Order_Margin__c" },
-                { sourceField: "tc9_et__XERO_Code__c", targetField: "tc9_et__XERO_Code__c" },
-                { sourceField: "tc9_et__is_Active__c", targetField: "tc9_et__is_Active__c" },
-                { sourceField: "tc9_et__GUID__c", targetField: "tc9_et__GUID__c" },
-                { sourceField: "tc9_et__Job_Board__c", targetField: "tc9_et__Job_Board__c" },
-                { sourceField: "tc9_et__Pay_Report_Exclude__c", targetField: "tc9_et__Pay_Report_Exclude__c" },
-                { sourceField: "tc9_et__Rate_Exemptions__c", targetField: "tc9_et__Rate_Exemptions__c" },
-                { sourceField: "tc9_et__Rate_Loading_Selection__c", targetField: "tc9_et__Rate_Loading_Selection__c" },
-                { sourceField: "tc9_et__Recruitment_Company__c", targetField: "tc9_et__Recruitment_Company__c" },
-                { sourceField: "tc9_et__Site__c", targetField: "tc9_et__Site__c" },
-                { sourceField: "tc9_et__State__c", targetField: "tc9_et__State__c" },
-                { sourceField: "tc9_et__Xero_Code_Long__c", targetField: "tc9_et__Xero_Code_Long__c" },
-                { sourceField: "tc9_et__Branch__c", targetField: "tc9_et__Branch__c" },
-                { sourceField: "tc9_et__Compliance_Type__c", targetField: "tc9_et__Compliance_Type__c" },
-                { sourceField: "tc9_et__Recalculate_Rates__c", targetField: "tc9_et__Recalculate_Rates__c" },
-                { sourceField: "tc9_et__Ignore_for_RRD__c", targetField: "tc9_et__Ignore_for_RRD__c" },
-                { sourceField: "tc9_et__Pay_Exempt__c", targetField: "tc9_et__Pay_Exempt__c" },
-                { sourceField: "tc9_et__Margin_Type__c", targetField: "tc9_et__Margin_Type__c" },
-                { sourceField: "tc9_et__Bill_Exempt__c", targetField: "tc9_et__Bill_Exempt__c" },
-                { sourceField: "tc9_et__Bill_Report_Exclude__c", targetField: "tc9_et__Bill_Report_Exclude__c" },
-                { sourceField: "tc9_et__Bill_Rounding__c", targetField: "tc9_et__Bill_Rounding__c" },
-                { sourceField: "tc9_et__Bill_Rounding_Margin__c", targetField: "tc9_et__Bill_Rounding_Margin__c" },
-                { sourceField: "tc9_et__Pay_Rounding__c", targetField: "tc9_et__Pay_Rounding__c" },
-                { sourceField: "tc9_et__Pay_Rounding_Margin__c", targetField: "tc9_et__Pay_Rounding_Margin__c" },
-                { sourceField: "tc9_et__Priority__c", targetField: "tc9_et__Priority__c" },
-                { sourceField: "tc9_et__Test_Score__c", targetField: "tc9_et__Test_Score__c" },
-                { sourceField: "tc9_et__Employment_Company__c", targetField: "tc9_et__Employment_Company__c" },
-                { sourceField: "tc9_et__GUID_Migration_Mapping__c", targetField: "tc9_et__GUID_Migration_Mapping__c" },
-                { sourceField: "tc9_et__All_States__c", targetField: "tc9_et__All_States__c" },
-                { sourceField: "tc9_et__All_Sites__c", targetField: "tc9_et__All_Sites__c" },
-                { sourceField: "tc9_et__All_Branches__c", targetField: "tc9_et__All_Branches__c" }
-            ] as FieldMapping[]
-        },
-        {
-            stepId: "validate-payrate-loading",
-            operation: "validate",
-            validations: [
-                {
-                    type: "required",
-                    field: "tc9_et__Rate_Loading_Type__c",
-                    message: "Rate Loading Type is required"
-                },
-                {
-                    type: "picklist",
-                    field: "tc9_et__Rate_Loading_Type__c",
-                    allowedValues: ["Casual", "Leave", "Penalty", "Other", "Public Holiday", "Overtime", "Expense"],
-                    message: "Invalid Rate Loading Type value"
-                } as PicklistValidationCheck,
-                {
-                    type: "picklist",
-                    field: "tc9_et__Margin_Type__c",
-                    allowedValues: ["Amount", "Percentage"],
-                    message: "Invalid Margin Type value"
-                } as PicklistValidationCheck,
-                {
-                    type: "dateRange",
-                    startDateField: "tc9_et__Effective_Date__c",
-                    endDateField: "tc9_et__End_Date__c",
-                    message: "Effective Date cannot be after End Date"
-                },
-                {
-                    type: "range",
-                    field: "tc9_et__Percentage__c",
-                    min: 0,
-                    max: 100,
-                    message: "Percentage must be between 0 and 100"
-                },
-                {
-                    type: "range",
-                    field: "tc9_et__Multiplier__c",
-                    min: 0,
-                    message: "Multiplier cannot be negative"
-                },
-                {
-                    type: "range",
-                    field: "tc9_et__Priority__c",
-                    min: 0,
-                    message: "Priority cannot be negative"
+            stepName: "payrateLoadingMaster",
+            stepOrder: 1,
+            extractConfig: {
+                soqlQuery: `SELECT Id, Name, OwnerId, RecordTypeId, CreatedDate, CreatedById, LastModifiedDate, LastModifiedById, 
+                    SystemModstamp, LastActivityDate, LastViewedDate, LastReferencedDate, 
+                    tc9_et__Agency_Client__c, tc9_et__Approval_Date__c, tc9_et__Award__c, tc9_et__Business_Group__c, 
+                    tc9_et__Client__c, tc9_et__Effective_Date__c, tc9_et__End_Date__c, tc9_et__Job_Class__c, 
+                    tc9_et__Job_Request__c, tc9_et__Job_Role__c, tc9_et__Multiplier__c, tc9_et__Pay_Rate_Name__c, 
+                    tc9_et__Percentage__c, tc9_et__Rate_Description__c, tc9_et__Rate_Loading_Code__c, 
+                    tc9_et__Rate_Loading_Group__c, tc9_et__Rate_Loading_Type__c, tc9_et__Shift_Type__c, 
+                    tc9_et__Status__c, tc9_et__Version_Number__c, tc9_et__Work_Order__c, tc9_et__Work_Order_Margin__c, 
+                    tc9_et__XERO_Code__c, tc9_et__is_Active__c, tc9_et__GUID__c, tc9_et__Job_Board__c, 
+                    tc9_et__Pay_Report_Exclude__c, tc9_et__Rate_Exemptions__c, tc9_et__Rate_Loading_Selection__c, 
+                    tc9_et__Recruitment_Company__c, tc9_et__Site__c, tc9_et__State__c, tc9_et__Xero_Code_Long__c, 
+                    tc9_et__Branch__c, tc9_et__External_ID__c, tc9_et__Compliance_Type__c, tc9_et__Recalculate_Rates__c, 
+                    tc9_et__Ignore_for_RRD__c, tc9_et__Pay_Exempt__c, tc9_et__Margin_Type__c, tc9_et__Bill_Exempt__c, 
+                    tc9_et__Bill_Report_Exclude__c, tc9_et__Bill_Rounding__c, tc9_et__Bill_Rounding_Margin__c, 
+                    tc9_et__Pay_Rounding__c, tc9_et__Pay_Rounding_Margin__c, tc9_et__Priority__c, tc9_et__Test_Score__c, 
+                    tc9_et__Employment_Company__c, tc9_et__GUID_Migration_Mapping__c, tc9_et__All_States__c, 
+                    tc9_et__All_Sites__c, tc9_et__All_Branches__c, {externalIdField} 
+                    FROM tc9_et__PayRate_Loading__c`,
+                objectApiName: "tc9_et__PayRate_Loading__c",
+                batchSize: 2000,
+            },
+            transformConfig: {
+                fieldMappings: [
+                    // System fields
+                    { sourceField: "Id", targetField: "{externalIdField}", isRequired: true, transformationType: "direct" },
+                    { sourceField: "Name", targetField: "Name", isRequired: true, transformationType: "direct" },
+                    { sourceField: "OwnerId", targetField: "OwnerId", isRequired: false, transformationType: "direct" },
+                    { sourceField: "RecordTypeId", targetField: "RecordTypeId", isRequired: false, transformationType: "direct" },
+                    
+                    // Custom fields - 1:1 mapping
+                    { sourceField: "tc9_et__Agency_Client__c", targetField: "tc9_et__Agency_Client__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Approval_Date__c", targetField: "tc9_et__Approval_Date__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Award__c", targetField: "tc9_et__Award__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Business_Group__c", targetField: "tc9_et__Business_Group__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Client__c", targetField: "tc9_et__Client__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Effective_Date__c", targetField: "tc9_et__Effective_Date__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__End_Date__c", targetField: "tc9_et__End_Date__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Job_Class__c", targetField: "tc9_et__Job_Class__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Job_Request__c", targetField: "tc9_et__Job_Request__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Job_Role__c", targetField: "tc9_et__Job_Role__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Multiplier__c", targetField: "tc9_et__Multiplier__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Pay_Rate_Name__c", targetField: "tc9_et__Pay_Rate_Name__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Percentage__c", targetField: "tc9_et__Percentage__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Rate_Description__c", targetField: "tc9_et__Rate_Description__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Rate_Loading_Code__c", targetField: "tc9_et__Rate_Loading_Code__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Rate_Loading_Group__c", targetField: "tc9_et__Rate_Loading_Group__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Rate_Loading_Type__c", targetField: "tc9_et__Rate_Loading_Type__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Shift_Type__c", targetField: "tc9_et__Shift_Type__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Status__c", targetField: "tc9_et__Status__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Version_Number__c", targetField: "tc9_et__Version_Number__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Work_Order__c", targetField: "tc9_et__Work_Order__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Work_Order_Margin__c", targetField: "tc9_et__Work_Order_Margin__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__XERO_Code__c", targetField: "tc9_et__XERO_Code__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__is_Active__c", targetField: "tc9_et__is_Active__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__GUID__c", targetField: "tc9_et__GUID__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Job_Board__c", targetField: "tc9_et__Job_Board__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Pay_Report_Exclude__c", targetField: "tc9_et__Pay_Report_Exclude__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Rate_Exemptions__c", targetField: "tc9_et__Rate_Exemptions__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Rate_Loading_Selection__c", targetField: "tc9_et__Rate_Loading_Selection__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Recruitment_Company__c", targetField: "tc9_et__Recruitment_Company__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Site__c", targetField: "tc9_et__Site__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__State__c", targetField: "tc9_et__State__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Xero_Code_Long__c", targetField: "tc9_et__Xero_Code_Long__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Branch__c", targetField: "tc9_et__Branch__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__External_ID__c", targetField: "tc9_et__External_ID__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Compliance_Type__c", targetField: "tc9_et__Compliance_Type__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Recalculate_Rates__c", targetField: "tc9_et__Recalculate_Rates__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Ignore_for_RRD__c", targetField: "tc9_et__Ignore_for_RRD__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Pay_Exempt__c", targetField: "tc9_et__Pay_Exempt__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Margin_Type__c", targetField: "tc9_et__Margin_Type__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Bill_Exempt__c", targetField: "tc9_et__Bill_Exempt__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Bill_Report_Exclude__c", targetField: "tc9_et__Bill_Report_Exclude__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Bill_Rounding__c", targetField: "tc9_et__Bill_Rounding__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Bill_Rounding_Margin__c", targetField: "tc9_et__Bill_Rounding_Margin__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Pay_Rounding__c", targetField: "tc9_et__Pay_Rounding__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Pay_Rounding_Margin__c", targetField: "tc9_et__Pay_Rounding_Margin__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Priority__c", targetField: "tc9_et__Priority__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Test_Score__c", targetField: "tc9_et__Test_Score__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__Employment_Company__c", targetField: "tc9_et__Employment_Company__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__GUID_Migration_Mapping__c", targetField: "tc9_et__GUID_Migration_Mapping__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__All_States__c", targetField: "tc9_et__All_States__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__All_Sites__c", targetField: "tc9_et__All_Sites__c", isRequired: false, transformationType: "direct" },
+                    { sourceField: "tc9_et__All_Branches__c", targetField: "tc9_et__All_Branches__c", isRequired: false, transformationType: "direct" }
+                ] as FieldMapping[],
+                lookupMappings: [],
+                externalIdHandling: {
+                    sourceField: "Id",
+                    targetField: "{externalIdField}",
+                    managedField: "tc9_edc__External_ID_Data_Creation__c",
+                    unmanagedField: "External_ID_Data_Creation__c",
+                    fallbackField: "External_Id__c",
+                    strategy: "auto-detect"
                 }
-            ] as ValidationConfig[]
-        },
-        {
-            stepId: "load-payrate-loading",
-            operation: "load",
-            targetObject: "tc9_et__PayRate_Loading__c",
-            mode: "upsert",
-            externalIdField: "tc9_et__External_ID__c",
-            batchSize: 200
+            },
+            loadConfig: {
+                targetObject: "tc9_et__PayRate_Loading__c",
+                operation: "upsert",
+                externalIdField: "{externalIdField}",
+                useBulkApi: true,
+                batchSize: 10000,
+                allowPartialSuccess: false,
+                retryConfig: {
+                    maxRetries: 3,
+                    retryWaitSeconds: 5,
+                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "REQUEST_LIMIT_EXCEEDED"]
+                }
+            },
+            validationConfig: {
+                dataIntegrityChecks: [
+                    {
+                        checkName: "name-required",
+                        description: "Verify Name field is populated",
+                        validationQuery: "SELECT COUNT(1) FROM {sourceObject} WHERE Name IS NULL",
+                        expectedResult: "empty",
+                        errorMessage: "Name field is required for all PayRate Loading records",
+                        severity: "error"
+                    },
+                    {
+                        checkName: "external-id-check",
+                        description: "Verify External ID uniqueness",
+                        validationQuery: "SELECT {externalIdField}, COUNT(1) as cnt FROM {sourceObject} GROUP BY {externalIdField} HAVING COUNT(1) > 1",
+                        expectedResult: "empty",
+                        errorMessage: "Duplicate External ID values found",
+                        severity: "warning"
+                    },
+                    {
+                        checkName: "effective-date-check",
+                        description: "Verify date ranges are valid",
+                        validationQuery: "SELECT COUNT(1) FROM {sourceObject} WHERE tc9_et__Effective_Date__c > tc9_et__End_Date__c AND tc9_et__End_Date__c IS NOT NULL",
+                        expectedResult: "empty",
+                        errorMessage: "Invalid date range: Effective Date is after End Date",
+                        severity: "error"
+                    }
+                ],
+                picklistValidationChecks: [
+                    {
+                        checkName: "status-picklist",
+                        description: "Validate Status picklist values",
+                        fieldName: "tc9_et__Status__c",
+                        objectName: "tc9_et__PayRate_Loading__c",
+                        validateAgainstTarget: true,
+                        allowedValues: [],
+                        errorMessage: "Invalid Status value",
+                        severity: "warning"
+                    },
+                    {
+                        checkName: "rate-loading-type-picklist",
+                        description: "Validate Rate Loading Type picklist values",
+                        fieldName: "tc9_et__Rate_Loading_Type__c",
+                        objectName: "tc9_et__PayRate_Loading__c",
+                        validateAgainstTarget: true,
+                        allowedValues: [],
+                        errorMessage: "Invalid Rate Loading Type value",
+                        severity: "warning"
+                    },
+                    {
+                        checkName: "margin-type-picklist",
+                        description: "Validate Margin Type picklist values",
+                        fieldName: "tc9_et__Margin_Type__c",
+                        objectName: "tc9_et__PayRate_Loading__c",
+                        validateAgainstTarget: true,
+                        allowedValues: [],
+                        errorMessage: "Invalid Margin Type value",
+                        severity: "warning"
+                    },
+                    {
+                        checkName: "compliance-type-picklist",
+                        description: "Validate Compliance Type picklist values",
+                        fieldName: "tc9_et__Compliance_Type__c",
+                        objectName: "tc9_et__PayRate_Loading__c",
+                        validateAgainstTarget: true,
+                        allowedValues: [],
+                        errorMessage: "Invalid Compliance Type value",
+                        severity: "warning"
+                    }
+                ],
+                dependencyChecks: [],
+                preValidationQueries: []
+            },
+            dependencies: []
         }
     ],
-    dependencies: [],
-    validationRules: [
-        {
-            type: "dataIntegrity",
-            name: "unique-rate-loading-code",
-            description: "Ensure Rate Loading Code is unique within the organisation",
-            fields: ["tc9_et__Rate_Loading_Code__c"],
-            checkType: "uniqueness"
-        } as DataIntegrityCheck
-    ],
-    transformationRules: [],
-    rollbackStrategy: {
-        supportedOperations: ["extract", "validate", "transform"],
-        checkpoints: ["after-extract", "after-validate"]
-    },
-    executionMetrics: {
-        estimatedDuration: 15,
-        resourceRequirements: {
-            memory: "medium",
-            cpu: "low"
-        }
+    executionOrder: ["payrateLoadingMaster"],
+    metadata: {
+        author: "System",
+        createdAt: new Date("2025-07-03"),
+        updatedAt: new Date("2025-07-03"),
+        supportedApiVersions: ["59.0", "60.0", "61.0"],
+        requiredPermissions: ["tc9_et__PayRate_Loading__c.Create", "tc9_et__PayRate_Loading__c.Edit"],
+        estimatedDuration: 30,
+        complexity: "moderate"
     }
 };
 
-// Type definition for PayRate Loading records
-export interface PayrateLoadingRecord {
-    Id?: string;
-    Name?: string;
-    OwnerId?: string;
-    RecordTypeId?: string;
-    tc9_et__Agency_Client__c?: string;
-    tc9_et__Approval_Date__c?: string;
-    tc9_et__Award__c?: string;
-    tc9_et__Business_Group__c?: string;
-    tc9_et__Client__c?: string;
-    tc9_et__Effective_Date__c?: string;
-    tc9_et__End_Date__c?: string;
-    tc9_et__Job_Class__c?: string;
-    tc9_et__Job_Request__c?: string;
-    tc9_et__Job_Role__c?: string;
-    tc9_et__Multiplier__c?: number;
-    tc9_et__Pay_Rate_Name__c?: string;
-    tc9_et__Percentage__c?: number;
-    tc9_et__Rate_Description__c?: string;
-    tc9_et__Rate_Loading_Code__c?: string;
-    tc9_et__Rate_Loading_Group__c?: string;
-    tc9_et__Rate_Loading_Type__c?: 'Casual' | 'Leave' | 'Penalty' | 'Other' | 'Public Holiday' | 'Overtime' | 'Expense';
-    tc9_et__Shift_Type__c?: string;
-    tc9_et__Status__c?: string;
-    tc9_et__Version_Number__c?: number;
-    tc9_et__Work_Order__c?: string;
-    tc9_et__Work_Order_Margin__c?: string;
-    tc9_et__XERO_Code__c?: string;
-    tc9_et__is_Active__c?: boolean;
-    tc9_et__GUID__c?: string;
-    tc9_et__Job_Board__c?: string;
-    tc9_et__Pay_Report_Exclude__c?: boolean;
-    tc9_et__Rate_Exemptions__c?: string;
-    tc9_et__Rate_Loading_Selection__c?: string;
-    tc9_et__Recruitment_Company__c?: string;
-    tc9_et__Site__c?: string;
-    tc9_et__State__c?: string;
-    tc9_et__Xero_Code_Long__c?: string;
-    tc9_et__Branch__c?: string;
-    tc9_et__External_ID__c?: string;
-    tc9_et__Compliance_Type__c?: string;
-    tc9_et__Recalculate_Rates__c?: boolean;
-    tc9_et__Ignore_for_RRD__c?: boolean;
-    tc9_et__Pay_Exempt__c?: boolean;
-    tc9_et__Margin_Type__c?: 'Amount' | 'Percentage';
-    tc9_et__Bill_Exempt__c?: boolean;
-    tc9_et__Bill_Report_Exclude__c?: boolean;
-    tc9_et__Bill_Rounding__c?: number;
-    tc9_et__Bill_Rounding_Margin__c?: number;
-    tc9_et__Pay_Rounding__c?: number;
-    tc9_et__Pay_Rounding_Margin__c?: number;
-    tc9_et__Priority__c?: number;
-    tc9_et__Test_Score__c?: string;
-    tc9_et__Employment_Company__c?: string;
-    tc9_et__GUID_Migration_Mapping__c?: string;
-    tc9_et__All_States__c?: boolean;
-    tc9_et__All_Sites__c?: boolean;
-    tc9_et__All_Branches__c?: boolean;
-}
+// Export hooks separately to maintain existing functionality
+export const payrateLoadingTemplateHooks = {
+    preMigration: async (context: any) => {
+        // Set external ID field based on org configuration
+        const externalIdField = await ExternalIdUtils.getExternalIdField(
+            context.targetOrgConnection,
+            "tc9_et__PayRate_Loading__c"
+        );
+        
+        // Replace placeholders in all configurations
+        context.template.etlSteps.forEach((step: any) => {
+            // Update SOQL query
+            if (step.extractConfig?.soqlQuery) {
+                step.extractConfig.soqlQuery = step.extractConfig.soqlQuery.replace(
+                    /{externalIdField}/g,
+                    externalIdField
+                );
+            }
+            
+            // Update field mappings
+            if (step.transformConfig?.fieldMappings) {
+                step.transformConfig.fieldMappings.forEach((mapping: any) => {
+                    if (mapping.targetField === "{externalIdField}") {
+                        mapping.targetField = externalIdField;
+                    }
+                });
+            }
+            
+            // Update load config
+            if (step.loadConfig?.externalIdField === "{externalIdField}") {
+                step.loadConfig.externalIdField = externalIdField;
+            }
+            
+            // Update validation queries
+            if (step.validationConfig?.dataIntegrityChecks) {
+                step.validationConfig.dataIntegrityChecks.forEach((check: any) => {
+                    if (check.validationQuery) {
+                        check.validationQuery = check.validationQuery.replace(
+                            /{externalIdField}/g,
+                            externalIdField
+                        );
+                    }
+                });
+            }
+        });
+    },
+    
+    postMigration: async (context: any) => {
+        // Post-migration validation
+        console.log("PayRate Loading migration completed successfully");
+    }
+};
