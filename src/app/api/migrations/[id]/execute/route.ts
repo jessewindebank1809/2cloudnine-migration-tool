@@ -12,6 +12,11 @@ import type { ExecutionProgress, MigrationTemplate } from '@/lib/migration/templ
 import type { Prisma } from '@prisma/client';
 import { SalesforceClient } from '@/lib/salesforce/client';
 import { usageTracker } from '@/lib/usage-tracker';
+import type { 
+  StepExecutionError, 
+  TechnicalErrorDetails, 
+  UniqueErrorSummary 
+} from '@/types/migration-execution';
 
 export async function POST(
   request: NextRequest,
@@ -376,20 +381,13 @@ export async function POST(
         // Track detailed execution results
         if (result.status === 'failed' || result.failedRecords > 0) {
           // Collect all error details for comprehensive tracking
-          const allErrors: Array<{
-            stepName: string;
-            recordId: string;
-            error: string;
-            errorCode?: string;
-            retryable: boolean;
-            technicalDetails?: any;
-          }> = [];
+          const allErrors: TechnicalErrorDetails[] = [];
           
           result.stepResults.forEach(step => {
             if (step.errors && step.errors.length > 0) {
-              step.errors.forEach((error: any) => {
+              step.errors.forEach((error: StepExecutionError) => {
                 // Extract technical error details
-                const errorDetails: any = {
+                const errorDetails: TechnicalErrorDetails = {
                   stepName: step.stepName,
                   recordId: error.recordId,
                   error: error.error,
@@ -479,7 +477,7 @@ export async function POST(
           // Log errors separately if they exist
           if (step.errors && step.errors.length > 0) {
             console.log(`Step ${index + 1} errors (${step.errors.length} total):`);
-            step.errors.forEach((error: any, errorIndex: number) => {
+            step.errors.forEach((error: StepExecutionError, errorIndex: number) => {
               console.log(`  Error ${errorIndex + 1}:`, {
                 recordId: error.recordId,
                 error: error.error,
@@ -507,7 +505,7 @@ export async function POST(
               const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
               const nameResult = await sourceClient.query(nameQuery);
               if (nameResult.success && nameResult.data) {
-                nameResult.data.forEach((record: any) => {
+                nameResult.data.forEach((record: { Id: string; Name?: string }) => {
                   if (record.Id && record.Name) {
                     recordNames.set(record.Id, record.Name);
                   }
@@ -550,7 +548,7 @@ export async function POST(
                 },
                 // Include step errors
                 ...result.stepResults.flatMap(step => 
-                  step.errors?.map((error: any) => ({
+                  step.errors?.map((error: StepExecutionError) => ({
                     stepName: step.stepName,
                     recordId: error.recordId,
                     error: error.error,
@@ -617,7 +615,7 @@ export async function POST(
                 const nameQuery = `SELECT Id, Name FROM ${primaryObjectType} WHERE Id IN ('${selectedRecords.join("','")}')`;
                 const nameResult = await sourceClient.query(nameQuery);
                 if (nameResult.success && nameResult.data) {
-                  nameResult.data.forEach((record: any) => {
+                  nameResult.data.forEach((record: { Id: string; Name?: string }) => {
                     if (record.Id && record.Name) {
                       recordNames.set(record.Id, record.Name);
                     }
