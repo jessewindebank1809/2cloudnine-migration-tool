@@ -121,7 +121,7 @@ describe('calculationMethodTemplate', () => {
       ];
       
       expectedPicklists.forEach(checkName => {
-        const check = picklistChecks.find(c => c.checkName === checkName);
+        const check = picklistChecks?.find(c => c.checkName === checkName);
         expect(check).toBeDefined();
         expect(check?.validateAgainstTarget).toBe(true);
         expect(check?.severity).toBe('warning');

@@ -97,92 +97,99 @@ export const payrateLoadingTemplate: MigrationTemplate = {
                     { sourceField: "tc9_et__All_Branches__c", targetField: "tc9_et__All_Branches__c", isRequired: false, transformationType: "direct" }
                 ] as FieldMapping[],
                 lookupMappings: [],
-                transformationScript: ""
+                externalIdHandling: {
+                    sourceField: "Id",
+                    targetField: "{externalIdField}",
+                    managedField: "tc9_edc__External_ID_Data_Creation__c",
+                    unmanagedField: "External_ID_Data_Creation__c",
+                    fallbackField: "External_Id__c",
+                    strategy: "auto-detect"
+                }
             },
             loadConfig: {
                 targetObject: "tc9_et__PayRate_Loading__c",
                 operation: "upsert",
                 externalIdField: "{externalIdField}",
-                bulkApiConfig: {
-                    useBulkApi: true,
-                    batchSize: 10000,
-                    concurrencyMode: "Parallel"
+                useBulkApi: true,
+                batchSize: 10000,
+                allowPartialSuccess: false,
+                retryConfig: {
+                    maxRetries: 3,
+                    retryWaitSeconds: 5,
+                    retryableErrors: ["UNABLE_TO_LOCK_ROW", "REQUEST_LIMIT_EXCEEDED"]
                 }
             },
             validationConfig: {
                 dataIntegrityChecks: [
                     {
                         checkName: "name-required",
-                        checkType: "required_field",
                         description: "Verify Name field is populated",
                         validationQuery: "SELECT COUNT(1) FROM {sourceObject} WHERE Name IS NULL",
-                        expectedResult: 0,
+                        expectedResult: "empty",
                         errorMessage: "Name field is required for all PayRate Loading records",
                         severity: "error"
                     },
                     {
                         checkName: "external-id-check",
-                        checkType: "unique_field",
                         description: "Verify External ID uniqueness",
                         validationQuery: "SELECT {externalIdField}, COUNT(1) as cnt FROM {sourceObject} GROUP BY {externalIdField} HAVING COUNT(1) > 1",
-                        expectedResult: 0,
+                        expectedResult: "empty",
                         errorMessage: "Duplicate External ID values found",
                         severity: "warning"
                     },
                     {
                         checkName: "effective-date-check",
-                        checkType: "date_validation",
                         description: "Verify date ranges are valid",
                         validationQuery: "SELECT COUNT(1) FROM {sourceObject} WHERE tc9_et__Effective_Date__c > tc9_et__End_Date__c AND tc9_et__End_Date__c IS NOT NULL",
-                        expectedResult: 0,
+                        expectedResult: "empty",
                         errorMessage: "Invalid date range: Effective Date is after End Date",
                         severity: "error"
                     }
-                ] as DataIntegrityCheck[],
+                ],
                 picklistValidationChecks: [
                     {
                         checkName: "status-picklist",
-                        checkType: "picklist_value",
                         description: "Validate Status picklist values",
                         fieldName: "tc9_et__Status__c",
                         objectName: "tc9_et__PayRate_Loading__c",
                         validateAgainstTarget: true,
                         allowedValues: [],
+                        errorMessage: "Invalid Status value",
                         severity: "warning"
                     },
                     {
                         checkName: "rate-loading-type-picklist",
-                        checkType: "picklist_value",
                         description: "Validate Rate Loading Type picklist values",
                         fieldName: "tc9_et__Rate_Loading_Type__c",
                         objectName: "tc9_et__PayRate_Loading__c",
                         validateAgainstTarget: true,
                         allowedValues: [],
+                        errorMessage: "Invalid Rate Loading Type value",
                         severity: "warning"
                     },
                     {
                         checkName: "margin-type-picklist",
-                        checkType: "picklist_value",
                         description: "Validate Margin Type picklist values",
                         fieldName: "tc9_et__Margin_Type__c",
                         objectName: "tc9_et__PayRate_Loading__c",
                         validateAgainstTarget: true,
                         allowedValues: [],
+                        errorMessage: "Invalid Margin Type value",
                         severity: "warning"
                     },
                     {
                         checkName: "compliance-type-picklist",
-                        checkType: "picklist_value",
                         description: "Validate Compliance Type picklist values",
                         fieldName: "tc9_et__Compliance_Type__c",
                         objectName: "tc9_et__PayRate_Loading__c",
                         validateAgainstTarget: true,
                         allowedValues: [],
+                        errorMessage: "Invalid Compliance Type value",
                         severity: "warning"
                     }
-                ] as PicklistValidationCheck[],
-                relationshipChecks: [],
-                businessLogicChecks: []
+                ],
+                dependencyChecks: [],
+                preValidationQueries: []
             },
             dependencies: []
         }

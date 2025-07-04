@@ -84,8 +84,8 @@ describe('PayRate Loading Template', () => {
       expect(loadConfig.targetObject).toBe('tc9_et__PayRate_Loading__c');
       expect(loadConfig.operation).toBe('upsert');
       expect(loadConfig.externalIdField).toBe('{externalIdField}');
-      expect(loadConfig.bulkApiConfig?.useBulkApi).toBe(true);
-      expect(loadConfig.bulkApiConfig?.batchSize).toBe(10000);
+      expect(loadConfig.useBulkApi).toBe(true);
+      expect(loadConfig.batchSize).toBe(10000);
     });
   });
 
