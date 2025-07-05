@@ -1,36 +1,62 @@
 # 2cloudnine Migration Tool
 
-A standalone web application built with Next.js, designed to facilitate seamless
-data migration between 2cloudnine product objects. Written in TypeScript. Works
-with prebuilt migration templates.
+A sophisticated enterprise-grade web application for facilitating seamless data migration between Salesforce organisations, specifically focused on migrating 2cloudnine product objects. Built with modern web technologies and designed for reliability, scalability, and ease of use.
 
 ## 🚀 Features
 
-- **Salesforce OAuth Integration**: Secure authentication with Salesforce
-  organisations
-- **Data Migration**: Migrate custom objects, records, and relationships
+### Core Capabilities
+- **Salesforce OAuth Integration**: Secure authentication with Production, Sandbox, and Scratch orgs
+- **Data Migration Engine**: Migrate custom objects, records, and relationships with field mapping
+- **Pre-built Templates**: Ready-to-use migration templates for:
+  - Interpretation Rules
+  - Pay Codes
+  - Leave Rules
+  - Award Classifications and Levels
+  - Minimum Pay Rates
 - **Real-time Progress Tracking**: Monitor migration status with live updates
 - **Multi-org Support**: Connect and manage multiple Salesforce organisations
-- **Migration Templates**: Pre-built templates for common migration scenarios
+
+### Advanced Features
+- **Scheduled Migrations**: Schedule migrations with cron expressions
+- **Queue Management**: BullMQ-powered job queuing with Redis
+- **Rollback Capabilities**: Undo failed migrations
+- **Analytics Dashboard**: Track migration metrics and insights
 - **Audit Trail**: Complete logging and reporting of migration activities
-- **Feedback System**: Built-in feedback with file attachments support for bug reports and feature requests
+- **Usage Monitoring**: Track API calls and resource utilisation
+- **Admin Panel**: User management and system configuration
+- **Feedback System**: Built-in feedback with file attachments support
 
 ## 🔧 Technology Stack
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Styling**: Tailwind CSS, shadcn/ui
+### Frontend
+- **Framework**: Next.js 15 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS, shadcn/ui (Radix UI)
+- **State Management**: Zustand, TanStack Query
+- **Animations**: Framer Motion
+- **Forms**: React Hook Form with Zod validation
+
+### Backend
+- **API**: Next.js API Routes
 - **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: Salesforce OAuth with Better Auth
-- **API Integration**: Salesforce REST/Bulk APIs
-- **Deployment**: Docker, Fly.io
+- **Authentication**: Better Auth with Salesforce OAuth
+- **Queue Management**: BullMQ with Redis
+- **Salesforce Integration**: JSForce
+- **Error Tracking**: Sentry
+
+### Infrastructure
+- **Runtime**: Node.js / Bun
+- **Containerisation**: Docker
+- **Deployment**: Fly.io
+- **Monitoring**: Built-in analytics and metrics
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 18+ or Bun 1.0+
 - PostgreSQL database
-- Salesforce Developer/Production org
+- Redis server (for job queuing)
+- Salesforce Developer/Production org with Connected App
 
 ### Installation
 
@@ -86,6 +112,12 @@ BETTER_AUTH_URL="http://localhost:3000"
 # Application
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ENCRYPTION_KEY="your_32_character_encryption_key"
+
+# Queue Management
+REDIS_URL="redis://localhost:6379"
+
+# Error Tracking (Optional)
+SENTRY_DSN="your_sentry_dsn"
 ```
 
 ## 🔄 Migration Workflow
@@ -130,22 +162,62 @@ fly deploy
 
 ## 📝 Scripts
 
-- `npm run dev:fresh:env` - Start development server with fresh environment
-  variables
+### Development
+- `npm run dev` - Start development server
+- `npm run dev:fresh:env` - Start with fresh environment variables
 - `npm run build` - Build for production
+- `npm run start` - Start production server
+
+### Database
 - `npm run db:migrate` - Run database migrations
+- `npm run db:push` - Push schema changes
 - `npm run db:studio` - Open Prisma Studio
+- `npm run db:seed` - Seed database with sample data
+
+### Testing & Quality
+- `npm run test` - Run unit tests
+- `npm run test:coverage` - Run tests with coverage
+- `npm run test:e2e` - Run end-to-end tests
+- `npm run type-check` - Run TypeScript type checking
+- `npm run lint` - Run ESLint
+- `npm run format` - Format code with Prettier
+
+### Deployment
+- `npm run deploy:staging` - Deploy to staging
+- `npm run deploy:production` - Deploy to production
 
 ## 🏗️ Project Structure
 
 ```
 src/
-├── app/              # Next.js app router
-├── components/       # React components
-├── lib/             # Utility libraries
-├── hooks/           # React hooks
-└── types/           # TypeScript definitions
+├── app/                  # Next.js app router pages and API routes
+│   ├── api/             # API endpoints for migration operations
+│   ├── auth/            # Authentication pages
+│   ├── migrations/      # Migration UI pages
+│   ├── orgs/            # Organisation management
+│   └── templates/       # Template management
+├── components/          # React components
+│   ├── features/        # Feature-specific components
+│   ├── layout/          # Layout components
+│   ├── providers/       # Context providers
+│   └── ui/              # Reusable UI components
+├── lib/                 # Core business logic
+│   ├── auth/            # Authentication utilities
+│   ├── migration/       # Migration engine and services
+│   ├── salesforce/      # Salesforce API integration
+│   └── utils/           # Utility functions
+├── hooks/               # Custom React hooks
+├── types/               # TypeScript type definitions
+└── prisma/              # Database schema and migrations
 ```
+
+## 🔐 Security Features
+
+- **Token Encryption**: Salesforce tokens are encrypted at rest
+- **Session Management**: IP and user agent tracking for security
+- **Role-Based Access**: Admin and User role separation
+- **CSRF Protection**: Built-in CSRF token validation
+- **Secure OAuth Flow**: Industry-standard OAuth 2.0 implementation
 
 ---
 
